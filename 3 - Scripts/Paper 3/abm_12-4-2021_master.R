@@ -1,4 +1,4 @@
-#************************************** School ABM ****************************************#
+#************************************** Nursing Home ABM ****************************************#
 #                                                                                          #
 #                                                                                          #
 #                                                                                          #
@@ -11,160 +11,114 @@ library(tidyverse)
 library(igraph)
 library(tictoc)
 
-#' Synthetic Maryland elementary school population
+#' Synthetic Rhode Island nursing home population
 #'
-#' A data frame containing a synthetic population of children
-#' ages 5-10, representative of the state of Maryland.
-#' This is used by make_school() to sort children into classes.
+#' A data frame containing a synthetic population of nursing home residents
+#' representative of nursing homes in Rhode Island.
+#' This is used by make_NH().
 #'
 #' @docType data
 #' @format A data frame with
 #' \describe{
-#'  \item{HH_id}{household ID}
-#'  \item{age}{age}
-#'  \item{flag_mult}{true if more than one child in the household, not used}
 #'  \item{id}{individual id #}
+#'  \item{type}{0: resident, 1: staff, 2: visitor}
+#'  \item{age}{age}
+#'  \item{role}{if staff; 0: RN, 1: LPN, 2: CNA, 3: medication aide/technician, 4: admin/support (non-direct care) staff}
+#'  \item{sex}{0: male, 1: female}
+#'  \item{private_room}{true if resident has private room}
+#'  \item{n_visits}{number of visits per month}
 #' }
 #'
-#' @usage data(synthMaryland)
+#' @usage data(synthpop_NH)
 #'
 #' @keywords datasets
 #'
-#' @source Wheaton, W.D., U.S. Synthetic Population 2010 Version 1.0 Quick Start Guide, RTI International, May 2014.
-#' (\href{https://fred.publichealth.pitt.edu/syn_pops}{website}).  Created with script demographic_data2.R.
+#' @source
 #'
 "synthpop"
 
 
-#' Synthetic Maryland high school population
+#' Structure nursing home and visitor/staff-pateint relationships
 #'
-#' A data frame containing a synthetic population of children
-#' ages 14-17, representative of the state of Maryland.
-#' This is used by make_school() to sort children into classes.
+#' This function allows you to sort nursing home residents into rooms (42 doubles, 36 singles),
+#' match visitors to residents, and add option for cohorting between staff and residents.
 #'
-#' @docType data
-#' @format A data frame with
-#' \describe{
-#'  \item{HH_id}{household ID}
-#'  \item{age}{age}
-#'  \item{flag_mult}{true if more than one child in the household, not used}
-#'  \item{id}{individual id #}
-#' }
+#' @param synthpop synthetic population; defaults to synthpop_NH stored in file
+#' @param cohorting assigning staff to residents; defaults to F
 #'
-#' @usage data(synthMaryland_HS)
-#'
-#' @keywords datasets
-#'
-#' @source Wheaton, W.D., U.S. Synthetic Population 2010 Version 1.0 Quick Start Guide, RTI International, May 2014.
-#' (\href{https://fred.publichealth.pitt.edu/syn_pops}{website}).  Created with script demographic_data2.R.
-#'
-"synthpop_HS"
-
-#' Make school
-#'
-#' This function allows you to sort a synthetic population into classes.
-#' It also assigns children to groups for alternating schedules and
-#' ensures that children are in the same group as siblings.
-#' It adds non-primary teacher staff, and if families are included, includes
-#' two adult family members per child and one per adult staff member.
-#'
-#' @param synthpop synthetic population; defaults to synthMaryland stored in file
-#' @param n_other_adults Number of adults in the school other than primary teachers; defaults to 30
-#' @param includeFamily whether to include family and adult family members of teachers, default = FALSE
-#' @param n_class number of classes per grade
-#'
-#' @return out data frame of child and teacher attributes
+#' @return out data frame of structured nursing home
 #'
 #' @export
-make_school = function(
-  # starting synthetic population
-  synthpop, n_other_adults = 30, includeFamily = F, n_class = 4){
+make_NH = function(synthpop, cohorting = F){
   
-  # select rows
-  kids = synthpop %>%
+  # select residents who live with roommates
+  doubles = subset(synthpop, private_room == FALSE)
+  doubles %>%
     
-    # make classes as close to equal size as possible
-    mutate(class.placeholder = rep(1:n_class, length.out = nrow(synthpop)),
-           class = as.numeric(as.factor(paste(age, class.placeholder))),
-           adult = F, family = F, family_staff = F) %>%
+    # sort residents into rooms
+    mutate(room.placeholder = rep(1:nrow(doubles)/2, each = 2, length.out = nrow(doubles)),
+           room = as.numeric(as.factor(paste(room.placeholder)))) %>%
     
-    # get rid of class placeholder variable
-    dplyr::select(-class.placeholder) %>%
+    # get rid of room placeholder variable
+    dplyr::select(-room.placeholder) %>%
     
-    # randomly reorder kids in classes
-    group_by(age) %>% mutate(class = sample(class)) %>% group_by(class) %>%
+    # randomly reorder residents in rooms
+    mutate(room = sample(room)) %>% group_by(room)
     
-    # randomly sort to groups
-    mutate(group = sample(rep(sample(0:1), length.out = length(class))),  # when split in 2
-           group_quarter = sample(rep(sample(0:3), length.out = length(class)))) %>%  # when split in  4
-    
-    # reassign siblings to all be in the same group
-    gather(var, value, group, group_quarter) %>% group_by(HH_id, var) %>%
-    mutate(old = value, value = value[1], swap = old!=value, swap2 = F) %>% ungroup() %>% arrange(HH_id)
   
-  # now reassign children w/o siblings to replace siblings who were swapped
-  # if none exists, it doesn't make a swap
-  # this is not elegant/sophisticated
-  # but gets pretty decent balance
-  for(i in 1:nrow(kids)){
-    
-    # check if a child was swapped
-    if(kids$swap[i]==T){
-      
-      # look for kids in the classroom into which they were swapped
-      # that don't have siblings
-      vec = as.vector(kids$id[kids$id!=kids$id[i] & kids$class==kids$class[i] & kids$var==kids$var[i] &
-                                kids$value==kids$value[i] & !kids$flag_mult & !kids$swap2])
-      
-      # if these exist
-      if(length(vec)>0){
-        
-        # take one if there's only 1
-        if(length(vec)==1){
-          id.swap = vec
-        } else(id.swap = sample(vec, 1))  # otw select one randomly
-        
-        # then reassign that kid to the old classroom
-        # and note that the kid was swapped
-        kids$value[kids$id==id.swap & kids$var==kids$var[i]] = kids$old[i]
-        kids$swap2[kids$id==id.swap & kids$var==kids$var[i]] = T
-      }
-    }
-  }
+  # make data frame for the rest of the nursing home synthpop
+  others = data.frame(subset(synthpop, (private_room == TRUE & type == 0) | type != 0))
+  others$room = 0   # 0 indicates a resident with no roommate
+  others[others$type == 1,]$room = 99   # 99 indicates staff
+  others[others$type == 2,]$room = -1   # -1 indicates visitors
   
-  # spread kids data frame so that group variables are columns again
-  kids = kids %>% dplyr::select(-old, -swap, -swap2) %>% spread(var, value)
+  # bind doubles and others data frames
+  rooms = doubles %>% bind_rows(others) %>%
+    arrange(type, room)
   
-  # make teachers data frame
-  teachers = data.frame(HH_id = max(kids$HH_id+1):(max(kids$HH_id) + max(kids$class)),
-                        age = 0, class = unique(kids$class), adult = T, group = 99,
-                        group_quarter = 99, family = F, family_staff = F)
+  --------------------------------------------------------------------------------------------------
   
-  # make other adults data frame
-  other_adults = data.frame(HH_id = max(teachers$HH_id + 1):max(teachers$HH_id + n_other_adults),
-                            age = 0, class = 99, adult = T, class_grp2 = 5, class_grp4 = 5,
-                            group = 99, group_quarter = 99, family =  F, family_staff = F)
+  # match visitors to residents
+  residents = subset(rooms, type == 0)
   
-  # bind kid and teacher data frames
-  out = kids %>% bind_rows(teachers) %>% mutate(class_grp2 = class%%2, class_grp4 = class%%4) %>%
-    arrange(adult, class) %>% bind_rows(other_adults)
+  one_visitor = subset(residents, n_visits == 1 | n_visits == 4) # 1 visitor monthly/weekly
+  one_visitor['family'] = 1:nrow(one_visitor)
   
-  if(includeFamily){
-    
-    # make family data frame
-    family = data.frame(HH_id = c(rep(1:max(synthpop$HH_id), each = 2), unique(teachers$HH_id), unique(other_adults$HH_id)),
-                        age = 0, flag_mult = NA, family = T, adult = T,
-                        group = 99, group_quarter = 99, class = 99) %>%
-      mutate(family_staff = ifelse(HH_id > max(synthpop$HH_id), T, F))
-    
-    out = out %>% bind_rows(family)
-    
-  }
+  two_visitor = subset(residents, n_visits == 2 | n_visits == 8) # 2 visitors monthly/weekly
+  two_visitor['family'] = nrow(one_visitor)+1:nrow(two_visitor)
+  
+  residents = one_visitor %>% bind_rows(two_visitor)
+  
+  # sample from visitors
+  visitors = subset(rooms, type == 2)
+  
+  sample_one = sample_n(visitors,60)
+  sample_one %>%
+    mutate(family = 1:nrow(sample_one))
+  sample_one_id = sample_one$id
+  
+  sample_two = sample_n(subset(visitors, !(id %in% sample_one$id)),120)
+  sample_two %>%
+    mutate(family = rep(nrow(sample_one)+1:nrow(sample_two), each=2, length.out=nrow(sample_two)))
+  
+  visitors = sample_one %>% bind_rows(sample_two)
+  
+  # make data frame for staff
+  staff = data.frame(subset(rooms, type == 1))
+  staff$family = 99   # 0 indicates staff
+  
+  # bind residents, staff, and visitors dataframes
+  out = residents %>% bind_rows(staff) %>% bind_rows(visitors)
+  
+  --------------------------------------------------------------------------------------------------
+  # cohorting
   
   return(out)
   
 }
 
+
+## add covid/biological params for nursing home and residents
 #' Initialize school
 #'
 #' This function takes in a data frame exported by make_school().
@@ -307,6 +261,8 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
   return(df)
 }
 
+
+## make schedule of infections? who is infected/isolating/recovered. how to add hospitalizations/deaths?
 #' Make schedule
 #'
 #' Make a schedule of when individuals in the school community are
@@ -372,6 +328,8 @@ make_schedule = function(time = 30, type = "base", total_days = 5, df){
   return(d)
 }
 
+
+## run_room - room transmission for those in doubles? add staff interactions?
 #' Set household transmission
 #'
 #' Determine who is infected at a timestep
@@ -408,6 +366,8 @@ run_household = function(a, df){
   return(infs)
 }
 
+
+## common area transmission?
 #' Set class transmission
 #'
 #' Determine who is infected at a timestep
@@ -462,6 +422,8 @@ run_class = function(a, df, high_school = F, hs.classes = NA){
   return(infs)
 }
 
+
+## out-of-nursing home transmission in community?
 #' Set random transmission
 #'
 #' Determine who is infected at a timestep
@@ -494,6 +456,8 @@ run_rand = function(a, df, random_contacts){
   return(infs)
 }
 
+
+## staff transmission
 #' Set random staff transmission
 #'
 #' Determine who is infected at a timestep
@@ -529,6 +493,8 @@ run_staff_rand = function(a, df, n_contact, rel_trans_adult = 2){
   }else return(0)
 }
 
+
+## visitors transmission
 #' Set care-based transmission
 #'
 #' Determine who is infected at a timestep
@@ -672,6 +638,8 @@ make_infected = function(df.u, days_inf, set = NA, mult_asymp = 1, mult_asymp_ch
   return(df.u)
 }
 
+
+## special/visiting staff transmission?
 #' Set specials transmission
 #'
 #' Determine who is infected at a timestep
@@ -713,6 +681,8 @@ run_specials = function(a, df, specials){
   return(infs)
 }
 
+
+## don't need
 #' Run model
 #'
 #' Perform a single model run

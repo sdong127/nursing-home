@@ -38,7 +38,7 @@ library(tictoc)
 "synthpop"
 
 
-#' Structure nursing home and visitor/staff-pateint relationships
+#' Structure nursing home and visitor/staff-patient relationships
 #'
 #' This function allows you to sort nursing home residents into rooms (42 doubles, 36 singles),
 #' match visitors to residents, and add option for cohorting between staff and residents.
@@ -112,6 +112,53 @@ make_NH = function(synthpop, cohorting = F){
   
   --------------------------------------------------------------------------------------------------
   # cohorting
+  if(cohorting){
+    
+    # assign cohort #s to direct care staff
+    rn = subset(out, type == 1 & role == 0)
+    rn %>% 
+      mutate(rn_cohort = 1:nrow(rn))
+    
+    lpn = subset(out, type == 1 & role == 1)
+    lpn %>% 
+      mutate(lpn_cohort = 1:nrow(lpn))
+    
+    cna = subset(out, type == 1 & role == 2)
+    cna %>% 
+      mutate(cna_cohort = 1:nrow(cna))
+    
+    med_aide = subset(out, type == 1 & role == 3)
+    med_aide %>% 
+      mutate(ma_cohort = 1:nrow(med_aide))
+    
+    admin = subset(out, type == 1 & role == 4)
+    
+    # assign direct care staff to residents
+    res_counter = 1
+    for(i in 1:nrow(rn)){
+      residents[res_counter:(res_counter+nrow(residents)/nrow(rn)-1),"rn_cohort"] = i
+      res_counter = res_counter+nrow(residents)/nrow(rn)
+    }
+    res_counter = 1
+    for(i in 1:nrow(lpn)){
+      residents[res_counter:(res_counter+nrow(residents)/nrow(lpn)-1),"lpn_cohort"] = i
+      res_counter = res_counter+nrow(residents)/nrow(lpn)
+    }
+    res_counter = 1
+    for(i in 1:nrow(cna)){
+      residents[res_counter:(res_counter+nrow(residents)/nrow(cna)-1),"cna_cohort"] = i
+      res_counter = res_counter+nrow(residents)/nrow(cna)
+    }
+    res_counter = 1
+    for(i in 1:nrow(med_aide)){
+      residents[res_counter:(res_counter+nrow(residents)/nrow(med_aide)-1),"ma_cohort"] = i
+      res_counter = res_counter+nrow(residents)/nrow(med_aide)
+    }
+    
+    # bind residents, staff, and visitors into dataframe
+    out = residents %>% bind_rows(rn) %>% bind_rows(lpn) %>% bind_rows(cna) %>% 
+      bind_rows(med_aide) %>% bind_rows(admin) %>% bind_rows(visitors)
+  }
   
   return(out)
   

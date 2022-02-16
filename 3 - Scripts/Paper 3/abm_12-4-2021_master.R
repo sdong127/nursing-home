@@ -49,14 +49,14 @@ library(tictoc)
 #' @return out data frame of structured nursing home
 #'
 #' @export
-make_NH = function(synthpop, cohorting = F){
+make_NH = function(synthpop, cohorting = FALSE){
   
   # select residents who live with roommates
-  doubles = subset(synthpop, private_room == FALSE)
-  doubles %>%
+  doubles = subset(synthpop, private_room == FALSE) %>%
     
     # sort residents into rooms
-    mutate(room.placeholder = rep(1:nrow(doubles)/2, each = 2, length.out = nrow(doubles)),
+    mutate(room.placeholder = rep(1:nrow(subset(synthpop, private_room == FALSE))/2, each = 2, 
+                                  length.out = nrow(subset(synthpop, private_room == FALSE))),
            room = as.numeric(as.factor(paste(room.placeholder)))) %>%
     
     # get rid of room placeholder variable
@@ -76,7 +76,7 @@ make_NH = function(synthpop, cohorting = F){
   rooms = doubles %>% bind_rows(others) %>%
     arrange(type, room)
   
-  --------------------------------------------------------------------------------------------------
+  # ------------------------------------------------------------------------------------------------
   
   # match visitors to residents
   residents = subset(rooms, type == 0)
@@ -92,14 +92,13 @@ make_NH = function(synthpop, cohorting = F){
   # sample from visitors
   visitors = subset(rooms, type == 2)
   
-  sample_one = sample_n(visitors,60)
-  sample_one %>%
-    mutate(family = 1:nrow(sample_one))
+  sample_one = sample_n(visitors,60) %>% 
+    mutate(family = 1:nrow(sample_n(visitors,60)))
   sample_one_id = sample_one$id
   
-  sample_two = sample_n(subset(visitors, !(id %in% sample_one$id)),120)
-  sample_two %>%
-    mutate(family = rep(nrow(sample_one)+1:nrow(sample_two), each=2, length.out=nrow(sample_two)))
+  sample_two = sample_n(subset(visitors, !(id %in% sample_one$id)),120) %>%
+    mutate(family = rep(nrow(sample_one)+1:nrow(sample_n(subset(visitors, !(id %in% sample_one$id)),120)), 
+                        each=2, length.out=nrow(sample_n(subset(visitors, !(id %in% sample_one$id)),120))))
   
   visitors = sample_one %>% bind_rows(sample_two)
   
@@ -110,26 +109,29 @@ make_NH = function(synthpop, cohorting = F){
   # bind residents, staff, and visitors dataframes
   out = residents %>% bind_rows(staff) %>% bind_rows(visitors)
   
-  --------------------------------------------------------------------------------------------------
+  # --------------------------------------------------------------------------------------------------
   # cohorting
-  if(cohorting){
+  if(cohorting == TRUE){
     
-    # assign cohort #s to direct care staff
-    # rn = subset(out, type == 1 & role == 0)
-    # rn %>% 
-    #   mutate(rn_cohort_morning = 1:5) %>% mutate(rn_cohort_evening = 6:9) %>% mutate(rn_cohort_night = 10:12)
-    # 
-    # lpn = subset(out, type == 1 & role == 1)
-    # lpn %>% 
-    #   mutate(lpn_cohort_morning = 1:4) %>% mutate(lpn_cohort_evening = 5:7) %>% mutate(lpn_cohort_night = 8:9)
-    # 
-    # cna = subset(out, type == 1 & role == 2)
-    # cna %>% 
-    #   mutate(cna_cohort_morning = 1:15) %>% mutate(cna_cohort_evening = 16:27) %>% mutate(cna_cohort_night = 28:37)
-    # 
-    # med_aide = subset(out, type == 1 & role == 3)
-    # med_aide %>% 
-    #   mutate(ma_cohort_morning = 1:2) %>% mutate(ma_cohort_evening = 3)
+    # assign cohorts to direct care staff
+    rn_cohort_morning = subset(out, type == 1 & role == 0)[1:5,] %>% mutate(rn_cohort_morning = 1:5)
+    rn_cohort_evening = subset(out, type == 1 & role == 0)[6:9,] %>% mutate(rn_cohort_evening = 6:9) 
+    rn_cohort_night = subset(out, type == 1 & role == 0)[10:12,] %>% mutate(rn_cohort_night = 10:12)
+    rn = rn_cohort_morning %>% bind_rows(rn_cohort_evening) %>% bind_rows(rn_cohort_night)
+    
+    lpn_cohort_morning = subset(out, type == 1 & role == 1)[1:4,] %>% mutate(lpn_cohort_morning = 1:4) 
+    lpn_cohort_evening = subset(out, type == 1 & role == 1)[5:7,] %>% mutate(lpn_cohort_evening = 5:7)
+    lpn_cohort_night = subset(out, type == 1 & role == 1)[8:9,] %>% mutate(lpn_cohort_night = 8:9)
+    lpn = lpn_cohort_morning %>% bind_rows(lpn_cohort_evening) %>% bind_rows(lpn_cohort_night)
+    
+    cna_cohort_morning = subset(out, type == 1 & role == 2)[1:15,] %>% mutate(cna_cohort_morning = 1:15)  
+    cna_cohort_evening = subset(out, type == 1 & role == 2)[16:27,] %>% mutate(cna_cohort_evening = 16:27)
+    cna_cohort_night = subset(out, type == 1 & role == 2)[28:37,] %>% mutate(cna_cohort_night = 28:37)
+    cna = cna_cohort_morning %>% bind_rows(cna_cohort_evening) %>% bind_rows(cna_cohort_night)
+    
+    ma_cohort_morning = subset(out, type == 1 & role == 3)[1:2,] %>% mutate(ma_cohort_morning = 1:2) 
+    ma_cohort_evening = subset(out, type == 1 & role == 3)[3,] %>% mutate(ma_cohort_evening = 3)
+    med_aide = ma_cohort_morning %>% bind_rows(ma_cohort_evening)
     
     admin = subset(out, type == 1 & role == 4)
     
@@ -205,6 +207,10 @@ make_NH = function(synthpop, cohorting = F){
     out = residents %>% bind_rows(rn) %>% bind_rows(lpn) %>% bind_rows(cna) %>% 
       bind_rows(med_aide) %>% bind_rows(admin) %>% bind_rows(visitors)
   }
+  
+  # else{
+  #   print("nothing")
+  # }
   
   return(out)
   

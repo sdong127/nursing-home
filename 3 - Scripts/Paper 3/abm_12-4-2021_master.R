@@ -312,8 +312,7 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
 ## make schedule of infections? who is infected/isolating/recovered. how to add hospitalizations/deaths?
 #' Make schedule
 #'
-#' Make a schedule of when individuals in the school community are
-#' present/absent
+#' Make a schedule of when staff and visitors are present/absent
 #'
 #' @param time number of days; defaults to 30
 #' @param type "base", "On/off", "A/B", "Remote"; defaults to "base"

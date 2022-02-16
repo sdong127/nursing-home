@@ -115,44 +115,90 @@ make_NH = function(synthpop, cohorting = F){
   if(cohorting){
     
     # assign cohort #s to direct care staff
-    rn = subset(out, type == 1 & role == 0)
-    rn %>% 
-      mutate(rn_cohort = 1:nrow(rn))
-    
-    lpn = subset(out, type == 1 & role == 1)
-    lpn %>% 
-      mutate(lpn_cohort = 1:nrow(lpn))
-    
-    cna = subset(out, type == 1 & role == 2)
-    cna %>% 
-      mutate(cna_cohort = 1:nrow(cna))
-    
-    med_aide = subset(out, type == 1 & role == 3)
-    med_aide %>% 
-      mutate(ma_cohort = 1:nrow(med_aide))
+    # rn = subset(out, type == 1 & role == 0)
+    # rn %>% 
+    #   mutate(rn_cohort_morning = 1:5) %>% mutate(rn_cohort_evening = 6:9) %>% mutate(rn_cohort_night = 10:12)
+    # 
+    # lpn = subset(out, type == 1 & role == 1)
+    # lpn %>% 
+    #   mutate(lpn_cohort_morning = 1:4) %>% mutate(lpn_cohort_evening = 5:7) %>% mutate(lpn_cohort_night = 8:9)
+    # 
+    # cna = subset(out, type == 1 & role == 2)
+    # cna %>% 
+    #   mutate(cna_cohort_morning = 1:15) %>% mutate(cna_cohort_evening = 16:27) %>% mutate(cna_cohort_night = 28:37)
+    # 
+    # med_aide = subset(out, type == 1 & role == 3)
+    # med_aide %>% 
+    #   mutate(ma_cohort_morning = 1:2) %>% mutate(ma_cohort_evening = 3)
     
     admin = subset(out, type == 1 & role == 4)
     
     # assign direct care staff to residents
     res_counter = 1
-    for(i in 1:nrow(rn)){
-      residents[res_counter:(res_counter+nrow(residents)/nrow(rn)-1),"rn_cohort"] = i
-      res_counter = res_counter+nrow(residents)/nrow(rn)
+    rn_morning = 5
+    for(i in 1:rn_morning){
+      residents[res_counter:(res_counter+(nrow(residents)/rn_morning)-1),"rn_cohort_morning"] = i
+      res_counter = res_counter+nrow(residents)/rn_morning
     }
     res_counter = 1
-    for(i in 1:nrow(lpn)){
-      residents[res_counter:(res_counter+nrow(residents)/nrow(lpn)-1),"lpn_cohort"] = i
-      res_counter = res_counter+nrow(residents)/nrow(lpn)
+    rn_evening = 4
+    for(i in ((rn_morning+1):(rn_morning+rn_evening))){
+      residents[res_counter:(res_counter+(nrow(residents)/rn_evening)-1),"rn_cohort_evening"] = i
+      res_counter = res_counter+nrow(residents)/rn_evening
     }
     res_counter = 1
-    for(i in 1:nrow(cna)){
-      residents[res_counter:(res_counter+nrow(residents)/nrow(cna)-1),"cna_cohort"] = i
-      res_counter = res_counter+nrow(residents)/nrow(cna)
+    rn_night = 3
+    for(i in ((rn_morning+rn_evening+1):(rn_morning+rn_evening+rn_night))){
+      residents[res_counter:(res_counter+(nrow(residents)/rn_night)-1),"rn_cohort_night"] = i
+      res_counter = res_counter+nrow(residents)/rn_night
     }
     res_counter = 1
-    for(i in 1:nrow(med_aide)){
-      residents[res_counter:(res_counter+nrow(residents)/nrow(med_aide)-1),"ma_cohort"] = i
-      res_counter = res_counter+nrow(residents)/nrow(med_aide)
+    lpn_morning = 4
+    for(i in 1:lpn_morning){
+      residents[res_counter:(res_counter+(nrow(residents)/lpn_morning)-1),"lpn_cohort_morning"] = i
+      res_counter = res_counter+nrow(residents)/lpn_morning
+    }
+    res_counter = 1
+    lpn_evening = 3
+    for(i in ((lpn_morning+1):(lpn_morning+lpn_evening))){
+      residents[res_counter:(res_counter+(nrow(residents)/lpn_evening)-1),"lpn_cohort_evening"] = i
+      res_counter = res_counter+nrow(residents)/lpn_evening
+    }
+    res_counter = 1
+    lpn_night = 2
+    for(i in ((lpn_morning+lpn_evening+1):(lpn_morning+lpn_evening+lpn_night))){
+      residents[res_counter:(res_counter+(nrow(residents)/lpn_night)-1),"lpn_cohort_night"] = i
+      res_counter = res_counter+nrow(residents)/lpn_night
+    }
+    res_counter = 1
+    cna_morning = 15
+    for(i in 1:cna_morning){
+      residents[res_counter:(res_counter+(nrow(residents)/cna_morning)-1),"cna_cohort_morning"] = i
+      res_counter = res_counter+nrow(residents)/cna_morning
+    }
+    res_counter = 1
+    cna_evening = 12
+    for(i in ((cna_morning+1):(cna_morning+cna_evening))){
+      residents[res_counter:(res_counter+(nrow(residents)/cna_evening)-1),"cna_cohort_evening"] = i
+      res_counter = res_counter+nrow(residents)/cna_evening
+    }
+    res_counter = 1
+    cna_night = 10
+    for(i in ((cna_morning+cna_evening+1):(cna_morning+cna_evening+cna_night))){
+      residents[res_counter:(res_counter+(nrow(residents)/cna_night)-1),"cna_cohort_night"] = i
+      res_counter = res_counter+nrow(residents)/cna_night
+    }
+    res_counter = 1
+    med_aide_morning = 2
+    for(i in 1:med_aide_morning){
+      residents[res_counter:(res_counter+(nrow(residents)/med_aide_morning)-1),"ma_cohort_morning"] = i
+      res_counter = res_counter+nrow(residents)/med_aide_morning
+    }
+    res_counter = 1
+    med_aide_evening = 1
+    for(i in ((med_aide_morning+1):(med_aide_morning+med_aide_evening))){
+      residents[res_counter:(res_counter+(nrow(residents)/med_aide_evening)-1),"ma_cohort_evening"] = i
+      res_counter = res_counter+nrow(residents)/med_aide_evening
     }
     
     # bind residents, staff, and visitors into dataframe

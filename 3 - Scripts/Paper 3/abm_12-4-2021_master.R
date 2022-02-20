@@ -104,36 +104,40 @@ make_NH = function(synthpop, cohorting = FALSE){
   
   # make data frame for staff
   staff = data.frame(subset(rooms, type == 1))
-  staff$family = 99   # 0 indicates staff
+  staff$family = 0   # 0 indicates staff
   
   # bind residents, staff, and visitors dataframes
   out = residents %>% bind_rows(staff) %>% bind_rows(visitors)
   
-  # --------------------------------------------------------------------------------------------------
-  # cohorting
+  # ------------------------------------------------------------------------------------------------
+  
+  # assign shifts to direct care staff
+  rn_cohort_morning = subset(out, type == 1 & role == 0)[1:5,] %>% mutate(rn_cohort_morning = 1:5)
+  rn_cohort_evening = subset(out, type == 1 & role == 0)[6:9,] %>% mutate(rn_cohort_evening = 6:9) 
+  rn_cohort_night = subset(out, type == 1 & role == 0)[10:12,] %>% mutate(rn_cohort_night = 10:12)
+  rn = rn_cohort_morning %>% bind_rows(rn_cohort_evening) %>% bind_rows(rn_cohort_night)
+  
+  lpn_cohort_morning = subset(out, type == 1 & role == 1)[1:4,] %>% mutate(lpn_cohort_morning = 1:4) 
+  lpn_cohort_evening = subset(out, type == 1 & role == 1)[5:7,] %>% mutate(lpn_cohort_evening = 5:7)
+  lpn_cohort_night = subset(out, type == 1 & role == 1)[8:9,] %>% mutate(lpn_cohort_night = 8:9)
+  lpn = lpn_cohort_morning %>% bind_rows(lpn_cohort_evening) %>% bind_rows(lpn_cohort_night)
+  
+  cna_cohort_morning = subset(out, type == 1 & role == 2)[1:15,] %>% mutate(cna_cohort_morning = 1:15)  
+  cna_cohort_evening = subset(out, type == 1 & role == 2)[16:27,] %>% mutate(cna_cohort_evening = 16:27)
+  cna_cohort_night = subset(out, type == 1 & role == 2)[28:37,] %>% mutate(cna_cohort_night = 28:37)
+  cna = cna_cohort_morning %>% bind_rows(cna_cohort_evening) %>% bind_rows(cna_cohort_night)
+  
+  ma_cohort_morning = subset(out, type == 1 & role == 3)[1:2,] %>% mutate(ma_cohort_morning = 1:2) 
+  ma_cohort_evening = subset(out, type == 1 & role == 3)[3,] %>% mutate(ma_cohort_evening = 3)
+  med_aide = ma_cohort_morning %>% bind_rows(ma_cohort_evening)
+  
+  admin_cohort_morning = subset(out, type == 1 & role == 4)[1:10,] %>% mutate(admin_cohort_morning = 1:10)
+  admin_cohort_evening = subset(out, type == 1 & role == 4)[11:20,] %>% mutate(admin_cohort_evening = 11:20)
+  admin = admin_cohort_morning %>% bind_rows(admin_cohort_evening)
+  
+  # ------------------------------------------------------------------------------------------------
+  
   if(cohorting == TRUE){
-    
-    # assign cohorts to direct care staff
-    rn_cohort_morning = subset(out, type == 1 & role == 0)[1:5,] %>% mutate(rn_cohort_morning = 1:5)
-    rn_cohort_evening = subset(out, type == 1 & role == 0)[6:9,] %>% mutate(rn_cohort_evening = 6:9) 
-    rn_cohort_night = subset(out, type == 1 & role == 0)[10:12,] %>% mutate(rn_cohort_night = 10:12)
-    rn = rn_cohort_morning %>% bind_rows(rn_cohort_evening) %>% bind_rows(rn_cohort_night)
-    
-    lpn_cohort_morning = subset(out, type == 1 & role == 1)[1:4,] %>% mutate(lpn_cohort_morning = 1:4) 
-    lpn_cohort_evening = subset(out, type == 1 & role == 1)[5:7,] %>% mutate(lpn_cohort_evening = 5:7)
-    lpn_cohort_night = subset(out, type == 1 & role == 1)[8:9,] %>% mutate(lpn_cohort_night = 8:9)
-    lpn = lpn_cohort_morning %>% bind_rows(lpn_cohort_evening) %>% bind_rows(lpn_cohort_night)
-    
-    cna_cohort_morning = subset(out, type == 1 & role == 2)[1:15,] %>% mutate(cna_cohort_morning = 1:15)  
-    cna_cohort_evening = subset(out, type == 1 & role == 2)[16:27,] %>% mutate(cna_cohort_evening = 16:27)
-    cna_cohort_night = subset(out, type == 1 & role == 2)[28:37,] %>% mutate(cna_cohort_night = 28:37)
-    cna = cna_cohort_morning %>% bind_rows(cna_cohort_evening) %>% bind_rows(cna_cohort_night)
-    
-    ma_cohort_morning = subset(out, type == 1 & role == 3)[1:2,] %>% mutate(ma_cohort_morning = 1:2) 
-    ma_cohort_evening = subset(out, type == 1 & role == 3)[3,] %>% mutate(ma_cohort_evening = 3)
-    med_aide = ma_cohort_morning %>% bind_rows(ma_cohort_evening)
-    
-    admin = subset(out, type == 1 & role == 4)
     
     # assign direct care staff to residents
     res_counter = 1
@@ -203,14 +207,11 @@ make_NH = function(synthpop, cohorting = FALSE){
       res_counter = res_counter+nrow(residents)/med_aide_evening
     }
     
-    # bind residents, staff, and visitors into dataframe
-    out = residents %>% bind_rows(rn) %>% bind_rows(lpn) %>% bind_rows(cna) %>% 
-      bind_rows(med_aide) %>% bind_rows(admin) %>% bind_rows(visitors)
   }
-  
-  # else{
-  #   print("nothing")
-  # }
+    
+    # bind residents, staff, and visitors into dataframe
+  out = residents %>% bind_rows(rn) %>% bind_rows(lpn) %>% bind_rows(cna) %>% 
+    bind_rows(med_aide) %>% bind_rows(admin) %>% bind_rows(visitors)
   
   return(out)
   
@@ -367,61 +368,70 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
 #' Make a schedule of when staff and visitors are present/absent
 #'
 #' @param time number of days; defaults to 30
-#' @param type "base", "On/off", "A/B", "Remote"; defaults to "base"
-#' @param total_days number of days in school; defaults to 5
 #' @param df data frame from make_school()
 #'
 #' @return d Returns a n x time data frame that indicates whether an individual is
 #' in the school building at a particular time
 #'
 #' @export
-make_schedule = function(time = 30, type = "base", total_days = 5, df){
+make_schedule = function(time = 30, df){
+  
+  res_visit = subset(df, type == 0 | type == 2)
+  day_vec = rep(c("M","T","W","Th","F","Sa","Su"), length.out = nrow(res_visit))
+  
+  for(i in 1:nrow(res_visit)){
+    ifelse(res_visit$family == i, res_visit$visit[res_visit$family==i] <- day_vec[i], next)
+  }
+  
+  for(row in df){
+    ifelse(!is.na(d$visit), df$present <- TRUE, df$present <- FALSE)
+  }
+  
+  time_hours = time*3
   
   # basic time vector
   vec = data.frame(
     
-    # time since start in days
-    t = 1:time,
+    # time since start in 8-hour intervals
+    t = 1:time_hours,
     
     # day of the week
-    day = rep(c("M", "T", "W", "Th", "F", "Sa", "Su"), length.out = time),
+    day = rep(c("M_morn", "M_evening", "M_night", 
+                "T_morn", "T_evening", "T_night", 
+                "W_morn", "W_evening", "W_night", 
+                "Th_morn", "Th_evening", "Th_night", 
+                "F_morn", "F_evening", "F_night", 
+                "Sa_morn", "Sa_evening", "Sa_night", 
+                "Su_morn", "Su_evening", "Su_night"), length.out = time_hours),
     
     # group code
-    group_two = rep(c(0,1,0,1,9,9,9), length.out = time),
-    group_twov2 = rep(c(0,0,1,1,9,9,9), length.out = time),
-    group_one = rep(c(0,1,2,3,9,9,9), length.out = time),
-    group_week = rep(c(1,1,1,1,1,9,9,0,0,0,0,0,9,9), length.out = time),
-    sched_type = type
+    staff_morning = rep(c(1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0), length.out = time_hours),
+    staff_evening = rep(c(0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0), length.out = time_hours),
+    staff_night = rep(c(0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1), length.out = time_hours)
     
-  ) %>%
-    
-    mutate(
-      
-      # get rid of weekends
-      present = !day %in% c("Sa", "Su"), # Sunday
-      
-      # ON / OFF
-      present = ifelse(sched_type == "Remote", F, present),
-      present = ifelse(sched_type == "On/off" & total_days < 5 & day %in% c("Th", "F"), F, present),
-      present = ifelse(sched_type == "On/off" & total_days < 3 & day == "W", F, present),
-      present = ifelse(sched_type == "On/off" & total_days < 2 & day == "T", F, present),
-      present = ifelse(sched_type == "On/off" & total_days==5 & group_week!=1, F, present),
-      
-    )
+  )
+  
+  # work with just staff and visitors
+  # df = subset(df, type == 1 | type == 2)
   
   # replicate for each person
-  vec_exp = vec %>% slice(rep(1:n(), times = max(df$id))) %>% mutate(id = rep(1:max(df$id), each = time))
+  vec_exp = vec %>% slice(rep(1:n(), times = nrow(df))) %>% mutate(id = rep(1:nrow(df), each = time_hours))
   
   # time matrix
-  d = df %>% select(id, adult, class, group, group_quarter, family) %>% left_join(vec_exp, "id") %>%
+  d = df %>% select(id, type, role, n_visits, family, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
+                    lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
+                    cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
+                    admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
     # A/B
-    mutate(present = ifelse(family, F, present),
-           present = ifelse(sched_type == "A/B" & total_days == 1 & !adult & group_quarter != group_one, F, present),
-           present = ifelse(sched_type == "A/B" & total_days == 2 & !adult & group != group_two, F, present),
-           present = ifelse(sched_type == "A/B" & total_days == 2.2 & !adult & group != group_twov2, F, present),
-           # drop Fridays for adults
-           present = ifelse(sched_type == "A/B" & adult & day == "F", F, present),
-           present = ifelse(sched_type == "A/B" & total_days == 4 & !adult & group != group_week, F, present))
+    mutate(present = ifelse(staff_morning == 1 & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
+                                                    !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
+                                                    !is.na(admin_cohort_morning)), TRUE, FALSE),
+           present = ifelse(staff_evening == 1 & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
+                                                    !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
+                                                    !is.na(admin_cohort_evening)), TRUE, FALSE),
+           present = ifelse(staff_night == 1 & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
+                                                    !is.na(cna_cohort_night)), TRUE, FALSE))
+
   
   return(d)
 }

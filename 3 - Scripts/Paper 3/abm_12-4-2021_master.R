@@ -11,6 +11,8 @@ library(tidyverse)
 library(igraph)
 library(tictoc)
 
+
+## change synthpop. simplify by assigning 1 visitor per resident who visits weekly.
 #' Synthetic Rhode Island nursing home population
 #'
 #' A data frame containing a synthetic population of nursing home residents
@@ -38,6 +40,7 @@ library(tictoc)
 "synthpop"
 
 
+## adjust based on new structure of synthpop
 #' Structure nursing home and visitor/staff-patient relationships
 #'
 #' This function allows you to sort nursing home residents into rooms (42 doubles, 36 singles),
@@ -233,9 +236,9 @@ make_NH = function(synthpop, cohorting = FALSE){
 
 #' @param n_contacts Number of sustained contacts outside of the classroom; defaults to 10
 #' @param n_contacts_brief Number of brief contacts outside of the classroom; defaults to 0
-#' @param rel_trans_HH Relative attack rate of household contact (vs. classrom); defaults to 1
+#' @param rel_trans_HH Relative attack rate of household contact (vs. classrom); defaults to 1 - rel_trans_common (for common area)
 #' @param rel_trans_HH_symp_child Additional relative attack rate of a symptomatic infected child in the household; defaults to 1
-#' @param rel_trans Relative attack rate of sustained contact (vs. classroom); defaults to 1/8
+#' @param rel_trans Relative attack rate of sustained contact (vs. classroom); defaults to 1/8 - rel_trans_community (community transmission rate)
 #' @param rel_trans_brief Relative attack rate of brief contact (vs. classroom); defaults to 1/50
 #' @param p_asymp_adult Fraction of adults with asymptomatic disease; defaults to 0.4
 #' @param p_asymp_child Fraction of children with asymptomatic disease; defaults to 0.8
@@ -342,7 +345,7 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
            isolate = rbinom(n, size = 1, prob = isolate),
            notify = notify,
            
-           # transmission probability
+           # transmission probability - room_trans_prob
            class_trans_prob = attack,
            class_trans_prob = ifelse(adult, class_trans_prob, child_trans*class_trans_prob),
            class_trans_prob = dedens*class_trans_prob,
@@ -369,7 +372,7 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
 }
 
 
-## fix last for loop
+## fix last for loop + figure out scheduling when cohorting happens. adjust based on new synthpop
 #' Make schedule
 #'
 #' Make a schedule of when staff and visitors are present/absent
@@ -429,6 +432,7 @@ make_schedule = function(time = 30, df){
            
     )
   
+  # still working on this part
   day_vec = rep(c("M","T","W","Th","F","Sa","Su"), length.out = nrow(subset(df, type == 0)))
   
   sched <- d[order(d$id),]
@@ -450,26 +454,26 @@ make_schedule = function(time = 30, df){
 #' in the same household as an infected individual
 #'
 #' @param a id of infected individual
-#' @param df school data frame from make_school()
+#' @param df school data frame from initialize_school()
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_household = function(a, df){
+run_room = function(a, df){
   
-  # if there is more than one person in the household
-  if(df$HH_id[df$id==a]>0 & sum(df$HH_id==df$HH_id[df$id==a])>1) {
-    # identify HH members
-    HH_vec = df[df$HH_id==df$HH_id[df$id==a] & df$id!=a,]
+  # if there is more than one person residing in the room
+  if(df$room[df$id==a]>0 & sum(df$room==df$room[df$id==a])>1) {
+    # roommates
+    room_vec = df[df$room==df$room[df$id==a] & df$id!=a,]
     
-    # determine whether a HH member becomes infected
-    prob_HH = rbinom(nrow(HH_vec), size = 1, prob = ifelse(df$class_trans_prob[df$id==a]*df$relative_trans_HH[df$id==a]*HH_vec$susp*HH_vec$not_inf < 1,
-                                                           df$class_trans_prob[df$id==a]*df$relative_trans_HH[df$id==a]*HH_vec$susp*HH_vec$not_inf,
+    # determine whether roommate becomes infected
+    prob_room = rbinom(nrow(room_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*room_vec$susp*room_vec$not_inf < 1,
+                                                           df$room_trans_prob[df$id==a]*room_vec$susp*room_vec$not_inf,
                                                            1))
-    HH = HH_vec$id
+    room = room_vec$id
     
     # list infected individuals
-    infs = HH*prob_HH
+    infs = room*prob_room
     
   }
   
@@ -481,7 +485,7 @@ run_household = function(a, df){
 }
 
 
-## common area transmission?
+## common area transmission? ask whether i should set this up
 #' Set class transmission
 #'
 #' Determine who is infected at a timestep
@@ -493,7 +497,7 @@ run_household = function(a, df){
 #' @return infs id of infected individuals
 #'
 #' @export
-run_class = function(a, df, high_school = F, hs.classes = NA){
+run_common = function(a, df){
   
   if(df$class[df$id==a]!=99 & !high_school) {
     # identify class members
@@ -537,7 +541,7 @@ run_class = function(a, df, high_school = F, hs.classes = NA){
 }
 
 
-## out-of-nursing home transmission in community?
+## out-of-nursing home transmission in community/visitors?
 #' Set random transmission
 #'
 #' Determine who is infected at a timestep
@@ -550,22 +554,22 @@ run_class = function(a, df, high_school = F, hs.classes = NA){
 #' @return infs id of infected individuals
 #'
 #' @export
-run_rand = function(a, df, random_contacts){
+run_visit = function(a, df, community_contacts){
   
   # pull contacts from random graph
   id = which(df$id[df$present]==a)
-  contact_id = df$id[df$present][random_contacts[[id]][[1]]]
+  contact_id = df$id[df$present][community_contacts[[id]][[1]]]
   #print(length(contact_id))
   contacts = df[df$id %in% contact_id,]
   
   # determine whether a contact becomes infected
-  prob_rand = rbinom(nrow(contacts), size = 1,
-                     prob = ifelse(df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp < 1,
-                                   df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp,
+  prob_community = rbinom(nrow(contacts), size = 1,
+                     prob = ifelse(df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp < 1,
+                                   df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp,
                                    1))
   
   # infected individuals
-  infs = contacts$id*prob_rand
+  infs = contacts$id*prob_community
   #print(a); print(infs)
   return(infs)
 }
@@ -584,7 +588,7 @@ run_rand = function(a, df, random_contacts){
 #' @return infs id of infected individuals
 #'
 #' @export
-run_staff_rand = function(a, df, n_contact, rel_trans_adult = 2){
+run_staff = function(a, df, n_contact, rel_trans_adult = 2){
   
   if(n_contact>0){
     # pull contacts from random graph
@@ -596,9 +600,9 @@ run_staff_rand = function(a, df, n_contact, rel_trans_adult = 2){
     #print(dim(contacts))
     
     # determine whether a contact becomes infected
-    prob_rand = rbinom(nrow(contacts), size = 1,
-                       prob = ifelse(df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_adult < 1,
-                                     df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_adult,
+    prob_staff = rbinom(nrow(contacts), size = 1,
+                       prob = ifelse(df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_adult < 1,
+                                     df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_adult,
                                      1))
     # infected individuals
     infs = contacts$id*prob_rand
@@ -608,7 +612,7 @@ run_staff_rand = function(a, df, n_contact, rel_trans_adult = 2){
 }
 
 
-## visitors transmission
+## not necessary? something else?
 #' Set care-based transmission
 #'
 #' Determine who is infected at a timestep

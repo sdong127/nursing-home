@@ -102,6 +102,13 @@ make_NH = function(synthpop, cohorting = FALSE){
   
   visitors = sample_one %>% bind_rows(sample_two)
   
+  # set n_visits for visitors
+  for(i in 1:nrow(residents)){
+    ifelse(visitors$family == i, 
+           visitors$n_visits[visitors$family == i] <- residents$n_visits[residents$family == i],
+           next)
+  }
+  
   # make data frame for staff
   staff = data.frame(subset(rooms, type == 1))
   staff$family = 0   # 0 indicates staff
@@ -362,7 +369,7 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
 }
 
 
-## make schedule of infections? who is infected/isolating/recovered. how to add hospitalizations/deaths?
+## fix last for loop
 #' Make schedule
 #'
 #' Make a schedule of when staff and visitors are present/absent
@@ -376,17 +383,7 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
 #' @export
 make_schedule = function(time = 30, df){
   
-  res_visit = subset(df, type == 0 | type == 2)
-  day_vec = rep(c("M","T","W","Th","F","Sa","Su"), length.out = nrow(res_visit))
-  
-  for(i in 1:nrow(res_visit)){
-    ifelse(res_visit$family == i, res_visit$visit[res_visit$family==i] <- day_vec[i], next)
-  }
-  
-  for(row in df){
-    ifelse(!is.na(d$visit), df$present <- TRUE, df$present <- FALSE)
-  }
-  
+  # staff shifts
   time_hours = time*3
   
   # basic time vector
@@ -411,29 +408,38 @@ make_schedule = function(time = 30, df){
     
   )
   
-  # work with just staff and visitors
-  # df = subset(df, type == 1 | type == 2)
-  
   # replicate for each person
   vec_exp = vec %>% slice(rep(1:n(), times = nrow(df))) %>% mutate(id = rep(1:nrow(df), each = time_hours))
   
   # time matrix
-  d = df %>% select(id, type, role, n_visits, family, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
+  d = df %>% select(id, type, role, n_visits, room, family, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
                     lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
                     cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
                     admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
     # A/B
     mutate(present = ifelse(staff_morning == 1 & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
-                                                    !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
-                                                    !is.na(admin_cohort_morning)), TRUE, FALSE),
+                              !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
+                              !is.na(admin_cohort_morning)), TRUE, FALSE),
            present = ifelse(staff_evening == 1 & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
-                                                    !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
-                                                    !is.na(admin_cohort_evening)), TRUE, FALSE),
+                              !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
+                              !is.na(admin_cohort_evening)), TRUE, present),
            present = ifelse(staff_night == 1 & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
-                                                    !is.na(cna_cohort_night)), TRUE, FALSE))
-
+                              !is.na(cna_cohort_night)), TRUE, present),
+           present = ifelse(type == 0, TRUE, present)
+           
+    )
+  
+  day_vec = rep(c("M","T","W","Th","F","Sa","Su"), length.out = nrow(subset(df, type == 0)))
+  
+  sched <- d[order(d$id),]
+  
+  # for(i in seq(from=1, to=nrow(subset(sched, type == 0)), by=90)){
+  #   ifelse(sched$type == 2 & sched$family == as.integer(sched[i,1]), 
+  #          sched$present[1, sched$type == 2 & sched$family == as.integer(sched[i,1])] <- TRUE, d$present)
+  # }
   
   return(d)
+  
 }
 
 

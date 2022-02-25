@@ -343,28 +343,24 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
 }
 
 
-## fix last for loop + figure out scheduling when cohorting happens. adjust based on new synthpop
 #' Make schedule
 #'
 #' Make a schedule of when staff and visitors are present/absent
 #'
 #' @param time number of days; defaults to 30
-#' @param df data frame from make_school()
+#' @param df data frame from make_NH()
 #'
-#' @return d Returns a n x time data frame that indicates whether an individual is
-#' in the school building at a particular time
+#' @return d Returns an n x time*3 data frame that indicates whether an individual is in the 
+#' nursing home at a particular time
 #'
 #' @export
 make_schedule = function(time = 30, df){
   
-  # staff shifts
-  time_hours = time*3
-  
   # basic time vector
   vec = data.frame(
     
-    # time since start in 8-hour intervals
-    t = 1:time_hours,
+    # time since start in 8-hour shifts
+    t = rep(1:time, each = 3),
     
     # day of the week
     day = rep(c("M_morn", "M_evening", "M_night", 
@@ -373,45 +369,70 @@ make_schedule = function(time = 30, df){
                 "Th_morn", "Th_evening", "Th_night", 
                 "F_morn", "F_evening", "F_night", 
                 "Sa_morn", "Sa_evening", "Sa_night", 
-                "Su_morn", "Su_evening", "Su_night"), length.out = time_hours),
-    
-    # group code
-    staff_morning = rep(c(1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0), length.out = time_hours),
-    staff_evening = rep(c(0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0), length.out = time_hours),
-    staff_night = rep(c(0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1), length.out = time_hours)
+                "Su_morn", "Su_evening", "Su_night"), length.out = time*3)
     
   )
   
   # replicate for each person
-  vec_exp = vec %>% slice(rep(1:n(), times = nrow(df))) %>% mutate(id = rep(1:nrow(df), each = time_hours))
+  vec_exp = vec %>% slice(rep(1:n(), times = nrow(df))) %>% mutate(id = rep(1:nrow(df), each = time*3))
   
-  # time matrix
-  d = df %>% select(id, type, role, n_visits, room, family, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
-                    lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
-                    cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
-                    admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
-    # A/B
-    mutate(present = ifelse(staff_morning == 1 & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
-                              !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
-                              !is.na(admin_cohort_morning)), TRUE, FALSE),
-           present = ifelse(staff_evening == 1 & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
-                              !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
-                              !is.na(admin_cohort_evening)), TRUE, present),
-           present = ifelse(staff_night == 1 & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
-                              !is.na(cna_cohort_night)), TRUE, present),
-           present = ifelse(type == 0, TRUE, present)
-           
-    )
+  # ------------------------------------------------------------------------------------------------
   
-  # still working on this part
-  day_vec = rep(c("M","T","W","Th","F","Sa","Su"), length.out = nrow(subset(df, type == 0)))
+  # time matrix for residents, staff, visitors
+  if("family" %in% colnames(df)){
+    d = df %>% select(id, type, role, room, family, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
+                      lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
+                      cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
+                      admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
+      
+      # mark staff and residents present based on time of day
+      mutate(present = ifelse(grepl("morn", day) & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
+                                                      !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
+                                                      !is.na(admin_cohort_morning)), TRUE, FALSE),
+             present = ifelse(grepl("evening", day) & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
+                                                         !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
+                                                         !is.na(admin_cohort_evening)), TRUE, present),
+             present = ifelse(grepl("night", day) & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
+                                                       !is.na(cna_cohort_night)), TRUE, present),
+             present = ifelse(type == 0, TRUE, present),
+             
+      )
+    
+    # mark visitors present in the mornings, rotating throughout the week
+    # each visitor comes 4-5 times a month
+    visitor_sched = d$present[d$type == 2]
+    i = 1
+    while(i < (nrow(subset(d, type == 2)) - time*3)){
+      for(j in seq(from=1, to=time*3, by=21)){
+        visitor_sched[i+j-1] = TRUE
+      }
+      i = i + time*3 + 3
+    }
+    d$present[d$type == 2] = visitor_sched
+  }
   
-  sched <- d[order(d$id),]
+  # ------------------------------------------------------------------------------------------------
   
-  # for(i in seq(from=1, to=nrow(subset(sched, type == 0)), by=90)){
-  #   ifelse(sched$type == 2 & sched$family == as.integer(sched[i,1]), 
-  #          sched$present[1, sched$type == 2 & sched$family == as.integer(sched[i,1])] <- TRUE, d$present)
-  # }
+  # time matrix for just residents and staff
+  else{
+    d = df %>% select(id, type, role, room, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
+                      lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
+                      cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
+                      admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
+      
+      # mark staff and residents present based on time of day
+      mutate(present = ifelse(grepl("morn", day) & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
+                                                      !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
+                                                      !is.na(admin_cohort_morning)), TRUE, FALSE),
+             present = ifelse(grepl("evening", day) & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
+                                                      !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
+                                                      !is.na(admin_cohort_evening)), TRUE, present),
+             present = ifelse(grepl("night", day) & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
+                                                    !is.na(cna_cohort_night)), TRUE, present),
+             present = ifelse(type == 0, TRUE, present)
+             
+      )
+  }
   
   return(d)
   

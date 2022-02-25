@@ -12,7 +12,6 @@ library(igraph)
 library(tictoc)
 
 
-## change synthpop. simplify by assigning 1 visitor per resident who visits weekly.
 #' Synthetic Rhode Island nursing home population
 #'
 #' A data frame containing a synthetic population of nursing home residents
@@ -23,12 +22,11 @@ library(tictoc)
 #' @format A data frame with
 #' \describe{
 #'  \item{id}{individual id #}
-#'  \item{type}{0: resident, 1: staff, 2: visitor}
+#'  \item{type}{0: resident, 1: staff}
 #'  \item{age}{age}
 #'  \item{role}{if staff; 0: RN, 1: LPN, 2: CNA, 3: medication aide/technician, 4: admin/support (non-direct care) staff}
 #'  \item{sex}{0: male, 1: female}
 #'  \item{private_room}{true if resident has private room}
-#'  \item{n_visits}{number of visits per month}
 #' }
 #'
 #' @usage data(synthpop_NH)
@@ -40,19 +38,19 @@ library(tictoc)
 "synthpop"
 
 
-## adjust based on new structure of synthpop
-#' Structure nursing home and visitor/staff-patient relationships
+#' Structure nursing home and staff/visitor-patient relationships
 #'
-#' This function allows you to sort nursing home residents into rooms (42 doubles, 36 singles),
-#' match visitors to residents, and add option for cohorting between staff and residents.
+#' This function sorts nursing home residents into rooms (42 doubles, 36 singles), adds staffing shifts,
+#' option for cohorting among staff and residents, and allows/assigns visitors to residents.
 #'
 #' @param synthpop synthetic population; defaults to synthpop_NH stored in file
-#' @param cohorting assigning staff to residents; defaults to F
+#' @param cohorting assign staff to residents; defaults to F
+#' @param visitors allow visitors; defaults to F
 #'
 #' @return out data frame of structured nursing home
 #'
 #' @export
-make_NH = function(synthpop, cohorting = FALSE){
+make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
   
   # select residents who live with roommates
   doubles = subset(synthpop, private_room == FALSE) %>%
@@ -73,7 +71,6 @@ make_NH = function(synthpop, cohorting = FALSE){
   others = data.frame(subset(synthpop, (private_room == TRUE & type == 0) | type != 0))
   others$room = 0   # 0 indicates a resident with no roommate
   others[others$type == 1,]$room = 99   # 99 indicates staff
-  others[others$type == 2,]$room = -1   # -1 indicates visitors
   
   # bind doubles and others data frames
   rooms = doubles %>% bind_rows(others) %>%
@@ -81,75 +78,37 @@ make_NH = function(synthpop, cohorting = FALSE){
   
   # ------------------------------------------------------------------------------------------------
   
-  # match visitors to residents
-  residents = subset(rooms, type == 0)
-  
-  one_visitor = subset(residents, n_visits == 1 | n_visits == 4) # 1 visitor monthly/weekly
-  one_visitor['family'] = 1:nrow(one_visitor)
-  
-  two_visitor = subset(residents, n_visits == 2 | n_visits == 8) # 2 visitors monthly/weekly
-  two_visitor['family'] = nrow(one_visitor)+1:nrow(two_visitor)
-  
-  residents = one_visitor %>% bind_rows(two_visitor)
-  
-  # sample from visitors
-  visitors = subset(rooms, type == 2)
-  
-  sample_one = sample_n(visitors,60) %>% 
-    mutate(family = 1:nrow(sample_n(visitors,60)))
-  sample_one_id = sample_one$id
-  
-  sample_two = sample_n(subset(visitors, !(id %in% sample_one$id)),120) %>%
-    mutate(family = rep(nrow(sample_one)+1:nrow(sample_n(subset(visitors, !(id %in% sample_one$id)),120)), 
-                        each=2, length.out=nrow(sample_n(subset(visitors, !(id %in% sample_one$id)),120))))
-  
-  visitors = sample_one %>% bind_rows(sample_two)
-  
-  # set n_visits for visitors
-  for(i in 1:nrow(residents)){
-    ifelse(visitors$family == i, 
-           visitors$n_visits[visitors$family == i] <- residents$n_visits[residents$family == i],
-           next)
-  }
-  
-  # make data frame for staff
-  staff = data.frame(subset(rooms, type == 1))
-  staff$family = 0   # 0 indicates staff
-  
-  # bind residents, staff, and visitors dataframes
-  out = residents %>% bind_rows(staff) %>% bind_rows(visitors)
-  
-  # ------------------------------------------------------------------------------------------------
-  
   # assign shifts to direct care staff
-  rn_cohort_morning = subset(out, type == 1 & role == 0)[1:5,] %>% mutate(rn_cohort_morning = 1:5)
-  rn_cohort_evening = subset(out, type == 1 & role == 0)[6:9,] %>% mutate(rn_cohort_evening = 6:9) 
-  rn_cohort_night = subset(out, type == 1 & role == 0)[10:12,] %>% mutate(rn_cohort_night = 10:12)
+  rn_cohort_morning = subset(rooms, type == 1 & role == 0)[1:5,] %>% mutate(rn_cohort_morning = 1:5)
+  rn_cohort_evening = subset(rooms, type == 1 & role == 0)[6:9,] %>% mutate(rn_cohort_evening = 6:9) 
+  rn_cohort_night = subset(rooms, type == 1 & role == 0)[10:12,] %>% mutate(rn_cohort_night = 10:12)
   rn = rn_cohort_morning %>% bind_rows(rn_cohort_evening) %>% bind_rows(rn_cohort_night)
   
-  lpn_cohort_morning = subset(out, type == 1 & role == 1)[1:4,] %>% mutate(lpn_cohort_morning = 1:4) 
-  lpn_cohort_evening = subset(out, type == 1 & role == 1)[5:7,] %>% mutate(lpn_cohort_evening = 5:7)
-  lpn_cohort_night = subset(out, type == 1 & role == 1)[8:9,] %>% mutate(lpn_cohort_night = 8:9)
+  lpn_cohort_morning = subset(rooms, type == 1 & role == 1)[1:4,] %>% mutate(lpn_cohort_morning = 1:4) 
+  lpn_cohort_evening = subset(rooms, type == 1 & role == 1)[5:7,] %>% mutate(lpn_cohort_evening = 5:7)
+  lpn_cohort_night = subset(rooms, type == 1 & role == 1)[8:9,] %>% mutate(lpn_cohort_night = 8:9)
   lpn = lpn_cohort_morning %>% bind_rows(lpn_cohort_evening) %>% bind_rows(lpn_cohort_night)
   
-  cna_cohort_morning = subset(out, type == 1 & role == 2)[1:15,] %>% mutate(cna_cohort_morning = 1:15)  
-  cna_cohort_evening = subset(out, type == 1 & role == 2)[16:27,] %>% mutate(cna_cohort_evening = 16:27)
-  cna_cohort_night = subset(out, type == 1 & role == 2)[28:37,] %>% mutate(cna_cohort_night = 28:37)
+  cna_cohort_morning = subset(rooms, type == 1 & role == 2)[1:15,] %>% mutate(cna_cohort_morning = 1:15)  
+  cna_cohort_evening = subset(rooms, type == 1 & role == 2)[16:27,] %>% mutate(cna_cohort_evening = 16:27)
+  cna_cohort_night = subset(rooms, type == 1 & role == 2)[28:37,] %>% mutate(cna_cohort_night = 28:37)
   cna = cna_cohort_morning %>% bind_rows(cna_cohort_evening) %>% bind_rows(cna_cohort_night)
   
-  ma_cohort_morning = subset(out, type == 1 & role == 3)[1:2,] %>% mutate(ma_cohort_morning = 1:2) 
-  ma_cohort_evening = subset(out, type == 1 & role == 3)[3,] %>% mutate(ma_cohort_evening = 3)
+  ma_cohort_morning = subset(rooms, type == 1 & role == 3)[1:2,] %>% mutate(ma_cohort_morning = 1:2) 
+  ma_cohort_evening = subset(rooms, type == 1 & role == 3)[3,] %>% mutate(ma_cohort_evening = 3)
   med_aide = ma_cohort_morning %>% bind_rows(ma_cohort_evening)
   
-  admin_cohort_morning = subset(out, type == 1 & role == 4)[1:10,] %>% mutate(admin_cohort_morning = 1:10)
-  admin_cohort_evening = subset(out, type == 1 & role == 4)[11:20,] %>% mutate(admin_cohort_evening = 11:20)
+  admin_cohort_morning = subset(rooms, type == 1 & role == 4)[1:10,] %>% mutate(admin_cohort_morning = 1:10)
+  admin_cohort_evening = subset(rooms, type == 1 & role == 4)[11:20,] %>% mutate(admin_cohort_evening = 11:20)
   admin = admin_cohort_morning %>% bind_rows(admin_cohort_evening)
   
   # ------------------------------------------------------------------------------------------------
   
+  residents = subset(rooms, type == 0)
+  
+  # assign direct care staff to residents
   if(cohorting == TRUE){
     
-    # assign direct care staff to residents
     res_counter = 1
     rn_morning = 5
     for(i in 1:rn_morning){
@@ -218,10 +177,22 @@ make_NH = function(synthpop, cohorting = FALSE){
     }
     
   }
-    
-    # bind residents, staff, and visitors into dataframe
+  
+  # bind residents, staff, and visitors into dataframe
   out = residents %>% bind_rows(rn) %>% bind_rows(lpn) %>% bind_rows(cna) %>% 
-    bind_rows(med_aide) %>% bind_rows(admin) %>% bind_rows(visitors)
+    bind_rows(med_aide) %>% bind_rows(admin)
+  
+  # ------------------------------------------------------------------------------------------------
+  
+  # add visitors and assign to residents with family column
+  if(visitors){
+    # visitors represented by type = 2
+    visitors = data.frame(id = (nrow(synthpop)+1):(nrow(synthpop)+nrow(residents)), type = 2, 
+                          family = 1:nrow(residents))
+    out['family'] = ifelse(out$type == 0, 1:nrow(residents), NA)
+    
+    out = out %>% bind_rows(visitors)
+  }
   
   return(out)
   

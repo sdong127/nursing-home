@@ -199,46 +199,57 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 }
 
 
-## add covid/biological params for nursing home and residents
-#' Initialize school
-#'
-#' This function takes in a data frame exported by make_school().
-#' It adds epidemiological attributes of the full school community.
 
-#' @param n_contacts Number of sustained contacts outside of the classroom; defaults to 10
-#' @param n_contacts_brief Number of brief contacts outside of the classroom; defaults to 0
-#' @param rel_trans_HH Relative attack rate of household contact (vs. classrom); defaults to 1 - rel_trans_common (for common area)
-#' @param rel_trans_HH_symp_child Additional relative attack rate of a symptomatic infected child in the household; defaults to 1
-#' @param rel_trans Relative attack rate of sustained contact (vs. classroom); defaults to 1/8 - rel_trans_community (community transmission rate)
-#' @param rel_trans_brief Relative attack rate of brief contact (vs. classroom); defaults to 1/50
-#' @param p_asymp_adult Fraction of adults with asymptomatic disease; defaults to 0.4
-#' @param p_asymp_child Fraction of children with asymptomatic disease; defaults to 0.8
-#' @param p_subclin_adult Fraction of adults with subclinical but not techincally asymptomatic disease; defaults to 0
-#' @param p_subclin_child Fraction of children with subclinical but not techincally asymptomatic disease; defaults to 0
-#' @param attack Average daily attack rate in adults; defaults to 0.01
-#' @param child_trans Relative transmissibility of children (vs. adults); defaults to 1
-#' @param child_susp Relative transmissibility of children (vs. adults); defaults to .5
-#' @param child_vax Vaccination rate of children; defaults to 0
-#' @param teacher_trans Factor by which teacher transmissibility is reduced due to intervention; defaults to 1
-#' @param teacher_susp Factor by which teacher transmissibility is reduced due to intervention; defaults to 1
-#' @param family_susp Factor by which adult transmissibility is reduced due to intervention; defaults to 1
+#' Initialize nursing home
+#'
+#' This function takes in a data frame exported by make_NH().
+#' It adds epidemiological attributes of the full nursing home community.
+
+#' @param n_contacts Number of sustained contacts outside of the nursing home 
+#' (applies only to staff and visitors); defaults to 10
+#' @param n_contacts_brief Number of brief contacts outside of the nursing home; defaults to 0
+#' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1 (used to be rel_trans_HH)
+#' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; 
+#' defaults to 1 (used to be rel_trans_HH_symp_child)
+#' @param trans_community community transmission rate; defaults to some number (new addition)
+#' @param rel_trans Relative attack rate of sustained contact (vs. resident room); defaults to 1/8
+#' @param rel_trans_brief Relative attack rate of brief contact (room); defaults to 1/50
+#' @param p_asymp_staff Fraction of staff with asymptomatic disease; defaults to 0.4 (used to be p_asymp_adult)
+#' @param p_asymp_res Fraction of residents with asymptomatic disease; defaults to 0.8 (used to be p_asymp_child)
+#' @param p_subclin_staff Fraction of staff with subclinical but not techincally asymptomatic disease; 
+#' defaults to 0 (used to be p_subclin_adult)
+#' @param p_subclin_res Fraction of residents with subclinical but not techincally asymptomatic disease; 
+#' defaults to 0 (used to be p_subclin_child)
+#' @param attack Average daily attack rate in staff; defaults to 0.01
+#' @param rel_res_trans Relative transmissibility of residents (vs. staff); defaults to 1 (used to be child_trans)
+#' look into this?
+#' @param rel_res_susp Relative susceptibility of resident (vs. staff); defaults to .5 (used to be child_susp)
+#' look into this?
+#' @param res_vax Vaccination rate of residents; defaults to some amount (used to be child_vax)
+#' @param staff_trans_red Factor by which staff transmissibility is reduced due to intervention; defaults to 1
+#' (used to be teacher_trans)
+#' @param staff_susp_red Factor by which staff susceptibility is reduced due to intervention; defaults to 1
+#' (used to be teacher_susp)
+#' @param visitor_trans_red Factor by which visitor transmissibility is reduced due to intervention; defaults to 1
+#' (used to be family_susp)
 #' @param disperse_transmission Whether transmission is overdispersed (vs. all have equal attack rate); default to T
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
-#' @param notify Whether classrooms are notified following a positive test; defaults to T
+#' @param notify Whether nursing homes are notified following a positive test; defaults to T
 #' @param dedens Whether dedensification measures reduce attack rate; defaults to F
-#' @param run_specials Whether special subjects are run; defaults to F
+#' @param run_specials Whether special subjects are run; defaults to F (?)
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
-#' @param no_test_vacc Indicates whether vaccinated individuals are excluded from TTS & screening; defaults to F
+#' @param no_test_vacc Indicates whether vaccinated individuals are excluded from TTS & screening; 
+#' defaults to F (make into indication whether visitors are vaxxed? ask whether to include)
 #' @param start Data frame from make_school()
 #'
-#' @return out data frame of child and teacher attributes.
+#' @return out data frame of resident and staff attributes.
 #'
 #' @export
-initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH = 1, rel_trans_HH_symp_child = 1,
-                             rel_trans = 1/8, rel_trans_brief = 1/50, p_asymp_adult = .35,
-                             p_asymp_child = .7, p_subclin_adult = 0, p_subclin_child  = 0,
-                             attack = .01, child_trans = 1, child_susp = .5, family_susp = 1,
-                             teacher_trans = 1, teacher_susp = 1, disperse_transmission = T, child_vax = 0,
+initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common = 1, rel_trans_room_symp_res = 1,
+                             trans_community = 1/8, rel_trans = 1/8, rel_trans_brief = 1/50, p_asymp_staff = .35,
+                             p_asymp_res = .7, p_subclin_staff = 0, p_subclin_res = 0,
+                             attack = .01, rel_res_trans = 1, rel_res_susp = .5, visitor_trans_red = 1,
+                             staff_trans_red = 1, staff_susp_red = 1, disperse_transmission = T, res_vax = 0,
                              isolate = T, dedens = T, run_specials = F, start, vax_eff = .9, notify = T,
                              no_test_vacc = F){
   
@@ -272,9 +283,10 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
            test_ct_q = 0,
            n_contact = n_contacts,
            n_contact_brief = n_contacts_brief,
+           community_trans = trans_community,
            relative_trans = rel_trans,
-           relative_trans_HH = rel_trans_HH,
-           relative_trans_HH_symp_child = ifelse(adult, 1, rel_trans_HH_symp_child),
+           relative_trans_common = rel_trans_common,
+           relative_trans_room_symp_res = ifelse(role != 0, 1, rel_trans_room_symp_res),
            relative_trans_brief = rel_trans_brief,
            attack_rate = attack,
            dedens = dedens,
@@ -285,7 +297,8 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
            super_spread = disperse_transmission,
            out = 0,
            location = "",
-           #Trackers for unit testing
+           
+           # trackers for unit testing
            person.days.at.risk.home.parents = 0,
            person.days.at.risk.home.students = 0,
            person.days.at.risk.class.students = 0,
@@ -309,35 +322,36 @@ initialize_school = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_HH
            test_q_eligible = 0,
            test_regular_eligible = 0
     ) %>%
-    mutate(p_asymp = ifelse(adult, p_asymp_adult, p_asymp_child),
-           p_subclin = ifelse(adult, p_subclin_adult, p_subclin_child),
+    mutate(p_asymp = ifelse(type != 0, p_asymp_staff, p_asymp_res),
+           p_subclin = ifelse(type != 0, p_subclin_staff, p_subclin_res),
            
            # isolation
            isolate = rbinom(n, size = 1, prob = isolate),
            notify = notify,
            
-           # transmission probability - room_trans_prob
-           class_trans_prob = attack,
-           class_trans_prob = ifelse(adult, class_trans_prob, child_trans*class_trans_prob),
-           class_trans_prob = dedens*class_trans_prob,
-           class_trans_prob = ifelse(adult & !family, class_trans_prob*teacher_trans, class_trans_prob),
+           # transmission probability
+           room_trans_prob = attack, # used to be class_trans_prob
+           room_trans_prob = ifelse(type != 0, room_trans_prob, rel_res_trans*room_trans_prob),
+           room_trans_prob = dedens*room_trans_prob,
+           room_trans_prob = ifelse(type == 1, room_trans_prob*staff_trans_red, room_trans_prob),
+           room_trans_prob = ifelse(type == 2, room_trans_prob*visitor_trans_red, room_trans_prob),
            
            # susceptibility
-           child_susp_val = child_susp,
-           child_vax_val = child_vax,
-           teacher_susp_val = teacher_susp,
-           family_susp_val = family_susp,
+           rel_res_susp_val = rel_res_susp, # used to be child_susp_val
+           res_vax_val = res_vax, # used to be child_vax_val
+           staff_susp_red_val = staff_susp_red, # used to be teacher_susp_val
+           # family_susp_val = family_susp,
            vax_eff_val = vax_eff,
            
-           vacc = ifelse(adult, 1, rbinom(n, size = 1, prob = child_vax_val)),
-           vacc = ifelse(adult & !family, rbinom(n, size = 1, prob = teacher_susp_val), vacc),
-           vacc = ifelse(family, rbinom(n, size = 1, prob = family_susp_val), vacc),
-           inc_test = ifelse(no_test_vacc & vacc, 0, 1),
+           vacc = ifelse(type != 0, 1, rbinom(n, size = 1, prob = res_vax_val)),
+           vacc = ifelse(type == 1, rbinom(n, size = 1, prob = staff_susp_red_val), vacc),
+           # vacc = ifelse(type == 2, rbinom(n, size = 1, prob = family_susp_val), vacc),
+           inc_test = ifelse(no_test_vacc & vacc, 0, 1), # look into this
            
            susp = ifelse(vacc==0, 1, rbinom(n, size = 1, prob = 1-vax_eff_val)),
-           susp = ifelse(!adult, child_susp_val*susp, susp),
+           susp = ifelse(type == 0, rel_res_susp_val*susp, susp),
            
-           specials = ifelse(run_specials, id%in%(m:(m-14)), id%in%(m:(m-4)))) %>% ungroup()
+           specials = ifelse(run_specials, id%in%(m:(m-14)), id%in%(m:(m-4)))) %>% ungroup() #?
   
   return(df)
 }
@@ -439,14 +453,13 @@ make_schedule = function(time = 30, df){
 }
 
 
-## run_room - room transmission for those in doubles? add staff interactions?
-#' Set household transmission
+#' Set room transmission
 #'
 #' Determine who is infected at a timestep
-#' in the same household as an infected individual
+#' in the same room as an infected individual
 #'
-#' @param a id of infected individual
-#' @param df school data frame from initialize_school()
+#' @param a id of infected resident
+#' @param df data frame from initialize_NH()
 #'
 #' @return infs id of infected individuals
 #'
@@ -455,7 +468,7 @@ run_room = function(a, df){
   
   # if there is more than one person residing in the room
   if(df$room[df$id==a]>0 & sum(df$room==df$room[df$id==a])>1) {
-    # roommates
+    # roommate
     room_vec = df[df$room==df$room[df$id==a] & df$id!=a,]
     
     # determine whether roommate becomes infected
@@ -464,13 +477,51 @@ run_room = function(a, df){
                                                            1))
     room = room_vec$id
     
-    # list infected individuals
-    infs = room*prob_room
+    # list infected roommate
+    roommate_inf = room*prob_room
     
   }
   
   # otherwise
-  else{infs = 0}
+  else{roommate_inf = 0}
+  
+  # if there is staff asssigned to resident
+  if(!is.na(df$rn_cohort_morning[df$id==a])){
+    staff_vec = drop_na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room)) %>% 
+      bind_rows(drop_na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>% 
+      bind_rows(drop_na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>%
+      bind_rows(drop_na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>%
+      bind_rows(drop_na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>%
+      bind_rows(drop_na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>%
+      bind_rows(drop_na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>%
+      bind_rows(drop_na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>%
+      bind_rows(drop_na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>%
+      bind_rows(drop_na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room))) %>%
+      bind_rows(drop_na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1,] %>% 
+                          select(id, type, role, room)))
+    
+    # determine whether staff becomes infected
+    prob_room = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$not_inf < 1,
+                                                               df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$not_inf,
+                                                               1))
+    staff = staff_vec$id
+    
+    # list infected staff
+    staff_infs = staff*staff_room
+  }
+  
+  # create case for no cohorting - randomly assign staff to each person? but then what's the point
+ 
   
   #print(df$class_trans_prob[df$id==a]*df$relative_trans_HH[df$id==a]*HH_vec$susp*HH_vec$not_inf)
   return(infs)
@@ -484,7 +535,7 @@ run_room = function(a, df){
 #' in the same classroom as an infected individual
 #'
 #' @param a id of infected individual
-#' @param df school data frame from make_school()
+#' @param df school data frame from initialize_school()
 #'
 #' @return infs id of infected individuals
 #'
@@ -533,31 +584,30 @@ run_common = function(a, df){
 }
 
 
-## out-of-nursing home transmission in community/visitors?
-#' Set random transmission
+#' Set out-of-nursing home transmission in community
 #'
 #' Determine who is infected at a timestep
 #' from random contact with an infected individual
 #'
 #' @param a id of infected individual
-#' @param df school data frame from make_school()
+#' @param df data frame from initialize_school()
 #' @param random_contacts graph of random contacts at time t
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_visit = function(a, df, community_contacts){
+run_community = function(a, df, community_contacts){
   
-  # pull contacts from random graph
+  # pull contacts from random graph (of staff and visitors not present at NH?)
   id = which(df$id[df$present]==a)
   contact_id = df$id[df$present][community_contacts[[id]][[1]]]
   #print(length(contact_id))
   contacts = df[df$id %in% contact_id,]
   
   # determine whether a contact becomes infected
-  prob_community = rbinom(nrow(contacts), size = 1,
-                     prob = ifelse(df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp < 1,
-                                   df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp,
+  prob_community = rbinom(nrow(contacts), size = 1, # multiply community transmission into prob and take out room transmission?
+                     prob = ifelse(df$community_trans[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp < 1,
+                                   df$community_trans[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp,
                                    1))
   
   # infected individuals
@@ -567,40 +617,44 @@ run_visit = function(a, df, community_contacts){
 }
 
 
-## staff transmission
-#' Set random staff transmission
+#' Set staff transmission
 #'
 #' Determine who is infected at a timestep
-#' from random contact between in-school adults
+#' from contact between in-nursing-home staff
 #'
 #' @param a id of infected individual
-#' @param df school data frame from make_school()
-#' @param random_contacts graph of random contacts at time t
+#' @param df school data frame from initialize_school()
+#' @param n_contact number of contacts staff encounters in nursing home
+#' @param rel_trans_staff relative transmission in staff-staff interactions (vs. resident room);
+#' defaults to 2 (look into this), used to be rel_trans_adult
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_staff = function(a, df, n_contact, rel_trans_adult = 2){
+run_staff = function(a, df, n_contact, rel_trans_staff = 2){
   
   if(n_contact>0){
-    # pull contacts from random graph
-    tot = length(df$id[df$present & df$adult & !df$family])
+    # pull contacts from random graph of staff present in nursing home
+    tot = length(df$id[df$present & df[df$type == 1,]])
     contact_take = ifelse(n_contact<=tot, n_contact, tot)
-    contact_id = sample(df$id[df$present & df$adult & !df$family], contact_take)
+    contact_id = sample(df$id[df$present & df[df$type == 1,]], contact_take)
     contacts = df[df$id %in% contact_id & df$id!=a,]
     id.susp = contacts[contacts$present_susp & contacts$susp != 0,]$id
     #print(dim(contacts))
     
     # determine whether a contact becomes infected
     prob_staff = rbinom(nrow(contacts), size = 1,
-                       prob = ifelse(df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_adult < 1,
-                                     df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_adult,
+                       prob = ifelse(df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_staff < 1,
+                                     df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_staff,
                                      1))
     # infected individuals
-    infs = contacts$id*prob_rand
+    infs = contacts$id*prob_staff
     
     return(list(infs, id.susp))
-  }else return(0)
+  }
+  else{
+    return(0)
+  } 
 }
 
 
@@ -608,7 +662,7 @@ run_staff = function(a, df, n_contact, rel_trans_adult = 2){
 #' Set care-based transmission
 #'
 #' Determine who is infected at a timestep
-#' from contact with an infected individual out of school
+#' from contact with an infected staff in room
 #'
 #' @param a id of infected individual
 #' @param df school data frame from make_school()
@@ -749,7 +803,7 @@ make_infected = function(df.u, days_inf, set = NA, mult_asymp = 1, mult_asymp_ch
 }
 
 
-## special/visiting staff transmission?
+## special/visiting staff transmission? not needed?
 #' Set specials transmission
 #'
 #' Determine who is infected at a timestep

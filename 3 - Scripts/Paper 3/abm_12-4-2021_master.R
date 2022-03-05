@@ -110,67 +110,67 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
   if(cohorting == TRUE){
     
     res_counter = 1
-    rn_morning = 5
+    rn_morning = nrow(rn_cohort_morning)
     for(i in 1:rn_morning){
       residents[res_counter:(res_counter+(nrow(residents)/rn_morning)-1),"rn_cohort_morning"] = i
       res_counter = res_counter+nrow(residents)/rn_morning
     }
     res_counter = 1
-    rn_evening = 4
+    rn_evening = nrow(rn_cohort_evening)
     for(i in ((rn_morning+1):(rn_morning+rn_evening))){
       residents[res_counter:(res_counter+(nrow(residents)/rn_evening)-1),"rn_cohort_evening"] = i
       res_counter = res_counter+nrow(residents)/rn_evening
     }
     res_counter = 1
-    rn_night = 3
+    rn_night = nrow(rn_cohort_night)
     for(i in ((rn_morning+rn_evening+1):(rn_morning+rn_evening+rn_night))){
       residents[res_counter:(res_counter+(nrow(residents)/rn_night)-1),"rn_cohort_night"] = i
       res_counter = res_counter+nrow(residents)/rn_night
     }
     res_counter = 1
-    lpn_morning = 4
+    lpn_morning = nrow(lpn_cohort_morning)
     for(i in 1:lpn_morning){
       residents[res_counter:(res_counter+(nrow(residents)/lpn_morning)-1),"lpn_cohort_morning"] = i
       res_counter = res_counter+nrow(residents)/lpn_morning
     }
     res_counter = 1
-    lpn_evening = 3
+    lpn_evening = nrow(lpn_cohort_evening)
     for(i in ((lpn_morning+1):(lpn_morning+lpn_evening))){
       residents[res_counter:(res_counter+(nrow(residents)/lpn_evening)-1),"lpn_cohort_evening"] = i
       res_counter = res_counter+nrow(residents)/lpn_evening
     }
     res_counter = 1
-    lpn_night = 2
+    lpn_night = nrow(lpn_cohort_night)
     for(i in ((lpn_morning+lpn_evening+1):(lpn_morning+lpn_evening+lpn_night))){
       residents[res_counter:(res_counter+(nrow(residents)/lpn_night)-1),"lpn_cohort_night"] = i
       res_counter = res_counter+nrow(residents)/lpn_night
     }
     res_counter = 1
-    cna_morning = 15
+    cna_morning = nrow(cna_cohort_morning)
     for(i in 1:cna_morning){
       residents[res_counter:(res_counter+(nrow(residents)/cna_morning)-1),"cna_cohort_morning"] = i
       res_counter = res_counter+nrow(residents)/cna_morning
     }
     res_counter = 1
-    cna_evening = 12
+    cna_evening = nrow(cna_cohort_evening)
     for(i in ((cna_morning+1):(cna_morning+cna_evening))){
       residents[res_counter:(res_counter+(nrow(residents)/cna_evening)-1),"cna_cohort_evening"] = i
       res_counter = res_counter+nrow(residents)/cna_evening
     }
     res_counter = 1
-    cna_night = 10
+    cna_night = nrow(cna_cohort_night)
     for(i in ((cna_morning+cna_evening+1):(cna_morning+cna_evening+cna_night))){
       residents[res_counter:(res_counter+(nrow(residents)/cna_night)-1),"cna_cohort_night"] = i
       res_counter = res_counter+nrow(residents)/cna_night
     }
     res_counter = 1
-    med_aide_morning = 2
+    med_aide_morning = nrow(ma_cohort_morning)
     for(i in 1:med_aide_morning){
       residents[res_counter:(res_counter+(nrow(residents)/med_aide_morning)-1),"ma_cohort_morning"] = i
       res_counter = res_counter+nrow(residents)/med_aide_morning
     }
     res_counter = 1
-    med_aide_evening = 1
+    med_aide_evening = nrow(ma_cohort_evening)
     for(i in ((med_aide_morning+1):(med_aide_morning+med_aide_evening))){
       residents[res_counter:(res_counter+(nrow(residents)/med_aide_evening)-1),"ma_cohort_evening"] = i
       res_counter = res_counter+nrow(residents)/med_aide_evening
@@ -448,6 +448,86 @@ make_schedule = function(time = 30, df){
       )
   }
   
+  # assign staff to residents and randomize each day if no cohorting
+  if(is.na(df$rn_cohort_morning[df$id==1])){
+    rn_morning = df[!is.na(df$rn_cohort_morning),]$rn_cohort_morning
+    rn_evening = df[!is.na(df$rn_cohort_evening),]$rn_cohort_evening
+    rn_night = df[!is.na(df$rn_cohort_night),]$rn_cohort_night
+    lpn_morning = df[!is.na(df$lpn_cohort_morning),]$lpn_cohort_morning
+    lpn_evening = df[!is.na(df$lpn_cohort_evening),]$lpn_cohort_evening
+    lpn_night = df[!is.na(df$lpn_cohort_night),]$lpn_cohort_night
+    cna_morning = df[!is.na(df$cna_cohort_morning),]$cna_cohort_morning
+    cna_evening = df[!is.na(df$cna_cohort_evening),]$cna_cohort_evening
+    cna_night = df[!is.na(df$cna_cohort_night),]$cna_cohort_night
+    ma_morning = df[!is.na(df$ma_cohort_morning),]$ma_cohort_morning
+    ma_evening = df[!is.na(df$ma_cohort_evening),]$ma_cohort_evening
+
+    for(i in 1:time){
+      res = 1
+      for(j in rn_morning){
+        d$rn_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_morning))-1) 
+                            & d$type==0 & d$t==i] = sample(rn_morning,1)
+        res = res + (nrow(subset(df,type==0))/length(rn_morning))
+      }
+      res = 1
+      for(j in rn_evening){
+        d$rn_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_evening))-1) 
+                            & d$type==0 & d$t==i] = sample(rn_evening,1)
+        res = res + (nrow(subset(df,type==0))/length(rn_evening))
+      }
+      res = 1
+      for(j in rn_night){
+        d$rn_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_night))-1) 
+                            & d$type==0 & d$t==i] = sample(rn_night,1)
+        res = res + (nrow(subset(df,type==0))/length(rn_night))
+      }
+      res = 1
+      for(j in lpn_morning){
+        d$lpn_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_morning))-1) 
+                          & d$type==0 & d$t==i] = sample(lpn_morning,1)
+        res = res + (nrow(subset(df,type==0))/length(lpn_morning))
+      }
+      res = 1
+      for(j in lpn_evening){
+        d$lpn_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_evening))-1) 
+                             & d$type==0 & d$t==i] = sample(lpn_evening,1)
+        res = res + (nrow(subset(df,type==0))/length(lpn_evening))
+      }
+      res = 1
+      for(j in lpn_night){
+        d$lpn_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_night))-1) 
+                             & d$type==0 & d$t==i] = sample(lpn_night,1)
+        res = res + (nrow(subset(df,type==0))/length(lpn_night))
+      }
+      res = 1
+      for(j in cna_morning){
+        d$cna_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_morning))-1) 
+                             & d$type==0 & d$t==i] = sample(cna_morning,1)
+        res = res + (nrow(subset(df,type==0))/length(cna_morning))
+      }
+      res = 1
+      for(j in cna_evening){
+        d$cna_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_evening))-1) 
+                             & d$type==0 & d$t==i] = sample(cna_evening,1)
+        res = res + (nrow(subset(df,type==0))/length(cna_evening))
+      }
+      res = 1
+      for(j in cna_night){
+        d$cna_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_night))-1) 
+                             & d$type==0 & d$t==i] = sample(cna_night,1)
+        res = res + (nrow(subset(df,type==0))/length(cna_night))
+      }
+      res = 1
+      for(j in ma_morning){
+        d$ma_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(ma_morning))-1) 
+                           & d$type==0 & d$t==i] = sample(ma_morning,1)
+        res = res + (nrow(subset(df,type==0))/length(ma_morning))
+      }
+    }
+    d$ma_cohort_evening[d$type==0] = 3
+
+  }
+  
   return(d)
   
 }
@@ -485,8 +565,10 @@ run_room = function(a, df){
   # otherwise
   else{roommate_inf = 0}
   
+  
   # if there is staff asssigned to resident
   if(!is.na(df$rn_cohort_morning[df$id==a])){
+    
     staff_vec = drop_na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1,] %>% 
                           select(id, type, role, room)) %>% 
       bind_rows(drop_na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1,] %>% 
@@ -520,7 +602,11 @@ run_room = function(a, df){
     staff_infs = staff*staff_room
   }
   
-  # create case for no cohorting - randomly assign staff to each person? but then what's the point
+  else{
+    staff_infs = 0
+  }
+  
+  # create case for no cohorting - randomly assign staff to each person?
  
   
   #print(df$class_trans_prob[df$id==a]*df$relative_trans_HH[df$id==a]*HH_vec$susp*HH_vec$not_inf)

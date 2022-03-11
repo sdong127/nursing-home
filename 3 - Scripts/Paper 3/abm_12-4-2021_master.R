@@ -211,7 +211,6 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1 (used to be rel_trans_HH)
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; 
 #' defaults to 1 (used to be rel_trans_HH_symp_child)
-#' @param trans_community community transmission rate; defaults to some number (new addition)
 #' @param rel_trans Relative attack rate of sustained contact (vs. resident room); defaults to 1/8
 #' @param rel_trans_brief Relative attack rate of brief contact (room); defaults to 1/50
 #' @param p_asymp_staff Fraction of staff with asymptomatic disease; defaults to 0.4 (used to be p_asymp_adult)
@@ -230,8 +229,10 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' (used to be teacher_trans)
 #' @param staff_susp_red Factor by which staff susceptibility is reduced due to intervention; defaults to 1
 #' (used to be teacher_susp)
-#' @param visitor_trans_red Factor by which visitor transmissibility is reduced due to intervention; defaults to 1
+#' @param visit_trans_red Factor by which visitor transmissibility is reduced due to intervention; defaults to 1
 #' (used to be family_susp)
+#' @param visit_susp_red Factor by which visitor susceptibility is reduced due to intervention; defaults to 1
+#' (new addition)
 #' @param disperse_transmission Whether transmission is overdispersed (vs. all have equal attack rate); default to T
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
 #' @param notify Whether nursing homes are notified following a positive test; defaults to T
@@ -246,10 +247,10 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #'
 #' @export
 initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common = 1, rel_trans_room_symp_res = 1,
-                             trans_community = 1/8, rel_trans = 1/8, rel_trans_brief = 1/50, p_asymp_staff = .35,
+                             rel_trans = 1/8, rel_trans_brief = 1/50, p_asymp_staff = .35,
                              p_asymp_res = .7, p_subclin_staff = 0, p_subclin_res = 0,
-                             attack = .01, rel_res_trans = 1, rel_res_susp = .5, visitor_trans_red = 1,
-                             staff_trans_red = 1, staff_susp_red = 1, disperse_transmission = T, res_vax = 0,
+                             attack = .01, rel_res_trans = 1, rel_res_susp = .5, visit_trans_red = 1, 
+                            visit_susp_red = 1, staff_trans_red = 1, staff_susp_red = 1, disperse_transmission = T, res_vax = 0,
                              isolate = T, dedens = T, run_specials = F, start, vax_eff = .9, notify = T,
                              no_test_vacc = F){
   
@@ -283,7 +284,6 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
            test_ct_q = 0,
            n_contact = n_contacts,
            n_contact_brief = n_contacts_brief,
-           community_trans = trans_community,
            relative_trans = rel_trans,
            relative_trans_common = rel_trans_common,
            relative_trans_room_symp_res = ifelse(role != 0, 1, rel_trans_room_symp_res),
@@ -340,12 +340,12 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
            rel_res_susp_val = rel_res_susp, # used to be child_susp_val
            res_vax_val = res_vax, # used to be child_vax_val
            staff_susp_red_val = staff_susp_red, # used to be teacher_susp_val
-           # family_susp_val = family_susp,
+           visit_susp_red_val = visit_susp_red, # used to be family_susp_val
            vax_eff_val = vax_eff,
            
            vacc = ifelse(type != 0, 1, rbinom(n, size = 1, prob = res_vax_val)),
            vacc = ifelse(type == 1, rbinom(n, size = 1, prob = staff_susp_red_val), vacc),
-           # vacc = ifelse(type == 2, rbinom(n, size = 1, prob = family_susp_val), vacc),
+           vacc = ifelse(type == 2, rbinom(n, size = 1, prob = visitor_susp_red_val), vacc),
            inc_test = ifelse(no_test_vacc & vacc, 0, 1), # look into this
            
            susp = ifelse(vacc==0, 1, rbinom(n, size = 1, prob = 1-vax_eff_val)),
@@ -538,75 +538,140 @@ make_schedule = function(time = 30, df){
 #' Determine who is infected at a timestep
 #' in the same room as an infected individual
 #'
-#' @param a id of infected resident
-#' @param df data frame from initialize_NH()
+#' @param a id of infected individual
+#' @param df data frame from run_model()
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
 run_room = function(a, df){
   
-  # if there is more than one person residing in the room
-  if(df$room[df$id==a]>0 & sum(df$room==df$room[df$id==a])>1) {
-    # roommate
-    room_vec = df[df$room==df$room[df$id==a] & df$id!=a,]
+  # if infected is resident
+  if(df$type[df$id==a]==0){
     
-    # determine whether roommate becomes infected
-    prob_room = rbinom(nrow(room_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*room_vec$susp*room_vec$not_inf < 1,
-                                                           df$room_trans_prob[df$id==a]*room_vec$susp*room_vec$not_inf,
-                                                           1))
-    room = room_vec$id
+    # if resident has roommate
+    if(df$room[df$id==a]>0 & sum(df$room==df$room[df$id==a])>1){
+      # roommate
+      roommate_vec = df[df$room==df$room[df$id==a] & df$id!=a,]
+      
+      # determine whether roommate becomes infected
+      prob_roommate = rbinom(nrow(roommate_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*roommate_vec$susp*roommate_vec$not_inf < 1,
+                                                                 df$room_trans_prob[df$id==a]*roommate_vec$susp*roommate_vec$not_inf,
+                                                                 1))
+      roommate = roommate_vec$id
+      
+      # list infected roommate
+      roommate_inf = roommate*prob_roommate
+    }
     
-    # list infected roommate
-    roommate_inf = room*prob_room
+    else{roommate_inf = 0}
     
-  }
-  
-  # otherwise
-  else{roommate_inf = 0}
-  
-  
-  # if there is staff asssigned to resident
-  if(!is.na(df$rn_cohort_morning[df$id==a])){
-    
-    staff_vec = drop_na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room)) %>% 
-      bind_rows(drop_na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>% 
-      bind_rows(drop_na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>%
-      bind_rows(drop_na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>%
-      bind_rows(drop_na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>%
-      bind_rows(drop_na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>%
-      bind_rows(drop_na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>%
-      bind_rows(drop_na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>%
-      bind_rows(drop_na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>%
-      bind_rows(drop_na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room))) %>%
-      bind_rows(drop_na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1,] %>% 
-                          select(id, type, role, room)))
+    # make vector of staff in infected resident's room
+    staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1,] %>% 
+      select(id, type, role, room) %>% 
+      bind_rows(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>% 
+      bind_rows(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>%
+      bind_rows(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>%
+      bind_rows(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>%
+      bind_rows(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>%
+      bind_rows(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>%
+      bind_rows(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>%
+      bind_rows(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>%
+      bind_rows(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room)) %>%
+      bind_rows(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1,] %>% 
+                  select(id, type, role, room))
     
     # determine whether staff becomes infected
-    prob_room = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$not_inf < 1,
-                                                               df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$not_inf,
-                                                               1))
+    prob_staff = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$not_inf < 1,
+                                                                df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$not_inf,
+                                                                1))
     staff = staff_vec$id
     
     # list infected staff
-    staff_infs = staff*staff_room
+    staff_infs = staff*prob_staff
+    
+    
+    # make vector of resident's visitor(s)
+    visit_vec = df[df$family==df$family[df$id==a] & df$id!=a,]
+    
+    # determine whether visitors become infected
+    prob_visit = rbinom(nrow(visit_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*visit_vec$susp*visit_vec$not_inf < 1,
+                                                                df$room_trans_prob[df$id==a]*visit_vec$susp*visit_vec$not_inf,
+                                                                1))
+    visit = visit_vec$id
+    
+    # list infected visitors
+    visit_infs = visit*prob_visit
+    
   }
-  
   else{
-    staff_infs = 0
+    roommate_inf = 0
+    staff_inf = 0
+    visit_inf = 0
   }
   
-  # create case for no cohorting - randomly assign staff to each person?
+  infs = c(roommate_inf, staff_inf, visit_inf)
+  
+  # if infected is direct-care staff
+  if(df$type[df$id==a]==1 & df$role[df$id==a]!=4 & df$present[df$id==a]){
+    
+    # find out what role they are
+    staff_row = c(df[df$id==a,8:18])
+    staff_role = names(staff_row[!is.na(staff_row)])
+    staff_role_id = staff_row[!is.na(staff_row)][[1]]
+    
+    # make vector of residents that staff treats
+    res_vec = df[df[staff_role]==staff_role_id & df$type==0,]
+    
+    # determine whether residents become infected
+    prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$not_inf < 1,
+                                                                df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$not_inf,
+                                                                1))
+    res = res_vec$id
+    
+    # list infected residents
+    res_infs = res*prob_res
+    
+  }
+  else{
+    res_infs = 0
+  }
+  
+  infs = c(infs, res_infs)
+  
+  # if infected is visitor
+  if(df$type[df$id==a]==2 & df$present[df$id==a]){
+    
+    # make vector of resident that visitor sees, including roommates
+    res_vec = df[df$family==df$family[df$id==a] & df$id!=a,]
+    res_vec = res_vec[rowSums(is.na(res_vec)) != ncol(res_vec),]
+    res_id = res_vec$id
+    roommate = df[df$room==res_vec$room & df$id!=res_id,]
+    res_vec[nrow(res_vec) + 1,] = roommate[rowSums(is.na(roommate)) != ncol(roommate),]
+    
+    # determine whether residents become infected
+    prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$not_inf < 1,
+                                                             df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$not_inf,
+                                                             1))
+    res = res_vec$id
+    
+    # list infected residents
+    res_infs = res*prob_res
+  }
+  else{
+    res_infs = 0
+  }
+  
+  infs = c(infs, res_infs)
  
   
   #print(df$class_trans_prob[df$id==a]*df$relative_trans_HH[df$id==a]*HH_vec$susp*HH_vec$not_inf)
@@ -614,93 +679,38 @@ run_room = function(a, df){
 }
 
 
-## common area transmission? ask whether i should set this up
-#' Set class transmission
+#' Set common area transmission
 #'
 #' Determine who is infected at a timestep
-#' in the same classroom as an infected individual
+#' from common area contact with an infected individual
 #'
 #' @param a id of infected individual
-#' @param df school data frame from initialize_school()
+#' @param df data frame from make_schedule()?
+#' @param area_contacts graph of common area contacts at time t
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_common = function(a, df){
+run_common = function(a, df, area_contacts){
   
-  if(df$class[df$id==a]!=99 & !high_school) {
-    # identify class members
-    class_vec = df[df$class==df$class[df$id==a] & df$id!=a,]
-    
-    # determine whether a class member becomes infected
-    prob_class = rbinom(nrow(class_vec), size = 1, prob = ifelse(df$class_trans_prob[df$id==a]*class_vec$susp*class_vec$present_susp < 1,
-                                                                 df$class_trans_prob[df$id==a]*class_vec$susp*class_vec$present_susp,
-                                                                 1))
-    class = class_vec$id
-    
-    # list infected individuals
-    infs = class*prob_class
-    #print(df$class_trans_prob[df$id==a]*class_vec$susp*class_vec$present_susp)
-    
-    
-  } else if(df$class[df$id==a]!=99 & high_school){
-    
-    # pull class members
-    hs.class.members = hs.classes$id[hs.classes$class%in%hs.classes$class[hs.classes$id==a]]
-    
-    # identify class members
-    class_vec = df[df$id%in%hs.class.members & df$id!=a,]
-    class_vec$count = sapply(class_vec$id, function(a) sum(hs.class.members==a))
-    #class_vec$count = sapply(class_vec$id, function(a) 1)
-    
-    # determine whether a class member becomes infected
-    prob_class = rbinom(nrow(class_vec), size = 1, prob = ifelse(df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*class_vec$susp*class_vec$present_susp*class_vec$count < 1,
-                                                                 df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*class_vec$susp*class_vec$present_susp*class_vec$count,
-                                                                 1))
-    class = class_vec$id
-    
-    # list infected individuals
-    infs = class*prob_class
-    
-  }else{
-    infs = 0
-  }
-  
-  return(infs)
-}
-
-
-#' Set out-of-nursing home transmission in community
-#'
-#' Determine who is infected at a timestep
-#' from random contact with an infected individual
-#'
-#' @param a id of infected individual
-#' @param df data frame from initialize_school()
-#' @param random_contacts graph of random contacts at time t
-#'
-#' @return infs id of infected individuals
-#'
-#' @export
-run_community = function(a, df, community_contacts){
-  
-  # pull contacts from random graph (of staff and visitors not present at NH?)
+  # pull contacts from random graph (of residents, staff and visitors present at NH)
   id = which(df$id[df$present]==a)
-  contact_id = df$id[df$present][community_contacts[[id]][[1]]]
+  contact_id = df$id[df$present][area_contacts[[id]][[1]]]
   #print(length(contact_id))
   contacts = df[df$id %in% contact_id,]
   
   # determine whether a contact becomes infected
-  prob_community = rbinom(nrow(contacts), size = 1, # multiply community transmission into prob and take out room transmission?
-                     prob = ifelse(df$community_trans[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp < 1,
-                                   df$community_trans[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp,
+  prob_common = rbinom(nrow(contacts), size = 1,
+                     prob = ifelse(df$relative_trans_common[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp < 1,
+                                   df$relative_trans_common[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp,
                                    1))
   
   # infected individuals
-  infs = contacts$id*prob_community
+  infs = contacts$id*prob_common
   #print(a); print(infs)
   return(infs)
 }
+
 
 
 #' Set staff transmission
@@ -708,7 +718,7 @@ run_community = function(a, df, community_contacts){
 #' Determine who is infected at a timestep
 #' from contact between in-nursing-home staff
 #'
-#' @param a id of infected individual
+#' @param a id of infected staff member
 #' @param df school data frame from initialize_school()
 #' @param n_contact number of contacts staff encounters in nursing home
 #' @param rel_trans_staff relative transmission in staff-staff interactions (vs. resident room);
@@ -744,47 +754,6 @@ run_staff = function(a, df, n_contact, rel_trans_staff = 2){
 }
 
 
-## not necessary? something else?
-#' Set care-based transmission
-#'
-#' Determine who is infected at a timestep
-#' from contact with an infected staff in room
-#'
-#' @param a id of infected individual
-#' @param df school data frame from make_school()
-#' @param contacts graph of random contacts at time t
-#' @param num_adults number of adults interacting with children, defaults to 2
-#'
-#' @return infs id of infected individuals
-#'
-#' @export
-run_care = function(a, df, care_contacts, rel_trans_CC = 2, num_adults = 2){
-  
-  # pull contacts from random graph
-  #id = which(unique(df$HH_id[!df$present & !df$family])==a)
-  HHs = care_contacts$HH_id[care_contacts$cat==care_contacts$cat[care_contacts$HH_id==df$HH_id[df$id==a]]]
-  
-  # only have 2 adults at a time
-  contacts = df[df$HH_id %in% HHs & !df$present,]
-  adults = contacts$id[contacts$adult]
-  if(num_adults < length(adults)) {keep = sample(adults, num_adults)
-  }else{keep = adults}
-  contacts = contacts[(!contacts$adult | contacts$id %in% keep) & (contacts$HH_id != df$HH_id[df$id==a]),]
-  
-  if(!df$adult[df$id==a] | a %in% keep){
-    
-    # determine whether a contact becomes infected
-    prob_rand = rbinom(nrow(contacts), size = 1,
-                       prob = ifelse(df$class_trans_prob[df$id==a]*contacts$susp*round(contacts$not_inf)*rel_trans_CC < 1,
-                                     df$class_trans_prob[df$id==a]*contacts$susp*round(contacts$not_inf)*rel_trans_CC,
-                                     1))
-    
-    # infected individuals
-    infs = contacts$id*prob_rand
-  }else{infs = 0}
-  
-  return(list(infs, keep))
-}
 
 #' Update quarantine
 #'
@@ -827,6 +796,8 @@ make_quarantine = function(class_quarantine, df.u, quarantine.length = 10, quara
   }
   return(class_quarantine)
 }
+
+
 
 #' Set infection parameters
 #'
@@ -888,77 +859,6 @@ make_infected = function(df.u, days_inf, set = NA, mult_asymp = 1, mult_asymp_ch
   return(df.u)
 }
 
-
-## special/visiting staff transmission? not needed?
-#' Set specials transmission
-#'
-#' Determine who is infected at a timestep
-#' from specials
-#'
-#' @param a id of infected individual
-#' @param df school data frame from make_school()
-#' @param specials classroom and teacher ids of specials at time t
-#'
-#' @return infs id of infected individuals
-#'
-#' @export
-run_specials = function(a, df, specials){
-  
-  if(!df$adult[df$id==a] & df$class[df$id==a]%in%specials$class){
-    
-    # pull teachers
-    specials_vec = df[df$id%in%specials$teacher[specials$class==df$class[df$id==a]],]
-    
-    # determine whether teacher becomes infected
-    prob_specials = rbinom(nrow(specials_vec), size = 1, prob = ifelse(df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*specials_vec$susp*specials_vec$present_susp < 1,
-                                                                       df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*specials_vec$susp*specials_vec$present_susp,
-                                                                       1))
-    infs = specials_vec$id*prob_specials
-    
-  }else if(df$specials[df$id==a]){
-    specials_class_vec = df[df$class%in%specials$class[specials$teacher==a],]
-    
-    # determine whether a class member becomes infected
-    prob_specials = rbinom(nrow(specials_class_vec), size = 1,
-                           prob = ifelse(df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*specials_class_vec$susp*specials_class_vec$present_susp < 1,
-                                         df$class_trans_prob[df$id==a]*df$relative_trans[df$id==a]*specials_class_vec$susp*specials_class_vec$present_susp,
-                                         1))
-    specials_vec = specials_class_vec$id
-    infs = specials_vec*prob_specials
-    
-  } else{infs = 0}
-  
-  return(infs)
-}
-
-
-## don't need
-#' Run model
-#'
-#' Perform a single model run
-#'
-#' @param df school data frame used in run_model setup
-#' @param nper number of school periods; defaults to 8
-#'
-#' @export
-make_hs_classes = function(df, nper){
-  
-  hs.classes = data.frame(period = numeric(), class = numeric(), id = numeric())
-  
-  for(p in 1:nper){
-    m = max(df$class[df$class < 99])
-    temp = data.frame(period = p, id = df$id[df$class!=99],
-                      age = df$age[df$class!=99],
-                      class = df$class[df$class!=99]) %>%
-      group_by(age) %>%
-      mutate(class = ifelse(age>0, sample(class), class),
-             class_old = class,
-             class = (period-1)*m + class)
-    hs.classes = hs.classes %>% bind_rows(temp)
-  }
-  
-  return(hs.classes)
-}
 
 
 #' Run model

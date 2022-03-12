@@ -791,11 +791,11 @@ make_quarantine = function(class_quarantine, df.u, quarantine.length = 10, quara
 #'
 #' Set infection parameters for individuals infected at a particular timestep
 #'
-#' @param a id of infected individual
-#' @param df school data frame from make_school()
+#' @param df.u data frame from initialize_NH()?
+#' @param days_inf length of infectious period, defaults to 5
 #' @param set indication of seeding model vs. creating infections
-#' @param mult_asymp multiplier on asymptomatic infection for adults; default is 1
-#' @param mult_asymp_child multiplier on asymptomatic infection for children; default is 1
+#' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
+#' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1 (used to be mult_asymp_child)
 #' @param seed_asymp when making a seed, force to be asymptomatic; default is false
 #' @param turnaround.time test turnaround time, default = 1 day
 #' @param overdisp_off all overdispersion off; defaults to F
@@ -804,7 +804,7 @@ make_quarantine = function(class_quarantine, df.u, quarantine.length = 10, quara
 #'
 #' @export
 # note to self -- add additional parameters to change around here
-make_infected = function(df.u, days_inf, set = NA, mult_asymp = 1, mult_asymp_child = 1, seed_asymp = F, turnaround.time = 1, overdisp_off = F){
+make_infected = function(df.u, days_inf, set = NA, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, turnaround.time = 1, overdisp_off = F){
   
   if(is.na(set)[1]){
     #  set infectivity  parameters
@@ -831,12 +831,12 @@ make_infected = function(df.u, days_inf, set = NA, mult_asymp = 1, mult_asymp_ch
   
   # add overdispersion
   attack_mult = rlnorm(nrow(df.u), meanlog = log(.84)-log((.84^2+.3)/.84^2)/2, sdlog = sqrt(log((.84^2+.3)/.84^2)))/.84
-  chk = (df.u$super_spread | df.u$adult)*as.numeric(!overdisp_off)
-  df.u$class_trans_prob = ifelse(chk, df.u$class_trans_prob*attack_mult, df.u$class_trans_prob)
+  chk = (df.u$super_spread | df.u$type==0)*as.numeric(!overdisp_off)
+  df.u$room_trans_prob = ifelse(chk, df.u$room_trans_prob*attack_mult, df.u$room_trans_prob)
   
   # adjust for asymptomatic infection if applicable
-  df.u$class_trans_prob = ifelse(!df.u$symp, ifelse(df.u$adult, df.u$class_trans_prob*mult_asymp, df.u$class_trans_prob*mult_asymp_child), df.u$class_trans_prob)
-  df.u$relative_trans_HH = ifelse(df.u$symp, df.u$relative_trans_HH*df.u$relative_trans_HH_symp_child, df.u$relative_trans_HH)
+  df.u$room_trans_prob = ifelse(!df.u$symp, ifelse(df.u$type==0, df.u$room_trans_prob*mult_asymp_res, df.u$room_trans_prob*mult_asymp_nonres), df.u$room_trans_prob)
+  df.u$relative_trans_common = ifelse(df.u$symp & df.u$isolate==0, df.u$relative_trans_common*df.u$relative_trans_room_symp_res, df.u$relative_trans_common)
   
   # add end time
   df.u$t_end_inf_home = df.u$t_inf +

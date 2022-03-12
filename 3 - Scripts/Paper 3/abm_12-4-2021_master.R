@@ -223,7 +223,7 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' @param rel_nonres_trans Relative transmissibility of staff and visitors (vs. residents); defaults to 1 (used to be child_trans)
 #' @param rel_nonres_susp Relative susceptibility of staff and visitors (vs. residents); defaults to .5 (used to be child_susp)
 #' @param res_vax Vaccination rate of residents; defaults to some amount (used to be child_vax)
-#' @param staff_vax Vaccination rate of staff; defaults to some amount (new addition)
+#' @param staff_vax_req Whether staff are required to get vaccine; defaults to F
 #' @param visit_vax Vaccination rate of visitors; defaults to some amount (new addition)
 #' @param res_trans_red Factor by which resident transmissibility is reduced due to intervention; defaults to 1
 #' (new addition)
@@ -236,25 +236,27 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' @param notify Whether nursing homes are notified following a positive test; defaults to T
 #' @param dedens Whether dedensification measures reduce attack rate; defaults to F
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
-#' @param no_test_vacc Indicates whether vaccinated individuals are excluded from TTS & screening; 
-#' defaults to F (make into indication whether staff have vax requirement)
-#' @param start Data frame from make_school()
+#' @param start Data frame from make_NH()
 #'
 #' @return out data frame of resident and staff attributes.
 #'
 #' @export
 initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common = 1, rel_trans_room_symp_res = 1,
-                             rel_trans = 1/8, rel_trans_brief = 1/50, p_asymp_staff = .35,
-                             p_asymp_res = .7, p_subclin_staff = 0, p_subclin_res = 0,
-                             attack = .01, rel_nonres_trans = 1, rel_nonres_susp = .5, res_vax = 0, staff_vax = 0, visit_vax = 0, 
-                            res_trans_red = 1, res_susp_red = 1, staff_trans_red = 1, staff_susp_red = 1, visit_trans_red = 1, 
+                             rel_trans = 1/8, rel_trans_brief = 1/50, p_asymp_staff = .35, p_asymp_res = .7, 
+                              p_subclin_staff = 0, p_subclin_res = 0, attack = .01, rel_nonres_trans = 1, 
+                            rel_nonres_susp = .5, res_vax = 0, staff_vax_req = F, visit_vax = 0, res_trans_red = 1, 
+                            res_susp_red = 1, staff_trans_red = 1, staff_susp_red = 1, visit_trans_red = 1, 
                             visit_susp_red = 1, disperse_transmission = T, isolate = T, notify = T, dedens = T,
-                            vax_eff = .9, no_test_vacc = F, start){
+                            vax_eff = .9, start){
   
-  # make non-teacher adults
   n = nrow(start)
-  m = nrow(start[!start$family,])
-  c = max(start$class)
+  
+  # vax values for staff
+  if(staff_vax_req == F){
+    staff_vax = 0.5 # hypothetical
+  } else{
+    staff_vax = 1
+  }
   
   # initialize data frame
   df = start %>%
@@ -283,7 +285,7 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
            n_contact_brief = n_contacts_brief,
            relative_trans = rel_trans,
            relative_trans_common = rel_trans_common,
-           relative_trans_room_symp_res = ifelse(role != 0, 1, rel_trans_room_symp_res),
+           relative_trans_room_symp_res = ifelse(type != 0, 1, rel_trans_room_symp_res),
            relative_trans_brief = rel_trans_brief,
            attack_rate = attack,
            dedens = dedens,
@@ -322,7 +324,7 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
            p_subclin = ifelse(type != 0, p_subclin_staff, p_subclin_res),
            
            # isolation
-           isolate = rbinom(n, size = 1, prob = isolate),
+           isolate = rbinom(n(), size = 1, prob = isolate),
            notify = notify,
            
            # transmission probability
@@ -342,7 +344,6 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
            vacc = ifelse(type != 0, 1, rbinom(n, size = 1, prob = res_vax_val)),
            vacc = ifelse(type == 1, rbinom(n, size = 1, prob = staff_vax_val), vacc),
            vacc = ifelse(type == 2, rbinom(n, size = 1, prob = visit_vax_val), vacc),
-           inc_test = ifelse(no_test_vacc & vacc, 0, 1), # look into this
            
            susp = ifelse(vacc==0, 1, rbinom(n, size = 1, prob = 1-vax_eff_val)),
            susp = ifelse(type != 0, rel_nonres_susp_val*susp, susp))

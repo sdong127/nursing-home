@@ -260,8 +260,7 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
   
   # initialize data frame
   df = start %>%
-    mutate(id = row_number(),
-           start = F,
+    mutate(start = F,
            start.init = F,
            t_exposed = -99,
            t_inf = -1,
@@ -332,7 +331,7 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
            room_trans_prob = ifelse(type == 0, room_trans_prob*res_trans_red, rel_nonres_trans*room_trans_prob),
            room_trans_prob = dedens*room_trans_prob,
            room_trans_prob = ifelse(type == 1, room_trans_prob*staff_trans_red, room_trans_prob),
-           room_trans_prob = ifelse(type == 2, room_trans_prob*visitor_trans_red, room_trans_prob),
+           room_trans_prob = ifelse(type == 2, room_trans_prob*visit_trans_red, room_trans_prob),
            
            # susceptibility
            rel_nonres_susp_val = rel_nonres_susp, # used to be child_susp_val
@@ -528,7 +527,7 @@ make_schedule = function(time = 30, df){
 }
 
 
-#' Set room transmission
+#' Set room transmission (used to be rn_household)
 #'
 #' Determine who is infected at a timestep
 #' in the same room as an infected individual
@@ -667,7 +666,7 @@ run_room = function(a, df){
 }
 
 
-#' Set common area transmission
+#' Set common area transmission (used to be run_rand)
 #'
 #' Determine who is infected at a timestep
 #' from common area contact with an infected individual
@@ -701,7 +700,7 @@ run_common = function(a, df, area_contacts){
 
 
 
-#' Set staff transmission
+#' Set staff transmission (used to be run_staff_rand)
 #'
 #' Determine who is infected at a timestep
 #' from contact between in-nursing-home staff
@@ -854,47 +853,47 @@ make_infected = function(df.u, days_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' Perform a single model run
 #'
 #' @param time length of time to run model; defaults to 30
-#' @param notify whether classrooms are notified and quarantined; defaults to F
+#' @param notify whether classrooms (residents?) are notified and quarantined; defaults to F
 #' @param test whether there is weekly testing; defaults to F
 #' @param test_sens test sensitivity; defaults to 0.7
-#' @param test_frac fraction of school tested; defaults to 0.9
+#' @param test_frac fraction of nursing home tested; defaults to 0.9
 #' @param test_days test frequency; "day", "week", "2x_week"; defaults to "week"
-#' @param test_type group tested; defaults to "all", also allows "staff" and "students"
+#' @param test_type group tested; defaults to "all", also allows "residents" and "staff"
 #' @param test_start_day day tests are implemented for weekly testing; defaults to 1 = Monday
-#' @param n_staff_contact number of contacts a teacher/staff member has with other teachers/staff members; defaults to 1
-#' @param n_HH number of households a household interacts with when not attending school; defaults to 0
-#' @param bubble whether out-of-school interactions occur with a 'bubble'; defaults to F
+#' @param n_staff_contact number of contacts a staff member has with other staff members; defaults to 1
+#' @param n_HH number of households a household interacts with when not attending school; defaults to 0 
+#' (change to number of people staff members interact with when not working?)
+#' @param bubble whether out-of-school interactions occur with a 'bubble'; defaults to F (out-of-NH interactions of staff?)
 #' @param n_start number of infections to seed model; defaults to 1
-#' @param mult_asymp multiplier on asymptomatic infection for adults; default is 1
-#' @param mult_asymp_child multiplier on asymptomatic infection for children; default is 1
+#' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
+#' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1 (used to be mult_asymp_child)
 #' @param days_inf length of infectious period (assuming mild case or quarantined on symptoms)
 #' @param seed_asymp whether to seed with an asymptomatic case
 #' @param time_seed_inf time(s) at which to introduce new infectious individuals; defaults to NA and randomly selects one time
-#' @param high_school whether to use a high school schedule of random period mixing; defaults to F
-#' @param nper number of school periods; defaults to 8
-#' @param start_type type of seed; default is "mix" (also "adult", "child", "cont")
+#' @param start_type type of seed; default is "mix" (also "resident", "staff", "visitor", "cont)
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 10
-#' @param quarantine.grace length of grace period after which a quarantined class returns not to be "re-quarantined"
-#' @param start_mult value to indicate relative frequency of adult/child infections; defaults to 1 (adults 2x as likely as kids)
-#' @param num_adults number of adults interacting with children, defaults to 2
-#' @param include_weekends if TRUE excludes weekends from additional out-of-school mixing, defaults to F
+#' @param quarantine.grace length of grace period after which a quarantined class (residnet/staff?) returns not to be "re-quarantined"
+#' @param start_mult value to indicate relative frequency of resident/staff infections; defaults to 0.5 - used to default to 1 
+#' (staff 2x as likely as residents since residents don't leave) (are staff or residents more likely to get infected?)
+#' @param num_staff number of staff interacting with residents, defaults to 4 (used to be num_adults)
+#' @param include_weekends if TRUE includes weekends in additional out-of-school mixing, defaults to F (remove)
 #' @param turnaround.time test turnaround time, default = 1 day
-#' @param child_prob if start_type = "cont", set daily probability of infectious entry for children, defaults to .05
-#' @param adult_prob if start_type = "cont", set daily probability of infectious entry for adults, defaults to .01
-#' @param type "base", "On/off", "A/B", "Remote"; defaults to "base"
-#' @param rel_trans_CC relative transmission in childcare vs. classroom; defaults to 2
-#' @param rel_trans_adult relative transmission in staff-staff interactions vs. classroom; defaults to 2
-#' @param test_quarantine whether quarantined individuals attend school but are tested daily; defaults to FALSE
+#' @param nonres_prob if start_type = "cont", set daily probability of infectious entry for staff and visitors, defaults to .05 (used to be child_prob)
+#' @param res_prob if start_type = "cont", set daily probability of infectious entry for residents, defaults to .01 (used to be adult_prob)
+#' @param type "base", "On/off", "A/B", "Remote"; defaults to "base" (remove)
+#' @param rel_trans_CC relative transmission in childcare vs. classroom; defaults to 2 (remove bc no care contacts)
+#' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2 (used to be rel_trans_adult)
+#' @param test_quarantine whether quarantined individuals attend school but are tested daily; defaults to FALSE (remove?)
 #' @param surveillance whether surveillance is underway; defaults to F
 #' @param rapid_test_sens sensitivity of rapid tests, defaults to 80%
 #' @param overdisp_off all overdispersion off; defaults to F
-#' @param version v1 quarantines full cohort in A/B; v2 only sub-cohort; defaults to 2
-#' @param df school data frame from make_school()
+#' @param version v1 quarantines full cohort in A/B; v2 only sub-cohort; defaults to 2 (remove)
+#' @param df data frame from make_NH() (initialize_school()?)
 #' @param sched schedule data frame from make_schedule()
 #'
 #' @return df updated df with transmission results
 #' @return time_seed_inf when the first individual was dropped in
-#' @return class_quarantine a matrix of class quarantine times
+#' @return class_quarantine a matrix of class quarantine times (change to resident quarantine times?)
 #' @return mat a check on if the people who you think are present are actually the ones present
 #'
 #' @export
@@ -908,88 +907,85 @@ run_model = function(time = 30,
                      test_frac = .9,
                      test_start_day = 1,
                      n_staff_contact = 0,
-                     n_HH = 0,
+                     n_HH = 0, # change
+                     bubble = F, # change
                      n_start = 1,
                      days_inf = 6,
-                     mult_asymp = 1,
-                     mult_asymp_child = 1,
+                     mult_asymp_res = 1,
+                     mult_asymp_nonres = 1,
                      seed_asymp = F,
                      time_seed_inf = NA,
-                     high_school = F,
-                     nper = 8,
-                     start_mult = 1,
                      start_type = "mix",
-                     test_type = "all",
-                     adult_prob = 0.013,
-                     child_prob = 0.056,
                      quarantine.length = 10,
                      quarantine.grace = 3,
-                     rel_trans_CC = 2, rel_trans_adult = 2,
-                     num_adults = 2,
-                     bubble = F,
-                     include_weekends = T,
+                     start_mult = 1,
+                     num_staff = 2,
+                     include_weekends = T, # remove
                      turnaround.time = 1,
-                     type = "base",
-                     version = 2,
-                     test_quarantine = F,
+                     nonres_prob = 0.056,
+                     res_prob = 0.013,
+                     type = "base", # remove
+                     rel_trans_CC = 2, # remove
+                     rel_trans_staff = 2,
+                     test_type = "all",
+                     test_quarantine = F, # remove
                      surveillance = F,
                      rapid_test_sens = 0.8,
                      overdisp_off = F,
+                     version = 2, # remove
                      df, sched){
   
   #### SEED MODEL ####
   # seed with an infectious case
-  if(is.na(time_seed_inf)) time_seed_inf = sample(1:14, 1)     # any day in the cycle
+  if(is.na(time_seed_inf)) time_seed_inf = sample(1:14, 1)     # any day in the cycle (?)
   
-  # any individual not family member
-  # note adults 2x as likely as kids to be infected
-  if(start_type=="mix") id.samp = sample(df$id[!df$family], n_start, prob = (df$adult[!df$family]*start_mult+1)/(sum(df$adult[!df$family]*(start_mult+1)) + sum(!df$adult)))                
+  # any individual not visitor
+  # note staff 2x as likely as residents to be infected
+  if(start_type=="mix") id.samp = sample(df$id[!df$type==2], n_start, prob = (df$type[!df$type==2]*start_mult+1)/(sum(df$type[!df$type==2]*(start_mult+1)) + sum(!df$type==2)))                
   
   # specific types
-  if(start_type=="adult") id.samp = sample(df$id[!df$family & df$adult], n_start)      
-  if(start_type=="teacher") id.samp = sample(df$id[!df$family & df$adult & df$class!=99], n_start)              
-  if(start_type=="child") id.samp = sample(df$id[!df$family & !df$adult], n_start)
-  if(start_type=="family") id.samp = sample(df$id[df$family], n_start)
-  if(start_type=="special") id.samp = sample(df$id[df$specials], n_start)
+  if(start_type=="resident") id.samp = sample(df$id[df$type==0], n_start)      
+  if(start_type=="staff") id.samp = sample(df$id[df$type==1], n_start)              
+  if(start_type=="visitor") id.samp = sample(df$id[df$type==2], n_start)
   
   # set up scheduling if high school
-  hs.classes = NA
-  if(high_school){
-    hs.classes = make_hs_classes(df = df, nper = nper)    
-    classes.ind = sapply(df$id, function(a) hs.classes$class[hs.classes$id == a])
-  }
-  
-  # quarantine
-  if(version == 1 | type=="base") df$group[df$group!=99] = 0  # make sure quarantine doesn't go by group
-  if(!high_school){class_quarantine = expand_grid(class = unique(df$class[df$class!=99]), group = unique(df$group[df$group
-                                                                                                                  !=99])) %>%
-    mutate(class_group = paste(class, group), t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length, num = 0)
-  }else{class_quarantine = data.frame(class = unique(hs.classes$class), t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length)}
-  mat = matrix(NA, nrow = max(df$id), ncol = time)
+  # hs.classes = NA
+  # if(high_school){
+  #   hs.classes = make_hs_classes(df = df, nper = nper)    
+  #   classes.ind = sapply(df$id, function(a) hs.classes$class[hs.classes$id == a])
+  # }
+  # 
+  # # quarantine
+  # if(version == 1 | type=="base") df$group[df$group!=99] = 0  # make sure quarantine doesn't go by group
+  # if(!high_school){class_quarantine = expand_grid(class = unique(df$class[df$class!=99]), group = unique(df$group[df$group
+  #                                                                                                                 !=99])) %>%
+  #   mutate(class_group = paste(class, group), t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length, num = 0)
+  # }else{class_quarantine = data.frame(class = unique(hs.classes$class), t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length)}
+  # mat = matrix(NA, nrow = max(df$id), ncol = time)
   
   # vary over time
   if(start_type == "cont"){
     
     # pull out_IDs
-    adult_IDs = df$id[df$adult]
-    child_IDs = df$id[!df$adult]
+    res_IDs = df$id[df$type==0]
+    nonres_IDs = df$id[!df$type==0]
     
     # pick times
-    vec = 1:(time+15)
-    adult_pulls = rbinom(time+15, size = length(adult_IDs), prob = adult_prob)
-    adult_times = rep(vec, adult_pulls)
+    vec = 1:(time+15) # change so that nonres_times < nonres_IDs
+    res_pulls = rbinom(time+15, size = length(res_IDs), prob = res_prob)
+    res_times = rep(vec, res_pulls)
     
-    child_pulls = rbinom(time+15, size = length(child_IDs), prob = child_prob)
-    child_times = rep(vec, child_pulls)
+    nonres_pulls = rbinom(time+15, size = length(nonres_IDs), prob = nonres_prob)
+    nonres_times = rep(vec, nonres_pulls)
     
     # pick people
-    adults = sample(adult_IDs, length(adult_times))
-    kids = sample(child_IDs, length(child_times))
+    res = sample(res_IDs, length(res_times))
+    nonres = sample(nonres_IDs, length(nonres_times))
     
     # set up vectors
-    time_seed_inf = c(adult_times, child_times)
+    time_seed_inf = c(res_times, nonres_times)
     
-    id.samp = c(adults, kids)
+    id.samp = c(res, nonres)
     df.temp = data.frame(id.samp, time_seed_inf) %>% arrange(id.samp) %>%
       left_join(df, c("id.samp" = "id")) %>% filter(susp!=0)
     time_seed_inf = 15 # start on Monday with testing
@@ -1007,7 +1003,7 @@ run_model = function(time = 30,
   if(nrow(df.temp)>0){
     df[df$id%in%df.temp$id.samp,] = make_infected(df.u = df[df$id%in%df.temp$id.samp,], days_inf = days_inf,
                                                   set = df.temp$time_seed_inf, seed_asymp = seed_asymp,
-                                                  mult_asymp = mult_asymp, mult_asymp_child = mult_asymp_child,
+                                                  mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres,
                                                   turnaround.time = turnaround.time, overdisp_off = overdisp_off)
     df$start = df$id %in% df.temp$id.samp
     df$start.init = df$id %in% df.temp$id.samp
@@ -1026,14 +1022,13 @@ run_model = function(time = 30,
     }}
   df$switch = 0
   df$temp_switch = 0
-  df$specials_count = 0
   
   #print(testing_days)
   
   # testing
-  if(test_type=="all"){ df$test_type = !df$family & df$inc_test & (!df$vacc | test_frac>=0.7)
-  } else if(test_type=="staff"){df$test_type = df$adult & !df$family
-  } else if(test_type=="students"){df$test_type = !df$adult}
+  if(test_type=="all"){ df$test_type = df$type!=2 & (!df$vacc | test_frac>=0.7)
+  } else if(test_type=="residents"){df$test_type = df$type==0
+  } else if(test_type=="staff"){df$test_type = df$type==1}
   class_test_ind = 0
   class_test_ind_q = 0
   test_frac_orig = test_frac

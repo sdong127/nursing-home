@@ -527,7 +527,7 @@ make_schedule = function(time = 30, df){
 }
 
 
-#' Set room transmission (used to be rn_household)
+#' Set room transmission (used to be run_household)
 #'
 #' Determine who is infected at a timestep
 #' in the same room as an infected individual
@@ -955,13 +955,13 @@ run_model = function(time = 30,
   #   classes.ind = sapply(df$id, function(a) hs.classes$class[hs.classes$id == a])
   # }
   # 
-  # # quarantine
+  # quarantine
   # if(version == 1 | type=="base") df$group[df$group!=99] = 0  # make sure quarantine doesn't go by group
-  # if(!high_school){class_quarantine = expand_grid(class = unique(df$class[df$class!=99]), group = unique(df$group[df$group
-  #                                                                                                                 !=99])) %>%
-  #   mutate(class_group = paste(class, group), t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length, num = 0)
-  # }else{class_quarantine = data.frame(class = unique(hs.classes$class), t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length)}
-  # mat = matrix(NA, nrow = max(df$id), ncol = time)
+  if(!high_school){class_quarantine = expand_grid(class = unique(df$class[df$class!=99]), group = unique(df$group[df$group
+                                                                                                                  !=99])) %>%
+    mutate(class_group = paste(class, group), t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length, num = 0)
+  }else{class_quarantine = data.frame(class = unique(hs.classes$class), t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length)}
+  mat = matrix(NA, nrow = max(df$id), ncol = time)
   
   # vary over time
   if(start_type == "cont"){
@@ -1173,7 +1173,7 @@ run_model = function(time = 30,
     }
     
     #### SELECT NEXT GENERATION INFECTIONS ####
-    # run model for infectious individuals at home
+    # run model for infectious individuals at home (change to infectious individuals in room)
     if(sum(df$inf_home)>0) {
       
       home_infs = df$id[df$inf_home]
@@ -1206,7 +1206,7 @@ run_model = function(time = 30,
       }
     }
     
-    # run model for infectious individuals at school
+    # run model for infectious individuals at school (change to infectious individuals in shared spaces of nursing home)
     if(sum(df$trans_now)>0) {
       
       # RANDOM CONTACT STRUCTURE
@@ -1216,7 +1216,7 @@ run_model = function(time = 30,
       random_contacts = sample_k_regular(sum(df$present), df$n_contact[1] + df$n_contact_brief[1])
       #if(n_staff_contact>0) random_staff_contacts = sample_k_regular(sum(df$present & df$adult & !df$family), n_staff_contact)
       
-      # SPECIAL SUBJECTS
+      # SPECIAL SUBJECTS (don't need)
       specials = data.frame(teacher = rep(df$id[df$specials], each = 4), class = sample(1:max(df$class[!is.na(df$class) & df$class<99]), 4*sum(df$specials), replace = T))
       #specials2 = specials %>% group_by(teacher) %>% summarize(class = unique(class)) %>% ungroup()
       #df$specials_count = df$specials_count + sapply(df$class, function(a) sum(specials2$class==a))
@@ -1228,7 +1228,7 @@ run_model = function(time = 30,
       # choose contacts that become infected
       for(a in school_infs){
         
-        # CLASS CONTACTS
+        # CLASS CONTACTS (remove)
         class_trans = run_class(a, df, high_school = high_school, hs.classes = hs.classes)
         #class_trans = 0
         df$location[df$id%in%class_trans] = "Class"
@@ -1241,7 +1241,7 @@ run_model = function(time = 30,
           ifelse(df$class[df$id == a] != 99,
                  (sched$present[sched$id == a & sched$t == t] & df$t_inf[df$id == a] <= t & df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$class == df$class[df$id == a] & df$adult & df$susp != 0]), 0)
         
-        # RANDOM CONTACTS
+        # RANDOM CONTACTS (change to run_common - COMMON AREA CONTACTS)
         rand_trans = tryCatch({run_rand(a, df, random_contacts)}, error = function(err) {0})
         #rand_trans = 0
         df$location[df$id%in%rand_trans] = "Random contacts"
@@ -1250,7 +1250,7 @@ run_model = function(time = 30,
         df$person.days.at.risk.random.students[df$id == a] <- df$person.days.at.risk.random.students[df$id == a] + (sched$present[sched$id == a & sched$t == t] & df$t_inf[df$id == a] <= t & df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% df$id[df$present][random_contacts[[which(df$id[df$present] == a)]][[1]]] & !df$adult & df$susp != 0 & !(df$id %in% class_trans)])
         df$person.days.at.risk.random.teachers[df$id == a] <- df$person.days.at.risk.random.teachers[df$id == a] + (sched$present[sched$id == a & sched$t == t] & df$t_inf[df$id == a] <= t & df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% df$id[df$present][random_contacts[[which(df$id[df$present] == a)]][[1]]] & df$adult & df$susp != 0 & !(df$id %in% class_trans)])
         
-        # RANDOM ADULT CONTACTS
+        # RANDOM ADULT CONTACTS (change to run_staff - STAFF CONTACTS)
         # note this doesn't strictly keep reciprocity
         # but k-regular graphs can be finnicky at low ##s
         # and this captures the general pattern
@@ -1264,7 +1264,7 @@ run_model = function(time = 30,
         }else{rand_staff_trans = 0}
         df$location[df$id%in%rand_staff_trans] = "Staff contacts"
         
-        # SPECIALS CONTACTS
+        # SPECIALS CONTACTS (remove)
         specials_trans = run_specials(a, df, specials)
         #specials_trans = 0
         df$location[df$id%in%specials_trans] = "Related arts"
@@ -1296,7 +1296,7 @@ run_model = function(time = 30,
       }
     }
     
-    # run model for infectious individuals OUTSIDE school
+    # run model for infectious individuals OUTSIDE school (don't need?)
     HHs = unique(df$HH_id[!df$adult & df$mix_outside])
     len = length(HHs)
     if(sum(df$trans_outside)>0 & n_HH>0 & len > 1 &
@@ -1317,7 +1317,7 @@ run_model = function(time = 30,
       non_school_infs = df$id[df$trans_outside]
       if(sum(df$trans_outside > 1)) non_school_infs = sample(non_school_infs)
       
-      # choose contacts that become infected
+      # choose contacts that become infected (don't need)
       for(a in non_school_infs){
         
         # CARE CONTACTS
@@ -1357,7 +1357,7 @@ run_model = function(time = 30,
       
       df$start[df$now] = 0      # remove seed if infected earlier
       df$t_exposed[df$now] = t
-      df[df$now,] = make_infected(df[df$now,], days_inf = days_inf, mult_asymp = mult_asymp, mult_asymp_child = mult_asymp_child, turnaround.time = turnaround.time, overdisp_off = overdisp_off)
+      df[df$now,] = make_infected(df[df$now,], days_inf = days_inf, mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres, turnaround.time = turnaround.time, overdisp_off = overdisp_off)
       #print("New exposures:")
       #print(df %>% filter(now) %>% arrange(source) %>% select(id, HH_id, class, group, adult, family, source, location, symp))
     }

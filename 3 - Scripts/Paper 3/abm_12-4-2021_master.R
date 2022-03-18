@@ -533,7 +533,7 @@ make_schedule = function(time = 30, df){
 #' in the same room as an infected individual
 #'
 #' @param a id of infected individual
-#' @param df data frame from run_model()
+#' @param df data frame in run_model()
 #'
 #' @return infs id of infected individuals
 #'
@@ -672,7 +672,7 @@ run_room = function(a, df){
 #' from common area contact with an infected individual
 #'
 #' @param a id of infected individual
-#' @param df data frame from make_schedule()?
+#' @param df data frame in run_model()
 #' @param area_contacts graph of common area contacts at time t
 #'
 #' @return infs id of infected individuals
@@ -706,7 +706,7 @@ run_common = function(a, df, area_contacts){
 #' from contact between in-nursing-home staff
 #'
 #' @param a id of infected staff member
-#' @param df school data frame from initialize_school()
+#' @param df school data frame in run_model()
 #' @param n_contact number of contacts staff encounters in nursing home
 #' @param rel_trans_staff relative transmission in staff-staff interactions (vs. resident room);
 #' defaults to 2 (look into this), used to be rel_trans_adult
@@ -790,7 +790,7 @@ make_quarantine = function(class_quarantine, df.u, quarantine.length = 10, quara
 #'
 #' Set infection parameters for individuals infected at a particular timestep
 #'
-#' @param df.u data frame from initialize_NH()?
+#' @param df.u data frame in run_model()
 #' @param days_inf length of infectious period, defaults to 5
 #' @param set indication of seeding model vs. creating infections
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)

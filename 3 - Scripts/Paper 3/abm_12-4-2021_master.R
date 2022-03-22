@@ -314,17 +314,16 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
            # person.days.at.risk.specials.teachers = 0,
            # person.days.at.risk.care.students = 0,
            # person.days.at.risk.care.parents = 0,
-           # inf_days = 0,
-           # inf_home_days = 0,
-           # symp_days = 0,
-           # symp_and_inf_days = 0,
-           # last = 0,
-           # rapid_tp_count  = 0,
-           # rapid_fn_count = 0,
-           # pcr_tp_count = 0,
-           # pcr_fn_count = 0,
-           # test_q_eligible = 0,
-           # test_regular_eligible = 0
+           inf_days = 0,
+           symp_days = 0,
+           symp_and_inf_days = 0,
+           last = 0,
+           rapid_tp_count  = 0,
+           rapid_fn_count = 0,
+           pcr_tp_count = 0,
+           pcr_fn_count = 0,
+           test_q_eligible = 0,
+           test_regular_eligible = 0
     ) %>%
     mutate(p_asymp = ifelse(type != 0, p_asymp_staff, p_asymp_res),
            p_subclin = ifelse(type != 0, p_subclin_staff, p_subclin_res),
@@ -548,12 +547,12 @@ make_schedule = function(time = 30, df){
 run_room = function(a, df){
   
   # if infected is resident
-  if(df$type[df$id==a]==0){
+  if(df[df$id==a,]$type==0){
     
     # if resident has roommate
-    if(df$room[df$id==a]<43 & sum(df$room==df$room[df$id==a])>1){
+    if(df[df$id==a,]$room<43 & sum(df$room[df$id==a])>1){
       # roommate
-      roommate_vec = df[df$room==df$room[df$id==a] & df$id!=a,]
+      roommate_vec = df[df$room==df$room[df$id==a,] & df$id!=a,]
       roommate_vec = roommate_vec[rowSums(is.na(roommate_vec)) != ncol(roommate_vec),]
       
       # determine whether roommate becomes infected
@@ -563,10 +562,8 @@ run_room = function(a, df){
       roommate = roommate_vec$id
       
       # list infected roommate
-      roommate_inf = roommate*prob_roommate
-    }
-    
-    else{roommate_inf = 0}
+      roommate_infs = roommate*prob_roommate
+    }else{roommate_infs = 0}
     
     # make vector of staff in infected resident's room
     staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1,] %>% 
@@ -593,37 +590,40 @@ run_room = function(a, df){
     
     
     # make vector of resident's visitor(s)
-    visit_vec = df[df$family==df$family[df$id==a] & df$id!=a,]
-    visit_vec = visit_vec[rowSums(is.na(visit_vec)) != ncol(visit_vec),]
+    if('family' %in% colnames(df)){
+      visit_vec = df[df$family==df$family[df$id==a] & df$id!=a,]
+      visit_vec = visit_vec[rowSums(is.na(visit_vec)) != ncol(visit_vec),]
+      
+      # determine whether visitors become infected
+      prob_visit = rbinom(nrow(visit_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*visit_vec$susp*visit_vec$present_susp*visit_vec$not_inf < 1,
+                                                                   df$room_trans_prob[df$id==a]*visit_vec$susp*visit_vec$present_susp*visit_vec$not_inf,
+                                                                   1))
+      visit = visit_vec$id
+      
+      # list infected visitors
+      visit_infs = visit*prob_visit
+    } else{visit_infs = 0}
     
-    # determine whether visitors become infected
-    prob_visit = rbinom(nrow(visit_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*visit_vec$susp*visit_vec$present_susp*visit_vec$not_inf < 1,
-                                                                df$room_trans_prob[df$id==a]*visit_vec$susp*visit_vec$present_susp*visit_vec$not_inf,
-                                                                1))
-    visit = visit_vec$id
+    infs = c(roommate_infs, staff_infs, visit_infs)
     
-    # list infected visitors
-    visit_infs = visit*prob_visit
+  }else{
+    roommate_infs = 0
+    staff_infs = 0
+    visit_infs = 0
     
+    infs = c(roommate_infs, staff_infs, visit_infs)
   }
-  else{
-    roommate_inf = 0
-    staff_inf = 0
-    visit_inf = 0
-  }
-  
-  infs = c(roommate_inf, staff_inf, visit_inf)
   
   # if infected is direct-care staff
-  if(df$type[df$id==a]==1 & df$role[df$id==a]!=4 & df$present[df$id==a]){
+  if(df[df$id==a,]$type==1 & df[df$id==a,]$role!=4 & df[df$id==a,]$present){
     
     # find out what role they are
-    staff_row = c(df[df$id==a,8:18])
+    staff_row = c(df[df$id==a,9:19])
     staff_role = names(staff_row[!is.na(staff_row)])
     staff_role_id = staff_row[!is.na(staff_row)][[1]]
     
     # make vector of residents that staff treats
-    res_vec = df[df[staff_role]==staff_role_id & df$type==0,]
+    res_vec = df[(df[staff_role]==staff_role_id) & df$type==0,]
     res_vec = res_vec[rowSums(is.na(res_vec)) != ncol(res_vec),]
     
     # determine whether residents become infected
@@ -635,15 +635,16 @@ run_room = function(a, df){
     # list infected residents
     res_infs = res*prob_res
     
-  }
-  else{
+    infs = res_infs
+    
+  }else{
     res_infs = 0
+    
+    infs = res_infs
   }
-  
-  infs = c(infs, res_infs)
   
   # if infected is visitor
-  if(df$type[df$id==a]==2 & df$present[df$id==a]){
+  if(df[df$id==a,]$type==2 & df[df$id==a,]$present){
     
     # make vector of resident that visitor sees, including roommates
     res_vec = df[df$family==df$family[df$id==a] & df$id!=a,]
@@ -660,12 +661,13 @@ run_room = function(a, df){
     
     # list infected residents
     res_infs = res*prob_res
-  }
-  else{
+    
+    infs = res_infs
+  }else{
     res_infs = 0
+    
+    infs = res_infs
   }
-  
-  infs = c(infs, res_infs)
  
   
   #print(df$class_trans_prob[df$id==a]*df$relative_trans_HH[df$id==a]*HH_vec$susp*HH_vec$not_inf)
@@ -880,9 +882,6 @@ make_infected = function(df.u, days_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' @param test_type group tested; defaults to "all", also allows "residents" and "staff"
 #' @param test_start_day day tests are implemented for weekly testing; defaults to 1 = Monday
 #' @param n_staff_contact number of contacts a staff member has with other staff members; defaults to 1
-#' @param n_HH number of households a household interacts with when not attending school; defaults to 0 
-#' (change to number of people staff members interact with when not working?)
-#' @param bubble whether out-of-school interactions occur with a 'bubble'; defaults to F (out-of-NH interactions of staff?)
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
 #' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1 (used to be mult_asymp_child)
@@ -895,18 +894,13 @@ make_infected = function(df.u, days_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' @param start_mult value to indicate relative frequency of resident/staff infections; defaults to 0.5 - used to default to 1 
 #' (staff 2x as likely as residents since residents don't leave) (are staff or residents more likely to get infected?)
 #' @param num_staff number of staff interacting with residents, defaults to 4 (used to be num_adults)
-#' @param include_weekends if TRUE includes weekends in additional out-of-school mixing, defaults to F (remove)
 #' @param turnaround.time test turnaround time, default = 1 day
 #' @param nonres_prob if start_type = "cont", set daily probability of infectious entry for staff and visitors, defaults to .05 (used to be child_prob)
 #' @param res_prob if start_type = "cont", set daily probability of infectious entry for residents, defaults to .01 (used to be adult_prob)
-#' @param type "base", "On/off", "A/B", "Remote"; defaults to "base" (remove)
-#' @param rel_trans_CC relative transmission in childcare vs. classroom; defaults to 2 (remove bc no care contacts)
 #' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2 (used to be rel_trans_adult)
-#' @param test_quarantine whether quarantined individuals attend school but are tested daily; defaults to FALSE (remove?)
 #' @param surveillance whether surveillance is underway; defaults to F
 #' @param rapid_test_sens sensitivity of rapid tests, defaults to 80%
 #' @param overdisp_off all overdispersion off; defaults to F
-#' @param version v1 quarantines full cohort in A/B; v2 only sub-cohort; defaults to 2 (remove)
 #' @param df data frame from make_NH() (initialize_school()?)
 #' @param sched schedule data frame from make_schedule()
 #'
@@ -926,8 +920,6 @@ run_model = function(time = 30,
                      test_frac = .9,
                      test_start_day = 1,
                      n_staff_contact = 0,
-                     n_HH = 0, # change
-                     bubble = F, # change
                      n_start = 1,
                      days_inf = 6,
                      mult_asymp_res = 1,
@@ -939,19 +931,14 @@ run_model = function(time = 30,
                      quarantine.grace = 3,
                      start_mult = 1,
                      num_staff = 2,
-                     include_weekends = T, # remove
                      turnaround.time = 1,
                      nonres_prob = 0.005,
                      res_prob = 0.0025,
-                     type = "base", # remove
-                     rel_trans_CC = 2, # remove
                      rel_trans_staff = 2,
                      test_type = "all",
-                     test_quarantine = F, # remove
                      surveillance = F,
                      rapid_test_sens = 0.8,
                      overdisp_off = F,
-                     version = 2, # remove
                      df, sched){
   
   #### SEED MODEL ####
@@ -966,18 +953,11 @@ run_model = function(time = 30,
   if(start_type=="resident") id.samp = sample(df$id[df$type==0], n_start)      
   if(start_type=="staff") id.samp = sample(df$id[df$type==1], n_start)              
   if(start_type=="visitor") id.samp = sample(df$id[df$type==2], n_start)
-  
-  # set up scheduling if high school
-  # hs.classes = NA
-  # if(high_school){
-  #   hs.classes = make_hs_classes(df = df, nper = nper)    
-  #   classes.ind = sapply(df$id, function(a) hs.classes$class[hs.classes$id == a])
-  # }
-  # 
+
   # quarantine
   room_quarantine = expand_grid(room = unique(df$room[df$room!=99])) %>%
     mutate(t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length, num = 0)
-  mat = matrix(NA, nrow = nrow(df)*3, ncol = time)
+  mat = matrix(NA, nrow = nrow(df), ncol = time)
   
   # vary over time
   if(start_type == "cont"){
@@ -1045,7 +1025,8 @@ run_model = function(time = 30,
   test_frac_orig = test_frac
   df$uh.oh = 0
   
-  df = df[rep(seq_len(nrow(df)), each = 3), ]
+  # add later
+  # df = df[rep(seq_len(nrow(df)), each = 3), ]
   
   #print(paste("start notification:", df$t_notify[df$start]))
   # run over time steps
@@ -1061,24 +1042,24 @@ run_model = function(time = 30,
     #print(classes_out)
     df$quarantine_room = df$room%in%rooms_out$room
     
-    # present
-    df$test_type_q = df$quarantine_room | df$symp_now
-    if(t == 1) df$test_q_keep = df$test_type_q
-    #print("got to test_q"); print(dim(df)); print(df %>% group_by(vacc) %>% summarize(sum(test_type_q)))
-    df$test_ct_q = df$test_ct_q + df$present*as.numeric(df$test_type_q)
-    df$test_q = rbinom(nrow(df), size = 1, prob = rapid_test_sens*df$present*df$test_type_q)
-    df$t_end_inf = ifelse(df$inf & df$test_q & df$present, t, df$t_end_inf)
-    df$t_notify = ifelse(df$inf & df$test_q & df$present, t+1, df$t_notify)
-    df$detected = ifelse(df$inf & df$test_q & df$present, 1, df$detected)
-    df$detected_q = ifelse(df$inf & df$test_q & df$present, 1, df$detected_q)
-    df$detected_q_start = ifelse(df$inf & df$test_q & df$present & df$start, 1, df$detected_q_start)
-    room_test_ind_q = room_test_ind_q + length(unique(df$room[df$test_type_q & df$present & !df$quarantined]))
-    df$q_out = df$detected & df$inf
-    
+    # present 
+    # df$test_type_q = df$quarantine_room | df$symp_now
+    # if(t == 1) df$test_q_keep = df$test_type_q
+    # #print("got to test_q"); print(dim(df)); print(df %>% group_by(vacc) %>% summarize(sum(test_type_q)))
+    # df$test_ct_q = df$test_ct_q + df$present*as.numeric(df$test_type_q)
+    # df$test_q = rbinom(nrow(df), size = 1, prob = rapid_test_sens*df$present*df$test_type_q)
+    # df$t_end_inf = ifelse(df$inf & df$test_q & df$present, t, df$t_end_inf)
+    # df$t_notify = ifelse(df$inf & df$test_q & df$present, t+1, df$t_notify)
+    # df$detected = ifelse(df$inf & df$test_q & df$present, 1, df$detected)
+    # df$detected_q = ifelse(df$inf & df$test_q & df$present, 1, df$detected_q)
+    # df$detected_q_start = ifelse(df$inf & df$test_q & df$present & df$start, 1, df$detected_q_start)
+    # room_test_ind_q = room_test_ind_q + length(unique(df$room[df$test_type_q & df$present & !df$quarantined]))
+    # df$q_out = df$detected & df$inf
+    # 
     # df$rapid_tp_count = df$rapid_tp_count + ifelse(df$test_type_q & df$present, df$inf*df$test_q, 0)
     # df$rapid_fn_count = df$rapid_fn_count + ifelse(df$test_type_q & df$present, df$inf*(1-df$test_q), 0)
     # df$test_q_eligible = df$test_q_eligible + df$present*df$test_type_q
-    df$q_out[df$type!=0] = !df$vacc[df$type!=0]
+    # df$q_out[df$type!=0] = !df$vacc[df$type!=0]
     
     # re-estimated who is present
     df$present[df$type!=0] = sched$present[sched$t==t & sched$type!=0] & !df$q_out[df$type!=0] 
@@ -1088,11 +1069,10 @@ run_model = function(time = 30,
     df$inf = df$t_inf > -1 & df$t_inf <= t & df$t_end_inf >= t
     
     # checks
-    # df$inf_days = df$inf_days + df$inf
-    # df$inf_home_days = df$inf_home_days + df$inf_home
-    # df$symp_days = df$symp_days + ifelse(df$symp_now==1 & !is.na(df$symp_now), 1, 0)
-    # df$symp_and_inf_days = df$symp_and_inf_days + df$symp_now*df$inf
-    # df$last = ifelse(df$inf, t, df$last)
+    df$inf_days = df$inf_days + df$inf
+    df$symp_days = df$symp_days + ifelse(df$symp_now==1 & !is.na(df$symp_now), 1, 0)
+    df$symp_and_inf_days = df$symp_and_inf_days + df$symp_now*df$inf
+    df$last = ifelse(df$inf, t, df$last)
     
     df$not_inf = df$t_exposed==-99 | df$t_exposed>t # if exposed from community, can be exposed earlier
     if(t==15) df$not_inf_keep = df$not_inf
@@ -1113,7 +1093,7 @@ run_model = function(time = 30,
     ifelse(df$trans_now & df$type==0 & df$room<43, df$flag <- 1, df$flag <- 0)
     if(sum(df$flag)>0){
       flagged_rooms = unique(df$room[df$flag==1])
-    }
+    } else{flagged_rooms = 0}
     ifelse(df$type==0 & df$room<43 & df$flag!=1, df$flag[df$room%in%flagged_rooms] <- 1, df$flag)
     
     # set infections to 0 for this timestep
@@ -1132,9 +1112,9 @@ run_model = function(time = 30,
       room_test_ind = room_test_ind + length(unique(df$room[df$test_type & df$present & !df$quarantined]))
       
       # checks
-      # df$pcr_tp_count = df$pcr_tp_count + ifelse(df$test_type & df$present, df$inf*df$test, 0)
-      # df$pcr_fn_count = df$pcr_fn_count + ifelse(df$test_type & df$present, df$inf*(1-df$test), 0)
-      # df$test_regular_eligible = df$test_regular_eligible + df$present*df$test_type
+      df$pcr_tp_count = df$pcr_tp_count + ifelse(df$test_type & df$present, df$inf*df$test, 0)
+      df$pcr_fn_count = df$pcr_fn_count + ifelse(df$test_type & df$present, df$inf*(1-df$test), 0)
+      df$test_regular_eligible = df$test_regular_eligible + df$present*df$test_type
       
       #print(paste("Time:", t))
       #print(sum(df$test))
@@ -1221,19 +1201,6 @@ run_model = function(time = 30,
       # choose contacts that become infected
       for(a in common_infs){
         
-        # # CLASS CONTACTS (remove)
-        # class_trans = run_class(a, df, high_school = high_school, hs.classes = hs.classes)
-        # #class_trans = 0
-        # df$location[df$id%in%class_trans] = "Class"
-        # 
-        # #Track risk set for unit testing
-        # df$person.days.at.risk.class.students[df$id == a] <- df$person.days.at.risk.class.students[df$id == a] +
-        #   ifelse(df$class[df$id == a] != 99,
-        #          (sched$present[sched$id == a & sched$t == t] & df$t_inf[df$id == a] <= t & df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$class == df$class[df$id == a] & !df$adult & df$susp != 0]), 0)
-        # df$person.days.at.risk.class.teachers[df$id == a] <- df$person.days.at.risk.class.teachers[df$id == a] +
-        #   ifelse(df$class[df$id == a] != 99,
-        #          (sched$present[sched$id == a & sched$t == t] & df$t_inf[df$id == a] <= t & df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$class == df$class[df$id == a] & df$adult & df$susp != 0]), 0)
-        
         # COMMON AREA CONTACTS
         common_trans = tryCatch({run_common(a, df, common_contacts)}, error = function(err) {0})
         #rand_trans = 0
@@ -1247,7 +1214,7 @@ run_model = function(time = 30,
         # note this doesn't strictly keep reciprocity
         # but k-regular graphs can be finnicky at low ##s
         # and this captures the general pattern
-        if(df$type[df$id==a]==1){
+        if(df[df$id==a,]$type==1){
           staff_trans.out = run_staff(a, df, n_staff_contact, rel_trans_staff)
           staff_trans <- staff_trans.out[[1]]
           

@@ -374,7 +374,7 @@ make_schedule = function(time = 30, df){
   vec = data.frame(
     
     # time since start in 8-hour shifts
-    t = rep(1:time, each = 3),
+    t = 1:(time*3),
     
     # day of the week
     day = rep(c("M_morn", "M_evening", "M_night", 
@@ -400,13 +400,13 @@ make_schedule = function(time = 30, df){
                       admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
       
       # mark staff and residents present based on time of day
-      mutate(present = ifelse(grepl("morn", day) & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
+      mutate(present = ifelse(t%%3==1 & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
                                                       !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
                                                       !is.na(admin_cohort_morning)), TRUE, FALSE),
-             present = ifelse(grepl("evening", day) & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
+             present = ifelse(t%%3==2 & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
                                                          !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
                                                          !is.na(admin_cohort_evening)), TRUE, present),
-             present = ifelse(grepl("night", day) & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
+             present = ifelse(t%%3==0 & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
                                                        !is.na(cna_cohort_night)), TRUE, present),
              present = ifelse(type == 0, TRUE, present),
              
@@ -435,13 +435,13 @@ make_schedule = function(time = 30, df){
                       admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
       
       # mark staff and residents present based on time of day
-      mutate(present = ifelse(grepl("morn", day) & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
+      mutate(present = ifelse(t%%3==1 & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
                                                       !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
                                                       !is.na(admin_cohort_morning)), TRUE, FALSE),
-             present = ifelse(grepl("evening", day) & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
+             present = ifelse(t%%3==2 & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
                                                       !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
                                                       !is.na(admin_cohort_evening)), TRUE, present),
-             present = ifelse(grepl("night", day) & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
+             present = ifelse(t%%3==0 & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
                                                     !is.na(cna_cohort_night)), TRUE, present),
              present = ifelse(type == 0, TRUE, present)
              
@@ -461,72 +461,113 @@ make_schedule = function(time = 30, df){
     cna_night = df[!is.na(df$cna_cohort_night),]$cna_cohort_night
     ma_morning = df[!is.na(df$ma_cohort_morning),]$ma_cohort_morning
     ma_evening = df[!is.na(df$ma_cohort_evening),]$ma_cohort_evening
-
-    for(i in 1:time){
-      res = 1
-      for(j in rn_morning){
-        d$rn_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_morning))-1) 
-                            & d$type==0 & d$t==i] = sample(rn_morning,1)
-        res = res + (nrow(subset(df,type==0))/length(rn_morning))
-      }
-      res = 1
-      for(j in rn_evening){
-        d$rn_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_evening))-1) 
-                            & d$type==0 & d$t==i] = sample(rn_evening,1)
-        res = res + (nrow(subset(df,type==0))/length(rn_evening))
-      }
-      res = 1
-      for(j in rn_night){
-        d$rn_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_night))-1) 
+    
+    for(i in 1:(time*3)){
+      
+      # assign morning staff
+      if(i%%3==1){ 
+        res = 1
+        for(j in rn_morning){
+          d$rn_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_morning))-1) 
+                              & d$type==0 & d$t==i] = sample(rn_morning,1)
+          res = res + (nrow(subset(df,type==0))/length(rn_morning))
+        }
+        res = 1
+        for(j in lpn_morning){
+          d$lpn_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_morning))-1) 
+                               & d$type==0 & d$t==i] = sample(lpn_morning,1)
+          res = res + (nrow(subset(df,type==0))/length(lpn_morning))
+        }
+        res = 1
+        for(j in cna_morning){
+          d$cna_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_morning))-1) 
+                               & d$type==0 & d$t==i] = sample(cna_morning,1)
+          res = res + (nrow(subset(df,type==0))/length(cna_morning))
+        }
+        res = 1
+        for(j in ma_morning & i%%3==1){
+          d$ma_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(ma_morning))-1) 
+                              & d$type==0 & d$t==i] = sample(ma_morning,1)
+          res = res + (nrow(subset(df,type==0))/length(ma_morning))
+        }
+        
+        # assign evening staff
+      } else if(i%%3==2){
+        res = 1
+        for(j in rn_evening & i%%3==2){
+          d$rn_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_evening))-1) 
+                              & d$type==0 & d$t==i] = sample(rn_evening,1)
+          res = res + (nrow(subset(df,type==0))/length(rn_evening))
+        }
+        res = 1
+        for(j in lpn_evening & i%%3==2){
+          d$lpn_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_evening))-1) 
+                               & d$type==0 & d$t==i] = sample(lpn_evening,1)
+          res = res + (nrow(subset(df,type==0))/length(lpn_evening))
+        }
+        res = 1
+        for(j in cna_evening & i%%3==2){
+          d$cna_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_evening))-1) 
+                               & d$type==0 & d$t==i] = sample(cna_evening,1)
+          res = res + (nrow(subset(df,type==0))/length(cna_evening))
+        }
+        d$ma_cohort_evening[d$type==0 & d$t==i] = 3
+        
+        # assign night staff
+      } else{
+        res = 1
+        for(j in rn_night & i%%3==0){
+          d$rn_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(rn_night))-1) 
                             & d$type==0 & d$t==i] = sample(rn_night,1)
-        res = res + (nrow(subset(df,type==0))/length(rn_night))
-      }
-      res = 1
-      for(j in lpn_morning){
-        d$lpn_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_morning))-1) 
-                          & d$type==0 & d$t==i] = sample(lpn_morning,1)
-        res = res + (nrow(subset(df,type==0))/length(lpn_morning))
-      }
-      res = 1
-      for(j in lpn_evening){
-        d$lpn_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_evening))-1) 
-                             & d$type==0 & d$t==i] = sample(lpn_evening,1)
-        res = res + (nrow(subset(df,type==0))/length(lpn_evening))
-      }
-      res = 1
-      for(j in lpn_night){
-        d$lpn_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_night))-1) 
+          res = res + (nrow(subset(df,type==0))/length(rn_night))
+        }
+        res = 1
+        for(j in lpn_night & i%%3==0){
+          d$lpn_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(lpn_night))-1) 
                              & d$type==0 & d$t==i] = sample(lpn_night,1)
-        res = res + (nrow(subset(df,type==0))/length(lpn_night))
-      }
-      res = 1
-      for(j in cna_morning){
-        d$cna_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_morning))-1) 
-                             & d$type==0 & d$t==i] = sample(cna_morning,1)
-        res = res + (nrow(subset(df,type==0))/length(cna_morning))
-      }
-      res = 1
-      for(j in cna_evening){
-        d$cna_cohort_evening[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_evening))-1) 
-                             & d$type==0 & d$t==i] = sample(cna_evening,1)
-        res = res + (nrow(subset(df,type==0))/length(cna_evening))
-      }
-      res = 1
-      for(j in cna_night){
-        d$cna_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_night))-1) 
+          res = res + (nrow(subset(df,type==0))/length(lpn_night))
+        }
+        res = 1
+        for(j in cna_night & i%%3==0){
+          d$cna_cohort_night[d$id %in% res:(res+(nrow(subset(df,type==0))/length(cna_night))-1) 
                              & d$type==0 & d$t==i] = sample(cna_night,1)
-        res = res + (nrow(subset(df,type==0))/length(cna_night))
-      }
-      res = 1
-      for(j in ma_morning){
-        d$ma_cohort_morning[d$id %in% res:(res+(nrow(subset(df,type==0))/length(ma_morning))-1) 
-                           & d$type==0 & d$t==i] = sample(ma_morning,1)
-        res = res + (nrow(subset(df,type==0))/length(ma_morning))
+          res = res + (nrow(subset(df,type==0))/length(cna_night))
+        }
       }
     }
-    d$ma_cohort_evening[d$type==0] = 3
-
+    
   }
+  
+  # remove staff from rows when they are not working
+  ifelse(d$t%%3==1, d[d$t%%3==1,]$rn_cohort_evening <- NA, d[d$t%%3==1,]$rn_cohort_evening)
+  ifelse(d$t%%3==1, d[d$t%%3==1,]$rn_cohort_night <- NA, d[d$t%%3==1,]$rn_cohort_night)
+  ifelse(d$t%%3==1, d[d$t%%3==1,]$lpn_cohort_evening <- NA, d[d$t%%3==1,]$lpn_cohort_evening)
+  ifelse(d$t%%3==1, d[d$t%%3==1,]$lpn_cohort_night <- NA, d[d$t%%3==1,]$lpn_cohort_night)
+  ifelse(d$t%%3==1, d[d$t%%3==1,]$cna_cohort_evening <- NA, d[d$t%%3==1,]$cna_cohort_evening)
+  ifelse(d$t%%3==1, d[d$t%%3==1,]$cna_cohort_night <- NA, d[d$t%%3==1,]$cna_cohort_night)
+  ifelse(d$t%%3==1, d[d$t%%3==1,]$ma_cohort_evening <- NA, d[d$t%%3==1,]$ma_cohort_evening)
+  ifelse(d$t%%3==1, d[d$t%%3==1,]$admin_cohort_evening <- NA, d[d$t%%3==1,]$admin_cohort_evening)
+  
+  ifelse(d$t%%3==2, d[d$t%%3==2,]$rn_cohort_morning <- NA, d[d$t%%3==2,]$rn_cohort_morning)
+  ifelse(d$t%%3==2, d[d$t%%3==2,]$rn_cohort_night <- NA, d[d$t%%3==2,]$rn_cohort_night)
+  ifelse(d$t%%3==2, d[d$t%%3==2,]$lpn_cohort_morning <- NA, d[d$t%%3==2,]$lpn_cohort_morning)
+  ifelse(d$t%%3==2, d[d$t%%3==2,]$lpn_cohort_night <- NA, d[d$t%%3==2,]$lpn_cohort_night)
+  ifelse(d$t%%3==2, d[d$t%%3==2,]$cna_cohort_morning <- NA, d[d$t%%3==2,]$cna_cohort_morning)
+  ifelse(d$t%%3==2, d[d$t%%3==2,]$cna_cohort_night <- NA, d[d$t%%3==2,]$cna_cohort_night)
+  ifelse(d$t%%3==2, d[d$t%%3==2,]$ma_cohort_morning <- NA, d[d$t%%3==2,]$ma_cohort_morning)
+  ifelse(d$t%%3==2, d[d$t%%3==2,]$admin_cohort_morning <- NA, d[d$t%%3==2,]$admin_cohort_morning)
+  
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$rn_cohort_morning <- NA, d[d$t%%3==0,]$rn_cohort_morning)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$rn_cohort_evening <- NA, d[d$t%%3==0,]$rn_cohort_evening)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$lpn_cohort_morning <- NA, d[d$t%%3==0,]$lpn_cohort_morning)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$lpn_cohort_evening <- NA, d[d$t%%3==0,]$lpn_cohort_evening)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$cna_cohort_morning <- NA, d[d$t%%3==0,]$cna_cohort_morning)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$cna_cohort_evening <- NA, d[d$t%%3==0,]$cna_cohort_evening)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$ma_cohort_morning <- NA, d[d$t%%3==0,]$ma_cohort_morning)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$ma_cohort_evening <- NA, d[d$t%%3==0,]$ma_cohort_evening)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$admin_cohort_morning <- NA, d[d$t%%3==0,]$admin_cohort_morning)
+  ifelse(d$t%%3==0, d[d$t%%3==0,]$admin_cohort_evening <- NA, d[d$t%%3==0,]$admin_cohort_evening)
+  
   
   return(d)
   
@@ -544,7 +585,7 @@ make_schedule = function(time = 30, df){
 #' @return infs id of infected individuals
 #'
 #' @export
-run_room = function(a, df){
+run_room = function(a, df){ # add if infected is resident's roommate?
   
   # if infected is resident
   if(df[df$id==a,]$type==0){
@@ -689,7 +730,7 @@ run_room = function(a, df){
 #' @export
 run_common = function(a, df, area_contacts){
   
-  # pull contacts from random graph (of residents, staff and visitors present at NH)
+  # pull contacts from random graph (of residents, staff and visitors present at NH) - take out visitors
   id = which(df$id[df$present]==a)
   contact_id = df$id[df$present][area_contacts[[id]][[1]]]
   #print(length(contact_id))

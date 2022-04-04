@@ -588,12 +588,12 @@ make_schedule = function(time = 30, df){
 run_room = function(a, df){
   
   ## if infected is resident
-  if(df[df$id==a,]$type==0){
+  if(df$type[df$id==a]==0){
     
     # if resident has roommate
-    if(df[df$id==a,]$room<43 & sum(df$room[df$id==a])>1){
+    if(df$room[df$id==a]<43 & sum(df$room[df$id==a])>1){
       # roommate
-      roommate_vec = df[df$room==df$room[df$id==a,] & df$id!=a,]
+      roommate_vec = df[df$room==df$room[df$id==a] & df$id!=a,]
       roommate_vec = roommate_vec[rowSums(is.na(roommate_vec)) != ncol(roommate_vec),]
       
       # determine whether roommate becomes infected
@@ -654,7 +654,7 @@ run_room = function(a, df){
     
     
     ## if infected is direct-care staff
-  } else if(df[df$id==a,]$type==1 & df[df$id==a,]$role!=4 & df[df$id==a,]$present){
+  } else if(df$type[df$id==a]==1 & df$role[df$id==a]!=4 & df$present[df$id==a]){
     
     # find out what role they are
     staff_row = c(df[df$id==a,9:19])
@@ -702,14 +702,16 @@ run_room = function(a, df){
   
     
     ## if infected is visitor  
-  } else if(df[df$id==a,]$type==2 & df[df$id==a,]$present){
+  } else if(df$type[df$id==a]==2 & df$present[df$id==a]){
     
     # make vector of residents that visitor sees, including roommates
     res_vec = df[df$family==df$family[df$id==a] & df$id!=a,]
     res_vec = res_vec[rowSums(is.na(res_vec)) != ncol(res_vec),]
     res_id = res_vec$id
-    roommate = df[df$room==res_vec$room & df$id!=res_id,]
-    res_vec[nrow(res_vec) + 1,] = roommate[rowSums(is.na(roommate)) != ncol(roommate),]
+    if(df$room[df$id==res_id]<43){
+      roommate = df[df$room==res_vec$room & df$id!=res_id,]
+      res_vec[nrow(res_vec) + 1,] = roommate[rowSums(is.na(roommate)) != ncol(roommate),]
+    }
     
     # determine whether residents become infected
     prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf < 1,
@@ -1146,8 +1148,8 @@ run_model = function(time = 30,
     # df$q_out[df$type!=0] = !df$vacc[df$type!=0]
     
     # mark who is quarantined where
-    df$q_home = df$inf & df$t_notify <= t & df$t_end_inf_home>=t & df$type!=0
-    df$q_room = df$inf & df$t_notify <= t & df$t_end_inf_home>=t & df$type==0
+    df$q_home = df$inf & df$t_notify <= t & df$t_notify!=-17 & df$t_end_inf_home>=t & df$type!=0
+    df$q_room = df$inf & df$t_notify <= t & df$t_notify!=-17 & df$t_end_inf_home>=t & df$type==0
     
     # checks
     # df$inf_days = df$inf_days + df$inf
@@ -1159,21 +1161,23 @@ run_model = function(time = 30,
     df$trans_now = df$present & df$inf
     
     # flag infected residents and their roommates
-    ifelse(df$trans_now & df$type==0 & df$room<43, df$flag_room <- 1, df$flag_room <- 0)
+    df$flag_room = 0
+    df$flag_room[df$trans_now & df$type==0 & df$room<43] <- 1
     if(sum(df$flag_room)>0){
       flagged_rooms = unique(df$room[df$flag_room==1])
     } else{flagged_rooms = 0}
-    ifelse(df$type==0 & df$room<43 & df$flag_room!=1 & df$room%in%flagged_rooms, df$flag_room <- 1, df$flag_room)
+    df$flag_room[df$type==0 & df$room<43 & df$flag_room!=1 & df$room%in%flagged_rooms] <- 1
     
-    ifelse(df$flag_room==1 & df$type==0, df$q_room==T, df$q_room)
+    df$q_room[df$flag_room==1 & df$type==0] <- 1
     
     # flag infected residents' visitors
+    df$flag_fam = 0
     if("family"%in% colnames(df)){
-      ifelse(df$trans_now & df$type==0, df$flag_fam <- 1, df$flag_fam <- 0)
+      df$flag_fam[df$trans_now & df$type==0] <- 1
       if(sum(df$flag_fam)>0){
         flagged_families = unique(df$family[df$flag_fam==1])
       } else{flagged_families = 0}
-      ifelse(df$type==2 & df$flag_fam!=1 & df$family%in%flagged_families, df$flag_fam <- 1, df$flag_fam)
+      df$flag_fam[df$type==2 & df$flag_fam!=1 & df$family%in%flagged_families] <- 1
     }
     
     # re-estimate who is present (among staff and visitors)
@@ -1195,11 +1199,11 @@ run_model = function(time = 30,
     df$quarantined2 = df$quarantined2 + as.numeric(df$q_home | df$q_room)
     df$quarantined_now = (df$q_home | df$q_room) & sched$present[sched$t==t]
     
-    # check who is present
-    mat[,(t-time_seed_inf+1)] = df$inf
-    
     # update infectious and at nursing home
     df$trans_now = df$present & df$inf
+    
+    # check who is transmissible right now
+    mat[,(t-time_seed_inf+1)] = df$trans_now
     
     # set infections to 0 for this timestep
     df$now = F
@@ -1256,12 +1260,12 @@ run_model = function(time = 30,
     # run model for infectious individuals in resident room
     if(sum(df$trans_now)>0) {
       
-      room_infs = df$id[df$trans_now & df$role!=4]
+      room_infs = df$id[df$trans_now & (df$role!=4 | is.na(df$role))]
       if(length(room_infs)>1) room_infs = sample(room_infs)
       
       for(a in room_infs){
         
-        # ROOMMATE CONTACTS
+        # ROOM CONTACTS
         inf_vec = run_room(a, df)
         df$location[df$id%in%inf_vec] = "Room"
         
@@ -1319,12 +1323,12 @@ run_model = function(time = 30,
       # sample from a random regular graph
       # this approach ensures reciprocity
       # you may want to split out to ensure reciprocity in contact type
-      common_contacts = sample_k_regular(sum(df[df$type!=2 & df$flag_room!=1,]$present), df$n_contact[1] + df$n_contact_brief[1])
+      common_contacts = sample_k_regular(sum(df[df$type!=2 & (df$flag_room!=1 | is.na(df$flag_room)),]$present), df$n_contact[1] + df$n_contact_brief[1])
       #if(n_staff_contact>0) random_staff_contacts = sample_k_regular(sum(df$present & df$adult & !df$family), n_staff_contact)
       
       
       # run transmission in common area
-      common_infs = df$id[df$trans_now & df$type!=2 & df$flag_room!=1,]
+      common_infs = df$id[df$trans_now & df$type!=2 & (df$flag_room!=1 | is.na(df$flag_room))]
       if(length(common_infs)>1) common_infs = sample(common_infs)
       
       # choose contacts that become infected
@@ -1365,8 +1369,8 @@ run_model = function(time = 30,
     
     # round values
     df$t_notify = ceiling(df$t_notify)
-    
-    
+  
+
     # skipping for now but work on later
     # if(notify & sum(df$t_notify==(t+1) & df$type!=2)>0){
     #   df.u = df %>% filter(t_notify==(t+1) & type!=2)
@@ -1381,8 +1385,8 @@ run_model = function(time = 30,
     #print(df %>% #filter(!adult) %>%
     #        group_by(class) %>% summarize(mean(quarantined), sum(quarantined)))
     #if(sum(class_quarantine$t_notify!=-1)>0) print(class_quarantine)
-    
   } 
+   
   # remember to add mat back in
   #print(df$id[df$t_exposed!=-99 & df$class==df$class[df$start]])
   #print(sum(df$t_exposed!=-99))

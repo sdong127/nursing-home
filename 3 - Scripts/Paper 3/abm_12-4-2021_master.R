@@ -212,9 +212,9 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' This function takes in a data frame exported by make_NH().
 #' It adds epidemiological attributes of the full nursing home community.
 
-#' @param n_contacts Number of sustained contacts outside of the nursing home 
-#' (applies only to staff and visitors); defaults to 10
-#' @param n_contacts_brief Number of brief contacts outside of the nursing home; defaults to 0
+#' @param n_contacts Number of sustained contacts in NH common area
+#' (applies only to staff and visitors); defaults to 5
+#' @param n_contacts_brief Number of brief contacts in NH common area; defaults to 5
 #' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1 (used to be rel_trans_HH)
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; 
 #' defaults to 1 (used to be rel_trans_HH_symp_child)
@@ -248,7 +248,7 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' @return out data frame of resident and staff attributes.
 #'
 #' @export
-initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common = 1, rel_trans_room_symp_res = 1,
+initialize_NH = function(n_contacts = 5, n_contacts_brief = 5, rel_trans_common = 1, rel_trans_room_symp_res = 1,
                              rel_trans = 1/8, rel_trans_brief = 1/50, p_asymp_staff = .35, p_asymp_res = .7, 
                               p_subclin_staff = 0, p_subclin_res = 0, attack = .01, rel_nonres_trans = 1, 
                             rel_nonres_susp = .5, res_vax = 0, staff_vax_req = F, visit_vax = 0, res_trans_red = 1, 
@@ -361,14 +361,14 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 0, rel_trans_common
 #'
 #' Make a schedule of when staff and visitors are present/absent
 #'
-#' @param time number of days; defaults to 30
-#' @param df data frame from make_NH()
+#' @param time number of days; defaults to 45
+#' @param start data frame from make_NH()
 #'
 #' @return d Returns an n x time*3 data frame that indicates whether an individual is in the 
 #' nursing home at a particular time
 #'
 #' @export
-make_schedule = function(time = 30, df){
+make_schedule = function(time = 45, start){
   
   # basic time vector
   vec = data.frame(
@@ -1002,7 +1002,7 @@ run_model = function(time = 30,
                      # test_sens =  .7,
                      # test_frac = .9,
                      # test_start_day = 1,
-                     n_staff_contact = 5,
+                     n_staff_contact = 10,
                      n_start = 1,
                      time_inf = 18,
                      mult_asymp_res = 1,
@@ -1170,7 +1170,7 @@ run_model = function(time = 30,
     
     df$q_room[df$flag_room==1 & df$type==0] <- 1
     
-    # flag infected residents' visitors
+    # flag infected residents' visitors (also flag their roommates' visitors?)
     df$flag_fam = 0
     if("family"%in% colnames(df)){
       df$flag_fam[df$trans_now & df$type==0] <- 1

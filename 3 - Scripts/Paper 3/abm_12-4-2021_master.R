@@ -220,8 +220,8 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' defaults to 1 (used to be rel_trans_HH_symp_child)
 #' @param rel_trans Relative attack rate of sustained contact (vs. resident room); defaults to 1/8
 #' @param rel_trans_brief Relative attack rate of brief contact (vs. resident room); defaults to 1/50
-#' @param p_asymp_staff Fraction of staff with asymptomatic disease; defaults to 0.4 (used to be p_asymp_adult)
-#' @param p_asymp_res Fraction of residents with asymptomatic disease; defaults to 0.8 (used to be p_asymp_child)
+#' @param p_asymp_staff Fraction of staff with asymptomatic disease; defaults to 0.8 (used to be p_asymp_adult)
+#' @param p_asymp_res Fraction of residents with asymptomatic disease; defaults to 0.4 (used to be p_asymp_child)
 #' @param p_subclin_staff Fraction of staff with subclinical but not techincally asymptomatic disease; 
 #' defaults to 0 (used to be p_subclin_adult)
 #' @param p_subclin_res Fraction of residents with subclinical but not techincally asymptomatic disease; 
@@ -260,7 +260,7 @@ initialize_NH = function(n_contacts = 5, n_contacts_brief = 5, rel_trans_common 
   
   # vax values for staff
   if(staff_vax_req == F){
-    staff_vax = 0.5 # hypothetical
+    staff_vax = 0.7 # hypothetical
   } else{
     staff_vax = 1
   }
@@ -969,7 +969,7 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' @param time_inf length of infectious period (assuming mild case or quarantined on symptoms) (used to be days_inf)
 #' @param seed_asymp whether to seed with an asymptomatic case
 #' @param time_seed_inf time(s) at which to introduce new infectious individuals; defaults to NA and randomly selects one time
-#' @param start_type type of seed; default is "mix" (also "resident", "staff", "visitor", "cont)
+#' @param start_type type of seed; default is "mix" (also "resident", "staff", "visitor", "cont")
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 30 (10 days)
 #' @param quarantine.grace length of grace period after which a quarantined room "returns" not to be "re-quarantined"
 #' @param start_mult value to indicate relative frequency of resident/staff infections; defaults to 0.5 - used to default to 1 
@@ -1388,34 +1388,33 @@ run_model = function(time = 30,
 #' Run model multiple times and summarize results
 #'
 #' @param N number of runs
-#' @param n_contacts Number of sustained contacts outside of the classroom; defaults to 10
-#' @param n_contacts_brief Number of brief contacts outside of the classroom; defaults to 20
-#' @param rel_trans_HH Relative attack rate of household contact (vs. classrom); defaults to 1
-#' @param rel_trans_HH_symp_child Additional relative attack rate of a symptomatic infected child in the household; defaults to 1
-#' @param rel_trans Relative attack rate of sustained contact (vs. classroom); defaults to 1/8
-#' @param rel_trans_brief Relative attack rate of brief contact (vs. classroom); defaults to 1/50
-#' @param rel_trans_CC relative transmission in childcare vs. classroom; defaults to 2
-#' @param rel_trans_adult relative transmission in staff-staff interactions vs. classroom; defaults to 2
-#' @param p_asymp_adult Fraction of adults with asymptomatic (unsuspected) disease; defaults to 0.2
-#' @param p_asymp_child Fraction of children with asymptomatic (unsuspected) disease; defaults to 0.8
-#' @param p_subclin_adult Fraction of adults with subclinical but not techincally asymptomatic disease; defaults to 0
-#' @param p_subclin_child Fraction of children with subclinical but not techincally asymptomatic disease; defaults to 0
-#' @param attack Average daily attack rate in adults; defaults to 0.01
-#' @param child_trans Relative transmissibility of children (vs. adults); defaults to 1
-#' @param child_susp Relative transmissibility of children (vs. adults); defaults to .5
-#' @param child_vax Vaccination rate of children; defaults to 0
-#' @param teacher_trans Factor by which teacher transmissibility is reduced due to intervention; defaults to 1
-#' @param teacher_susp Teacher vaccination rate; defaults to 0.8
-#' @param family_susp Household member vaccination rate; defaults to 0.7
+#' @param n_contacts Number of sustained contacts in NH common area; defaults to 5
+#' @param n_contacts_brief Number of brief contacts in NH common area; defaults to 5
+#' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1
+#' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; defaults to 1
+#' @param rel_trans Relative attack rate of sustained contact (vs. resident room); defaults to 1/8
+#' @param rel_trans_brief Relative attack rate of brief contact (vs. resident room); defaults to 1/50
+#' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2
+#' @param p_asymp_staff Fraction of staff with asymptomatic (unsuspected) disease; defaults to 0.8
+#' @param p_asymp_res Fraction of residents with asymptomatic (unsuspected) disease; defaults to 0.4
+#' @param p_subclin_staff Fraction of staff with subclinical but not techincally asymptomatic disease; defaults to 0
+#' @param p_subclin_res Fraction of residents with subclinical but not techincally asymptomatic disease; defaults to 0
+#' @param attack Average daily attack rate in residents; defaults to 0.01
+#' @param rel_nonres_trans Relative transmissibility of staff and visitors (vs. residents); defaults to 1
+#' @param rel_nonres_susp Relative susceptibility of staff and visitors (vs. residents); defaults to .5
+#' @param res_vax Vaccination rate of residents; defaults to 0
+#' @param staff_vax_req Whether staff are required to get vaccine; defaults to F
+#' @param visit_vax Vaccination rate of visitors; defaults to some amount
+#' @param res_trans_red Factor by which resident transmissibility is reduced due to intervention; defaults to 1
+#' @param staff_trans_red Factor by which staff transmissibility is reduced due to intervention; defaults to 1
+#' @param visit_trans_red Factor by which visitor transmissibility is reduced due to intervention; defaults to 1
 #' @param disperse_transmission Whether transmission is overdispersed (vs. all have equal attack rate); default to T
-#' @param n_staff_contact number of contacts a teacher/staff member has with other teachers/staff members; defaults to 1
-#' @param n_HH number of households a household interacts with when not attending school; defaults to 0
-#' @param bubble whether out-of-school interactions occur with a 'bubble'; defaults to F
+#' @param n_staff_contact number of contacts a teacher/staff member has with other teachers/staff members; defaults to 5
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param time_seed_inf time(s) at which to introduce new infectious individuals; defaults to NA and randomly selects one time
 #' @param time_inf length of infectious period (assuming mild case or quarantined on symptoms) (used to be days_inf)
-#' @param mult_asymp multiplier on asymptomatic infection for adults; default is 1
-#' @param mult_asymp_child multiplier on asymptomatic infection for children; default is 1
+#' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1
+#' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1
 #' @param seed_asymp whether to seed with an asymptomatic case
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
 #' @param dedens Whether dedensification measures reduce attack rate; defaults to F
@@ -1426,43 +1425,43 @@ run_model = function(time = 30,
 #' @param test_frac fraction of school tested; defaults to 0.9
 #' @param test_days test frequency; "day", "week", "2x_week"; defaults to "week"
 #' @param test_type group tested; defaults to "all", also allows "staff" and "students"
-#' @param test_start_day day tests are implemented for weekly testing; defaults to 1 = Monday
+#' @param test_start_day day tests are implemented for weekly testing; defaults to 1 = Monday morning
 #' @param start_mult value to indicate relative frequency of adult/child infections; defaults to 1 (adults 2x as likely as kids)
-#' @param start_type type of seed; default is "mix" (also "adult", "child")
-#' @param child_prob if start_type = "cont", set daily probability of infectious entry for children, defaults to .05
-#' @param adult_prob if start_type = "cont", set daily probability of infectious entry for adults, defaults to .01
+#' @param start_type type of seed; default is "mix" (also "residents", "staff", "visitor", "cont")
+#' @param nonres_prob if start_type = "cont", set daily probability of infectious entry for staff and visitors, defaults to .05
+#' @param res_prob if start_type = "cont", set daily probability of infectious entry for residents, defaults to .01
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 10
 #' @param quarantine.grace length of grace period after which a quarantined class returns not to be "re-quarantined"
 #' @param turnaround.time test turnaround time, default = 3 (1 day)
-#' @param num_adults number of adults interacting with children, defaults to 2
+#' @param num_adults number of staff interacting with residents, defaults to 4
 #' @param includeFamily whether to include family, default = FALSE
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
 #' @param rapid_test_sens sensitivity of rapid tests, defaults to 80%
 #' @param overdisp_off all overdispersion off; defaults to F
-#' @param no_test_vacc Indicates whether vaccinated individuals are excluded from TTS & screening; defaults to F
-#' @param synthpop synthetic population; defaults to synthpop based on Maryland elementary school
+#' @param synthpop synthetic population; defaults to synthpop_NH stored in file
 #' @param nh make_NH object; defaults to NA and will call for each simulation
 #'
 #' @export
-mult_runs = function(N, n_other_adults, n_contacts, rel_trans_HH,
-                     rel_trans, rel_trans_CC, rel_trans_adult, p_asymp_adult, child_prob, adult_prob,
-                     p_asymp_child, attack, child_trans, child_susp, child_vax, p_subclin_adult, p_subclin_child,
-                     teacher_susp, disperse_transmission, n_staff_contact, n_HH, num_adults, family_susp,
-                     n_start, time_seed_inf, days_inf, mult_asymp, mult_asymp_child, seed_asymp, isolate, dedens, run_specials_now,
-                     time, notify, test, test_sens, test_frac, test_days, test_type, quarantine.length, quarantine.grace,
-                     type, total_days, includeFamily, synthpop, class, n_class, high_school, nper, start_mult, start_type,
-                     include_weekends, turnaround.time, test_start_day, test_quarantine, vax_eff, surveillance,
-                     rapid_test_sens, overdisp_off, no_test_vacc, rel_trans_HH_symp_child, teacher_trans,
-                     n_contacts_brief = 0, rel_trans_brief = 1/50, bubble = F, version = 2){
+mult_runs = function(N, n_contacts = 5, n_contacts_brief = 5, rel_trans_common = 1, rel_trans_room_symp_res = 1,
+                     rel_trans = 1/8, rel_trans_brief = 1/50, rel_trans_staff = 2, p_asymp_staff = 0.8, 
+                     p_asymp_res = 0.4, p_subclin_staff = 0, p_subclin_res = 0, attack = 0.01, rel_nonres_trans = 1, 
+                     rel_nonres_susp = 0.5, res_vax = 0, staff_vax_req = F, visit_vax = 0, res_trans_red = 1, 
+                     staff_trans_red = 1, visit_trans_red = 1, disperse_transmission = T, n_staff_contact = 5, 
+                     n_start = 1, time_seed_inf = NA, time_inf = 18, mult_asymp_res = 1, mult_asymp_nonres = 1, 
+                     seed_asymp = F, isolate = T, dedens = F, time = 30, notify = F, test = F, test_sens = 0.7, 
+                     test_frac = 0.9, test_days = 'week', test_type = 'all', test_start_day = 1, start_mult = 1, 
+                     start_type = 'mix', nonres_prob = 0.05, res_prob = 0.01, turnaround.time = 3, num_adults = 4,
+                     includeFamily = F, vax_eff = 0.9, overdisp_off = F, synthpop, nh){
   
-  keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_adult = numeric(N), asymp_kids = numeric(N),
-                    source_asymp = numeric(N), source_asymp_family_kids = numeric(N), source_asymp_family_staff = numeric(N), start_family = numeric(N),
-                    adult = numeric(N), teacher = numeric(N), family = numeric(N), staff_family = numeric(N), children = numeric(N), children_tot = numeric(N), family_tot = numeric(N),
-                    adult_tot = numeric(N), attack = numeric(N), class = numeric(N), household = numeric(N), detected = numeric(N),
-                    detected_staff = numeric(N), detected_students = numeric(N), detected_staff_subclin = numeric(N), detected_students_subclin = numeric(N),
-                    symp = numeric(N), symp_kids = numeric(N), avg_infs = numeric(N), class_test_ind = numeric(N), test_qs = numeric(N),
-                    quarantine_check = numeric(N), quarantined = numeric(N), quarantined_tot = numeric(N), quarantined_kids = numeric(N), from_kids = numeric(N), related_arts = numeric(N),
-                    child_care = numeric(N), random = numeric(N), random_staff = numeric(N), num_classroom = numeric(N), avg_class = numeric(N), clin_staff = numeric(N), clin_students = numeric(N), clin_family = numeric(N))
+  keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_res = numeric(N), asymp_staff = numeric(N),
+                    source_asymp = numeric(N), source_asymp_visit_staff = numeric(N), source_asymp_visit_res = numeric(N), start_visit = numeric(N),
+                    res = numeric(N), staff = numeric(N), visit = numeric(N), res_visit = numeric(N), staff_tot = numeric(N), visit_tot = numeric(N),
+                    res_tot = numeric(N), attack = numeric(N), nh = numeric(N), detected = numeric(N), detected_staff = numeric(N),
+                    detected_res = numeric(N), detected_staff_subclin = numeric(N), detected_res_subclin = numeric(N), 
+                    symp = numeric(N), symp_staff = numeric(N), avg_infs = numeric(N), room_test_ind = numeric(N), test_qs = numeric(N),
+                    quarantine_check = numeric(N), quarantined = numeric(N), quarantined_tot = numeric(N), quarantined_staff = numeric(N), from_staff = numeric(N), 
+                    isolate_check = numeric(N), isolated = numeric(N), isolated_tot = numeric(N), isolated_staff = numeric(N)
+                    avg_room = numeric(N), clin_res = numeric(N), clin_staff = numeric(N), clin_visit = numeric(N))
   
   #tic()
   # run over time

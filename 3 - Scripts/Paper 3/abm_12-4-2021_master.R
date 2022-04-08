@@ -277,16 +277,14 @@ initialize_NH = function(n_contacts = 5, n_contacts_brief = 5, rel_trans_common 
            t_end_inf = -1,
            t_end_inf_home = -1,
            t_notify = -17,
-           # c_trace = -1,
-           # c_trace_start = -1,
            tot_inf = 0,
-           # detected = 0,
+           detected = 0,
            # detected_q = 0,
            # detected_q_start = 0,
            quarantined = 0,
            quarantined2 = 0,
-           # test_ct = 0,
-           # test_ct_q = 0,
+           test_ct = 0,
+           test_ct_q = 0,
            n_contact = n_contacts,
            n_contact_brief = n_contacts_brief,
            relative_trans = rel_trans,
@@ -964,7 +962,7 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' @param test_days test frequency; "day", "week", "2x_week"; defaults to "week"
 #' @param test_type group tested; defaults to "all", also allows "residents" and "staff"
 #' @param test_start_day day tests are implemented for weekly testing; defaults to 1 = Monday
-#' @param n_staff_contact number of contacts a staff member has with other staff members; defaults to 5
+#' @param n_staff_contact number of contacts a staff member has with other staff members during a shift; defaults to 5
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
 #' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1 (used to be mult_asymp_child)
@@ -981,7 +979,6 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' @param nonres_prob if start_type = "cont", set daily probability of infectious entry for staff and visitors, defaults to .05 (used to be child_prob)
 #' @param res_prob if start_type = "cont", set daily probability of infectious entry for residents, defaults to .01 (used to be adult_prob)
 #' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2 (used to be rel_trans_adult)
-#' @param surveillance whether surveillance is underway; defaults to F
 #' @param rapid_test_sens sensitivity of rapid tests, defaults to 80%
 #' @param overdisp_off all overdispersion off; defaults to F
 #' @param df data frame from make_NH() (initialize_school()?)
@@ -997,12 +994,12 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
 #### Therefore for the most part, this is coded in base.
 run_model = function(time = 30,
                      # notify = F,
-                     # test = F,
-                     # test_days = "week",
-                     # test_sens =  .7,
-                     # test_frac = .9,
-                     # test_start_day = 1,
-                     n_staff_contact = 10,
+                     test = F,
+                     test_days = "week",
+                     test_sens =  .7,
+                     test_frac = .9,
+                     test_start_day = 1,
+                     n_staff_contact = 5,
                      n_start = 1,
                      time_inf = 18,
                      mult_asymp_res = 1,
@@ -1018,7 +1015,7 @@ run_model = function(time = 30,
                      nonres_prob = 0.005,
                      res_prob = 0.0025,
                      rel_trans_staff = 2,
-                     # test_type = "all",
+                     test_type = "all",
                      # surveillance = F,
                      # rapid_test_sens = 0.8,
                      overdisp_off = F,
@@ -1040,7 +1037,7 @@ run_model = function(time = 30,
   # quarantine
   # room_quarantine = expand_grid(room = unique(df$room[df$room!=99 & !is.na(df$room)])) %>%
   #   mutate(t_notify = -quarantine.grace-quarantine.length, hold = -quarantine.grace-quarantine.length, num = 0)
-  mat = matrix(NA, nrow = nrow(df), ncol = time*3)
+  # mat = matrix(NA, nrow = nrow(df), ncol = time*3)
   
   # vary over time
   if(start_type == "cont"){
@@ -1085,30 +1082,36 @@ run_model = function(time = 30,
   
   # test days
   # if null, make this Monday
-  # if(test_days == "week") {testing_days = seq(test_start_day, (time+15), by = 7)}
-  # if(test_days == "day") {testing_days = 1:(time+15)}
-  # if(test_days == "2x_week"){
-  #   if(turnaround.time>1){
-  #     testing_days = c(seq(5, (time+15), by = 7), seq(1, (time+15), by = 7))
-  #   } else{
-  #     testing_days = c(seq(4, (time+15), by = 7), seq(1, (time+15), by = 7))
-  #   }}
+  if(test_days == "week") {
+    testing_days = c(seq(test_start_day, (time*3+43), by = 21))
+    testing_days = append(testing_days, seq(test_start_day+1, (time*3+43), by=21))
+    testing_days = append(testing_days, seq(test_start_day+2, (time*3+43), by=21))}
+  if(test_days == "day") {
+    testing_days = c(1:(time*3+43))}
+  if(test_days == "2x_week"){
+    if(turnaround.time>3){
+      testing_days = c(seq(13, (time*3+43), by = 21), seq(1, (time*3+43), by = 21))
+      testing_days = append(testing_days, c(seq(14, (time*3+43), by = 21), seq(2, (time*3+43), by = 21)))
+      testing_days = append(testing_days, c(seq(15, (time*3+43), by = 21), seq(3, (time*3+43), by = 21)))
+    } else{
+      testing_days = c(seq(10, (time*3+43), by = 21), seq(1, (time*3+43), by = 21))
+      testing_days = append(testing_days, c(seq(11, (time*3+43), by = 21), seq(2, (time*3+43), by = 21)))
+      testing_days = append(testing_days, c(seq(12, (time*3+43), by = 21), seq(3, (time*3+43), by = 21)))
+    }}
   # df$switch = 0
   # df$temp_switch = 0
   
   #print(testing_days)
   
   # testing (visitors don't get tested)
-  # if(test_type=="all"){ df$test_type = df$type!=2 & (!df$vacc | test_frac>=0.7)
-  # } else if(test_type=="residents"){df$test_type = df$type==0
-  # } else if(test_type=="staff"){df$test_type = df$type==1}
-  # room_test_ind = 0
+  if(test_type=="all"){df$test_type = df$type!=2 & (!df$vacc | test_frac>=0.7)
+  } else if(test_type=="residents"){df$test_type = df$type==0
+  } else if(test_type=="staff"){df$test_type = df$type==1}
+  room_test_ind = 0
   # room_test_ind_q = 0
   # test_frac_orig = test_frac
   # df$uh.oh = 0
   
-  # add later
-  # df = df[rep(seq_len(nrow(df)), each = 3), ]
   
   #print(paste("start notification:", df$t_notify[df$start]))
   # run over time steps
@@ -1147,9 +1150,9 @@ run_model = function(time = 30,
     # df$test_q_eligible = df$test_q_eligible + df$present*df$test_type_q
     # df$q_out[df$type!=0] = !df$vacc[df$type!=0]
     
-    # mark who is quarantined where
-    df$q_home = df$inf & df$t_notify <= t & df$t_notify!=-17 & df$t_end_inf_home>=t & df$type!=0
-    df$q_room = df$inf & df$t_notify <= t & df$t_notify!=-17 & df$t_end_inf_home>=t & df$type==0
+    # mark who is isolated where
+    df$isolate_home = df$inf & df$t_notify <= t & df$t_notify!=-17 & df$t_end_inf_home>=t & df$type!=0
+    df$isolate_room = df$inf & df$t_notify <= t & df$t_notify!=-17 & df$t_end_inf_home>=t & df$type==0
     
     # checks
     # df$inf_days = df$inf_days + df$inf
@@ -1181,7 +1184,7 @@ run_model = function(time = 30,
     }
     
     # re-estimate who is present (among staff and visitors)
-    df$present[df$type!=0] = sched$present[sched$t==t & sched$type!=0] & !df$q_home[df$type!=0]
+    df$present[df$type!=0] = sched$present[sched$t==t & sched$type!=0] & !df$isolate_home[df$type!=0]
     if("family"%in%colnames(df)){
       df$present[df$type==2] = sched$present[sched$t==t & sched$type==2] & df$flag_fam[df$type==2]!=1
     }
@@ -1189,64 +1192,48 @@ run_model = function(time = 30,
     df$inf = df$t_inf > -1 & df$t_inf <= t & df$t_end_inf >= t
     
     df$not_inf = df$t_exposed==-99 | df$t_exposed>t # if exposed from community, can be exposed earlier
-    if(t==43) df$not_inf_keep = df$not_inf
+    # if(t==43) df$not_inf_keep = df$not_inf
     df$present_susp = df$present & df$not_inf
-    df$quarantined = df$quarantined + as.numeric((df$q_home | df$q_room) & sched$present[sched$t==t])
+    df$isolated = df$isolated + as.numeric((df$isolate_home | df$isolate_room) & sched$present[sched$t==t])
     #print(sum(as.numeric(df$q_out)))
     #print(sum(as.numeric(df$q_out & sched$present[sched$t==t])))
     
     # quarantined but not necessarily meant to be present at NH
-    df$quarantined2 = df$quarantined2 + as.numeric(df$q_home | df$q_room)
-    df$quarantined_now = (df$q_home | df$q_room) & sched$present[sched$t==t]
+    # df$quarantined2 = df$quarantined2 + as.numeric(df$q_home | df$q_room)
+    # df$quarantined_now = (df$q_home | df$q_room) & sched$present[sched$t==t]
     
     # update infectious and at nursing home
     df$trans_now = df$present & df$inf
     
     # check who is transmissible right now
-    mat[,(t-time_seed_inf+1)] = df$trans_now
+    # mat[,(t-time_seed_inf+1)] = df$trans_now
     
     # set infections to 0 for this timestep
     df$now = F
     
     ## group testing
-    # if(test & t%in%testing_days){
-    #   #print(test); print(t); print(testing_days)
-    #   #print(t)
-    #   #print("got to testing"); print(dim(df)); print(df %>% group_by(vacc) %>% summarize(sum(test_type)))
-    #   df$test_ct = df$test_ct + rbinom(nrow(df), size = 1, prob = df$present*test_frac*as.numeric(df$test_type))
-    #   df$test = rbinom(nrow(df), size = 1, prob = test_sens*test_frac*as.numeric(df$test_type))
-    #   df$t_end_inf = ifelse(df$inf & df$test & df$present, t, df$t_end_inf)
-    #   df$t_notify = ifelse(df$inf & df$test & df$present, t+1, df$t_notify)
-    #   df$detected = ifelse(df$inf & df$test & df$present, 1, df$detected)
-    #   room_test_ind = room_test_ind + length(unique(df$room[df$test_type & df$present & !df$quarantined]))
-    #   
-    #   # checks
-    #   df$pcr_tp_count = df$pcr_tp_count + ifelse(df$test_type & df$present, df$inf*df$test, 0)
-    #   df$pcr_fn_count = df$pcr_fn_count + ifelse(df$test_type & df$present, df$inf*(1-df$test), 0)
-    #   df$test_regular_eligible = df$test_regular_eligible + df$present*df$test_type
-    #   
-    #   #print(paste("Time:", t))
-    #   #print(sum(df$test))
-    #   #print(sum(df$inf & df$test & df$present))
-    #   #print(df$id[df$inf & df$test & df$present])
-    #   #print(df$class[df$inf & df$test & df$present])
-    #   #print(df$family[df$inf & df$test & df$present])
-    #   
-    #   if(surveillance==T & sum(df$inf & df$test & df$present)>=1){
-    #     #print("switch to reg")
-    #     test_frac = 0.9
-    #     testing_days = c(testing_days, t+1)
-    #     surveillance = F
-    #     df$switch = t
-    #   }
-    #   
-    #   if(surveillance==F & sum(df$inf & df$test & df$present)==0 & (t-1)%in%testing_days){
-    #     #print("switch to surv")
-    #     test_frac = test_frac_orig
-    #     surveillance = T
-    #     df$switch = 0
-    #     df$temp_switch = df$temp_switch + 1
-    #   }
+    if(test & t%in%testing_days){
+      #print(test); print(t); print(testing_days)
+      #print(t)
+      #print("got to testing"); print(dim(df)); print(df %>% group_by(vacc) %>% summarize(sum(test_type)))
+      df$test_ct = df$test_ct + rbinom(nrow(df), size = 1, prob = df$present*test_frac*as.numeric(df$test_type)) # count how many tests individual takes
+      df$test = rbinom(nrow(df), size = 1, prob = test_sens*test_frac*as.numeric(df$test_type)) # record only accurate test results?
+      df$t_end_inf = ifelse(df$inf & df$test & df$present, t, df$t_end_inf)
+      df$t_notify = ifelse(df$inf & df$test & df$present, t+turnaround.time, df$t_notify)
+      df$detected = ifelse(df$inf & df$test & df$present, 1, df$detected)
+      room_test_ind = room_test_ind + length(unique(df$room[df$test_type & df$present & !df$isolated]))
+
+      # checks
+      # df$pcr_tp_count = df$pcr_tp_count + ifelse(df$test_type & df$present, df$inf*df$test, 0)
+      # df$pcr_fn_count = df$pcr_fn_count + ifelse(df$test_type & df$present, df$inf*(1-df$test), 0)
+      # df$test_regular_eligible = df$test_regular_eligible + df$present*df$test_type
+
+      #print(paste("Time:", t))
+      #print(sum(df$test))
+      #print(sum(df$inf & df$test & df$present))
+      #print(df$id[df$inf & df$test & df$present])
+      #print(df$class[df$inf & df$test & df$present])
+      #print(df$family[df$inf & df$test & df$present])
       
     #print(surveillance)
     #print(df$switch[1])
@@ -1255,6 +1242,7 @@ run_model = function(time = 30,
     # set up notification -- now below
     #df.u = df %>% filter(inf & test)
     #if(notify){class_quarantine = make_quarantine(class_quarantine, df.u, quarantine.length = quarantine.length, quarantine.grace = quarantine.grace, hs = high_school, hs.classes = hs.classes)}
+    }
     
     #### SELECT NEXT GENERATION INFECTIONS ####
     # run model for infectious individuals in resident room
@@ -1369,8 +1357,8 @@ run_model = function(time = 30,
     
     # round values
     df$t_notify = ceiling(df$t_notify)
-  
-
+    
+    
     # skipping for now but work on later
     # if(notify & sum(df$t_notify==(t+1) & df$type!=2)>0){
     #   df.u = df %>% filter(t_notify==(t+1) & type!=2)
@@ -1390,9 +1378,8 @@ run_model = function(time = 30,
   # remember to add mat back in
   #print(df$id[df$t_exposed!=-99 & df$class==df$class[df$start]])
   #print(sum(df$t_exposed!=-99))
-  # df$room_test_ind = room_test_ind
+  df$room_test_ind = room_test_ind
   # df$room_test_ind_q = room_test_ind_q
-  # df$surveillance = surveillance
   #print(sum(class_quarantine$t_notify>-1))#; print(tail(class_quarantine))
   #, time_seed_inf, class_quarantine, mat))
   return(df) 
@@ -1401,7 +1388,6 @@ run_model = function(time = 30,
 #' Run model multiple times and summarize results
 #'
 #' @param N number of runs
-#' @param n_other_adults Number of adults in the school other than primary teachers; defaults to 30
 #' @param n_contacts Number of sustained contacts outside of the classroom; defaults to 10
 #' @param n_contacts_brief Number of brief contacts outside of the classroom; defaults to 20
 #' @param rel_trans_HH Relative attack rate of household contact (vs. classrom); defaults to 1
@@ -1433,7 +1419,6 @@ run_model = function(time = 30,
 #' @param seed_asymp whether to seed with an asymptomatic case
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
 #' @param dedens Whether dedensification measures reduce attack rate; defaults to F
-#' @param run_specials_now Whether special subjects are run; defaults to F
 #' @param time length of time to run model; defaults to 30
 #' @param notify whether classrooms are notified and quarantined; defaults to F
 #' @param test whether there is weekly testing; defaults to F
@@ -1442,30 +1427,21 @@ run_model = function(time = 30,
 #' @param test_days test frequency; "day", "week", "2x_week"; defaults to "week"
 #' @param test_type group tested; defaults to "all", also allows "staff" and "students"
 #' @param test_start_day day tests are implemented for weekly testing; defaults to 1 = Monday
-#' @param n_class number of classes per grade
-#' @param high_school whether to use a high school schedule of random period mixing; defaults to F
-#' @param nper number of school periods; defaults to 8
 #' @param start_mult value to indicate relative frequency of adult/child infections; defaults to 1 (adults 2x as likely as kids)
 #' @param start_type type of seed; default is "mix" (also "adult", "child")
 #' @param child_prob if start_type = "cont", set daily probability of infectious entry for children, defaults to .05
 #' @param adult_prob if start_type = "cont", set daily probability of infectious entry for adults, defaults to .01
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 10
 #' @param quarantine.grace length of grace period after which a quarantined class returns not to be "re-quarantined"
-#' @param turnaround.time test turnaround time, default = 3 days
-#' @param type schedule; "base", "On/off", "A/B", "Remote"; defaults to "base"
-#' @param version v1 quarantines full cohort in A/B; v2 only sub-cohort; defaults to 2
-#' @param total_days number of days in school; defaults to 5
+#' @param turnaround.time test turnaround time, default = 3 (1 day)
 #' @param num_adults number of adults interacting with children, defaults to 2
 #' @param includeFamily whether to include family, default = FALSE
-#' @param include_weekends if TRUE excludes weekends from additional out-of-school mixing, defaults to F
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
-#' @param test_quarantine whether quarantined individuals attend school but are tested daily; defaults to FALSE
-#' @param surveillance whether surveillance is underway; defaults to F
 #' @param rapid_test_sens sensitivity of rapid tests, defaults to 80%
 #' @param overdisp_off all overdispersion off; defaults to F
 #' @param no_test_vacc Indicates whether vaccinated individuals are excluded from TTS & screening; defaults to F
 #' @param synthpop synthetic population; defaults to synthpop based on Maryland elementary school
-#' @param class make_school object; defaults to NA and will call for each simulation
+#' @param nh make_NH object; defaults to NA and will call for each simulation
 #'
 #' @export
 mult_runs = function(N, n_other_adults, n_contacts, rel_trans_HH,

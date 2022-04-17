@@ -212,20 +212,13 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' This function takes in a data frame exported by make_NH().
 #' It adds epidemiological attributes of the full nursing home community.
 
-#' @param n_contacts Number of sustained contacts in NH common area
-#' (applies only to staff and visitors); defaults to 5
-#' @param n_contacts_brief Number of brief contacts in NH common area; defaults to 5
+#' @param n_contacts Number of contacts in NH common area (only applies to residents and staff); defaults to 10
 #' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1 (used to be rel_trans_HH)
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; 
 #' defaults to 1 (used to be rel_trans_HH_symp_child)
 #' @param rel_trans Relative attack rate of sustained contact (vs. resident room); defaults to 1/8
-#' @param rel_trans_brief Relative attack rate of brief contact (vs. resident room); defaults to 1/50
 #' @param p_asymp_staff Fraction of staff with asymptomatic disease; defaults to 0.8 (used to be p_asymp_adult)
 #' @param p_asymp_res Fraction of residents with asymptomatic disease; defaults to 0.4 (used to be p_asymp_child)
-#' @param p_subclin_staff Fraction of staff with subclinical but not techincally asymptomatic disease; 
-#' defaults to 0 (used to be p_subclin_adult)
-#' @param p_subclin_res Fraction of residents with subclinical but not techincally asymptomatic disease; 
-#' defaults to 0 (used to be p_subclin_child)
 #' @param attack Average daily attack rate in residents; defaults to 0.01
 #' @param rel_nonres_trans Relative transmissibility of staff and visitors (vs. residents); defaults to 1 (used to be child_trans)
 #' @param rel_nonres_susp Relative susceptibility of staff and visitors (vs. residents); defaults to .5 (used to be child_susp)
@@ -240,21 +233,18 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' (used to be family_susp)
 #' @param disperse_transmission Whether transmission is overdispersed (vs. all have equal attack rate); default to T
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
-#' @param notify Whether nursing homes are notified and quarantined following a positive test; defaults to T
-#' @param dedens Whether dedensification measures reduce attack rate; defaults to F
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
 #' @param start Data frame from make_NH()
 #'
 #' @return out data frame of resident and staff attributes.
 #'
 #' @export
-initialize_NH = function(n_contacts = 10, n_contacts_brief = 5, rel_trans_common = 1, rel_trans_room_symp_res = 1,
-                             rel_trans = 1/8, rel_trans_brief = 1/50, p_asymp_staff = .35, p_asymp_res = .7, 
-                              p_subclin_staff = 0, p_subclin_res = 0, attack = .01, rel_nonres_trans = 1, 
-                            rel_nonres_susp = .5, res_vax = 0, staff_vax_req = F, visit_vax = 0, res_trans_red = 1, 
-                            res_susp_red = 1, staff_trans_red = 1, staff_susp_red = 1, visit_trans_red = 1, 
-                            visit_susp_red = 1, disperse_transmission = T, isolate = T, dedens = T,
-                            vax_eff = .9, start){
+initialize_NH = function(n_contacts = 10, rel_trans_common = 1, rel_trans_room_symp_res = 1, 
+                         rel_trans = 1/8, p_asymp_staff = .35, p_asymp_res = .7, attack = .01, 
+                         rel_nonres_trans = 1, rel_nonres_susp = .5, res_vax = 0, staff_vax_req = F, 
+                         visit_vax = 0, res_trans_red = 1, res_susp_red = 1, staff_trans_red = 1, 
+                         staff_susp_red = 1, visit_trans_red = 1, visit_susp_red = 1, 
+                         disperse_transmission = T, isolate = T, vax_eff = .9, start){
   
   n = nrow(start)
   
@@ -276,23 +266,20 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 5, rel_trans_common
            t_symp = -1,
            t_end_inf = -1,
            t_end_inf_home = -1,
-           t_notify = -17,
+           t_notify = -17, # time at which infected finds out they are infectious
            tot_inf = 0,
            detected = 0,
            # detected_q = 0,
            # detected_q_start = 0,
-           # quarantined = 0,
+           quarantined = 0,
            # quarantined2 = 0,
            test_ct = 0,
            # test_ct_q = 0,
            n_contact = n_contacts,
-           n_contact_brief = n_contacts_brief,
            relative_trans = rel_trans,
            relative_trans_common = rel_trans_common,
            relative_trans_room_symp_res = ifelse(type != 0, 1, rel_trans_room_symp_res),
-           relative_trans_brief = rel_trans_brief,
            attack_rate = attack,
-           dedens = dedens,
            source = 0,
            source_symp = NA,
            tot_inf = 0,
@@ -324,7 +311,6 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 5, rel_trans_common
            # test_regular_eligible = 0
     ) %>%
     mutate(p_asymp = ifelse(type != 0, p_asymp_staff, p_asymp_res),
-           p_subclin = ifelse(type != 0, p_subclin_staff, p_subclin_res),
            
            # isolation
            isolate = rbinom(n(), size = 1, prob = isolate),
@@ -333,7 +319,6 @@ initialize_NH = function(n_contacts = 10, n_contacts_brief = 5, rel_trans_common
            # transmission probability
            room_trans_prob = attack, # used to be class_trans_prob
            room_trans_prob = ifelse(type == 0, room_trans_prob*res_trans_red, rel_nonres_trans*room_trans_prob),
-           room_trans_prob = dedens*room_trans_prob,
            room_trans_prob = ifelse(type == 1, room_trans_prob*staff_trans_red, room_trans_prob),
            room_trans_prob = ifelse(type == 2, room_trans_prob*visit_trans_red, room_trans_prob),
            
@@ -885,19 +870,18 @@ make_quarantine = function(class_quarantine, df.u, quarantine.length = 10, quara
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
 #' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1 (used to be mult_asymp_child)
 #' @param seed_asymp when making a seed, force to be asymptomatic; default is false
-#' @param turnaround.time test turnaround time, default = 3 (1 day)
+#' @param turnaround.time test turnaround time, default = 3 (1 day) (remove)
 #' @param overdisp_off all overdispersion off; defaults to F
 #'
 #' @return df.u with updated parameters
 #'
 #' @export
 # note to self -- add additional parameters to change around here
-make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, turnaround.time = 3, overdisp_off = F){
+make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, overdisp_off = F){
   
   if(is.na(set)[1]){
     #  set infectivity  parameters
     df.u$symp = rbinom(nrow(df.u), size = 1, prob = 1-df.u$p_asymp)
-    df.u$sub_clin = ifelse(df.u$symp, rbinom(nrow(df.u), size = 1, prob =  df.u$p_subclin/(1-df.u$p_asymp)), 1)
     df.u$t_symp = df.u$t_exposed + rgamma(nrow(df.u), shape = 17.4, scale=.32)
     val = rnorm(nrow(df.u), mean = 6, sd = 1.2)
     df.u$t_inf = ifelse(df.u$t_symp - val > df.u$t_exposed + 3, df.u$t_symp - val,
@@ -906,10 +890,8 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
     #  set infectivity  parameters
     if(seed_asymp) {
       df.u$symp = 0
-      df.u$sub_clin = 0
     }else{
       df.u$symp = rbinom(nrow(df.u), size = 1, prob = 1-df.u$p_asymp)
-      df.u$sub_clin = ifelse(df.u$symp, rbinom(nrow(df.u), size = 1, prob =  df.u$p_subclin/(1-df.u$p_asymp)), 1)
     }
     df.u$t_inf = set + runif(nrow(df.u), min = -1.5, max = 1.5)
     df.u$t_symp = df.u$t_inf + rnorm(nrow(df.u), mean = 6, sd = 1.2)
@@ -922,7 +904,10 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
   chk = (df.u$super_spread | df.u$type==0)*as.numeric(!overdisp_off)
   df.u$room_trans_prob = ifelse(chk, df.u$room_trans_prob*attack_mult, df.u$room_trans_prob)
   
-  # adjust for asymptomatic infection if applicable
+  # adjust for symptomatic residents
+  df.u$room_trans_prob = ifelse(df.u$symp, ifelse(df.u$type==0, df.u$room_trans_prob*df.u$relative_trans_room_symp_res, df.u$room_trans_prob), df.u$room_trans_prob)
+  
+  # adjust for asymptomatic infection
   df.u$room_trans_prob = ifelse(!df.u$symp, ifelse(df.u$type==0, df.u$room_trans_prob*mult_asymp_res, df.u$room_trans_prob*mult_asymp_nonres), df.u$room_trans_prob)
   df.u$relative_trans_common = ifelse(df.u$symp & df.u$isolate==0, df.u$relative_trans_common*df.u$relative_trans_room_symp_res, df.u$relative_trans_common)
   
@@ -930,10 +915,10 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
   df.u$t_end_inf_home = df.u$t_inf +
     rlnorm(nrow(df.u), meanlog = log(time_inf)-log((time_inf^2 + 6)/time_inf^2)/2, sdlog = sqrt(log((time_inf^2 + 6)/time_inf^2)))
 
-  df.u$t_end_inf = ifelse(df.u$symp==1 & !df.u$sub_clin & df.u$isolate & df.u$t_symp<df.u$t_end_inf_home, df.u$t_symp, df.u$t_end_inf_home)
+  df.u$t_end_inf = ifelse(df.u$symp==1 & df.u$isolate & df.u$t_symp<df.u$t_end_inf_home, df.u$t_symp, df.u$t_end_inf_home)
   
   # df.u$t_notify = ifelse(df.u$symp==1 & !df.u$sub_clin & df.u$isolate & df.u$notify, df.u$t_symp + turnaround.time, -17)
-  df.u$t_notify = ifelse(df.u$symp==1 & !df.u$sub_clin & df.u$isolate, df.u$t_symp + turnaround.time, -17)
+  df.u$t_notify = ifelse(df.u$symp==1 & df.u$isolate, df.u$t_symp, -17)
   
   return(df.u)
 }
@@ -982,6 +967,7 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2 (used to be rel_trans_adult)
 #' @param rapid_test_sens sensitivity of rapid tests, defaults to 80%
 #' @param overdisp_off all overdispersion off; defaults to F
+#' @param quarantine whether or not people quarantine upon exposure; defaults to F
 #' @param df data frame from initialize_NH()
 #' @param sched schedule data frame from make_schedule()
 #'
@@ -1020,6 +1006,7 @@ run_model = function(time = 30,
                      # surveillance = F,
                      # rapid_test_sens = 0.8,
                      overdisp_off = F,
+                     quarantine = F,
                      df, sched){
   
   #### SEED MODEL ####
@@ -1173,7 +1160,9 @@ run_model = function(time = 30,
     } else{flagged_rooms = 0}
     df$flag_room[df$type==0 & df$room<43 & df$flag_room!=1 & df$room%in%flagged_rooms] <- 1
     
-    df$q_room[df$flag_room==1 & df$type==0] <- 1
+    if(quarantine){
+      df$q_room[df$flag_room==1 & df$type==0] <- 1
+    }
     
     # flag infected residents' visitors (also flag their roommates' visitors?)
     df$flag_fam = 0
@@ -1186,7 +1175,7 @@ run_model = function(time = 30,
     }
     
     # re-estimate who is present (among staff and visitors)
-    df$present[df$type!=0] = sched$present[sched$t==t & sched$type!=0] & !df$isolate_home[df$type!=0]
+    df$present[df$type!=0] = sched$present[sched$t==t & sched$type!=0] & !df$isolate_home[df$type!=0] & !df$quarantined[df$type!=0]
     if("family"%in%colnames(df)){
       df$present[df$type==2] = sched$present[sched$t==t & sched$type==2] & df$flag_fam[df$type==2]!=1
     }
@@ -1221,7 +1210,7 @@ run_model = function(time = 30,
       df$test_ct = df$test_ct + rbinom(nrow(df), size = 1, prob = df$present*test_frac*as.numeric(df$test_type)) # count how many tests individual takes
       df$test = rbinom(nrow(df), size = 1, prob = test_sens*test_frac*as.numeric(df$test_type)) # record only accurate test results?
       df$t_end_inf = ifelse(df$test & df$trans_now, t, df$t_end_inf)
-      df$t_notify = ifelse(df$test & df$trans_now, t+turnaround.time, df$t_notify)
+      df$t_notify = ifelse(df$test & df$trans_now, t, df$t_notify)
       df$detected = ifelse(df$test & df$trans_now, 1, df$detected)
       room_test_ind = room_test_ind + length(unique(df$room[df$test_type & df$present & !df$isolated & !df$q_room]))
 
@@ -1277,6 +1266,18 @@ run_model = function(time = 30,
         df$source_symp = ifelse(df$id%in%inf_vec, df$symp[df$id==a], df$source_symp)
         df$not_inf = ifelse(df$id%in%inf_vec, F, df$not_inf)
         df$present_susp = ifelse(df$id%in%inf_vec, F, df$present_susp)
+        
+        df$quarantined = ifelse(quarantine & df$id%in%inf_vec & df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17, 
+               ifelse(df$t_end_inf_home[df$id%in%inf_vec]>=t, T, F), df$quarantined)
+        
+        if(quarantine){
+          for(id in inf_vec){
+            if(df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17 & df$t_end_inf_home[df$id==id]>=t){
+              df$quarantined = T
+            }
+          }
+          
+        }
       }
       
       # run model for infectious individuals in staff interactions
@@ -1313,7 +1314,7 @@ run_model = function(time = 30,
       # sample from a random regular graph
       # this approach ensures reciprocity
       # you may want to split out to ensure reciprocity in contact type
-      common_contacts = sample_k_regular(sum(df[df$type!=2 & (df$flag_room!=1 | is.na(df$flag_room)),]$present), df$n_contact[1] + df$n_contact_brief[1])
+      common_contacts = sample_k_regular(sum(df[df$type!=2 & (df$flag_room!=1 | is.na(df$flag_room)),]$present), df$n_contact[1])
       #if(n_staff_contact>0) random_staff_contacts = sample_k_regular(sum(df$present & df$adult & !df$family), n_staff_contact)
       
       
@@ -1392,17 +1393,13 @@ run_model = function(time = 30,
 #' @param N number of runs
 #' @param cohorting whether certain staff are assigned to certain residents; defaults to F
 #' @param visitors whether visitors are allowed; defaults to F
-#' @param n_contacts Number of sustained contacts in NH common area; defaults to 5
-#' @param n_contacts_brief Number of brief contacts in NH common area; defaults to 5
+#' @param n_contacts Number of sustained contacts in NH common area; defaults to 10
 #' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; defaults to 1
 #' @param rel_trans Relative attack rate of sustained contact (vs. resident room); defaults to 1/8
-#' @param rel_trans_brief Relative attack rate of brief contact (vs. resident room); defaults to 1/50
 #' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2
 #' @param p_asymp_staff Fraction of staff with asymptomatic (unsuspected) disease; defaults to 0.8
 #' @param p_asymp_res Fraction of residents with asymptomatic (unsuspected) disease; defaults to 0.4
-#' @param p_subclin_staff Fraction of staff with subclinical but not techincally asymptomatic disease; defaults to 0
-#' @param p_subclin_res Fraction of residents with subclinical but not techincally asymptomatic disease; defaults to 0
 #' @param attack Average daily attack rate in residents; defaults to 0.01
 #' @param rel_nonres_trans Relative transmissibility of staff and visitors (vs. residents); defaults to 1
 #' @param rel_nonres_susp Relative susceptibility of staff and visitors (vs. residents); defaults to .5
@@ -1421,7 +1418,6 @@ run_model = function(time = 30,
 #' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1
 #' @param seed_asymp whether to seed with an asymptomatic case
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
-#' @param dedens Whether dedensification measures reduce attack rate; defaults to F
 #' @param time length of time to run model; defaults to 30
 #' @param notify whether residents notified and quarantined upon positive test result; defaults to T
 #' @param test whether there is weekly testing; defaults to F
@@ -1446,13 +1442,13 @@ run_model = function(time = 30,
 #' @param nh make_NH object; defaults to NA and will call for each simulation
 #'
 #' @export
-mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 5, n_contacts_brief = 5, rel_trans_common = 1, 
-                     rel_trans_room_symp_res = 1, rel_trans = 1/8, rel_trans_brief = 1/50, rel_trans_staff = 2, 
-                     p_asymp_staff = 0.8, p_asymp_res = 0.4, p_subclin_staff = 0, p_subclin_res = 0, attack = 0.01, 
+mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 10, rel_trans_common = 1, 
+                     rel_trans_room_symp_res = 1, rel_trans = 1/8, rel_trans_staff = 2, 
+                     p_asymp_staff = 0.8, p_asymp_res = 0.4, attack = 0.01, 
                      rel_nonres_trans = 1, rel_nonres_susp = 0.5, res_vax = 0, staff_vax_req = F, visit_vax = 0, 
                      res_trans_red = 1, staff_trans_red = 1, visit_trans_red = 1, disperse_transmission = T, 
                      n_staff_contact = 5, n_start = 1, time_seed_inf = NA, time_inf = 18, mult_asymp_res = 1, 
-                     mult_asymp_nonres = 1, seed_asymp = F, isolate = T, dedens = F, time = 30, test = T, 
+                     mult_asymp_nonres = 1, seed_asymp = F, isolate = T, time = 30, test = T, 
                      test_sens = 0.7, test_frac = 0.9, test_days = 'week', test_type = 'all', test_start_day = 1, 
                      start_mult = 1, start_type = 'cont', nonres_prob = 0.005, res_prob = 0.0025, turnaround.time = 3, 
                      num_adults = 4, vax_eff = 0.9, overdisp_off = F, synthpop, nh = NA){
@@ -1477,14 +1473,13 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 5, n_contacts_
       
     }
     ## add COVID characteristcs
-    nh = initialize_NH(n_contacts = n_contacts, n_contacts_brief = n_contacts_brief, rel_trans_common = rel_trans_common,
-                       rel_trans_room_symp_res = rel_trans_room_symp_res, rel_trans = rel_trans, rel_trans_brief = rel_trans_brief, 
-                       p_asymp_staff = p_asymp_staff, p_asymp_res = p_asymp_res, p_subclin_staff = p_subclin_staff, 
-                       p_subclin_res = p_subclin_res, attack = attack, rel_nonres_trans = rel_nonres_trans, rel_nonres_susp = rel_nonres_susp, 
+    nh = initialize_NH(n_contacts = n_contacts, rel_trans_common = rel_trans_common,
+                       rel_trans_room_symp_res = rel_trans_room_symp_res, rel_trans = rel_trans, 
+                       p_asymp_staff = p_asymp_staff, p_asymp_res = p_asymp_res, attack = attack, rel_nonres_trans = rel_nonres_trans, rel_nonres_susp = rel_nonres_susp, 
                        res_vax = res_vax, staff_vax_req = staff_vax_req, visit_vax = visit_vax, res_trans_red = res_trans_red, 
                        res_susp_red = res_susp_red, staff_trans_red = staff_trans_red, staff_susp_red = staff_susp_red, 
                        visit_trans_red = visit_trans_red, visit_susp_red = visit_susp_red, disperse_transmission = disperse_transmission, 
-                       isolate = isolate, dedens = dedens, vax_eff = vax_eff, start = nh_synthpop)
+                       isolate = isolate, vax_eff = vax_eff, start = nh_synthpop)
     
     ## make schedule
     sched = make_schedule(time = time + 15, start = nh_synthpop)
@@ -1579,8 +1574,6 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 5, n_contacts_
     # keep$detected_q_start[i] = sum(df$detected_q_start)
     keep$detected_staff[i] = sum(df$detected[df$type==1])
     keep$detected_res[i] = sum(df$detected[df$type==0])
-    keep$detected_staff_subclin[i] = sum(df$detected[df$type==1 & df$sub_clin], na.rm = T)
-    keep$detected_res_subclin[i] = sum(df$detected[df$type==0 & df$sub_clin], na.rm = T)
     keep$quarantine_check[i] = max(df$t_end_inf-df$t_end_inf_home, na.rm = T)#(df$uh.oh[1])
     # keep$avg_class[i] = unlist(df %>% filter(t_exposed!=-99 & t_exposed <= time_keep + time - 1 & class!=99) %>% group_by(class) %>%
                                  # summarize(num = length(class)) %>% ungroup() %>% summarize(mean(num, na.rm = T)))
@@ -1735,9 +1728,7 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 5, n_contacts_
     # 
     # keep$p_asymp_adult_obs[i] = sum(!df$symp & df$t_exposed > 0 & df$adult)/sum(df$t_exposed > 0 & df$adult)
     # keep$p_asymp_child_obs[i] = sum(!df$symp & df$t_exposed > 0 & !df$adult)/sum(df$t_exposed > 0 & !df$adult)
-    # keep$p_subclin_adult_obs[i] = sum(df$sub_clin & df$t_exposed > 0 & df$adult)/sum(df$t_exposed > 0 & df$adult)
-    # keep$p_subclin_child_obs[i] = sum(df$sub_clin & df$t_exposed > 0 & !df$adult)/sum(df$t_exposed > 0 & !df$adult)
-    # 
+    
     # keep$length.incubation_obs[i] = mean(floor(df$t_inf[df$t_inf > 0 & !df$start]) - ceiling(df$t_exposed[df$t_inf > 0 & !df$start] + runif(length(df$t_exposed[df$t_inf > 0 & !df$start]), min = -0.5, max = 0.5)) + 1)
     # keep$length.symp.gap_obs[i] = mean(floor(df$t_symp[df$t_inf > 0 & !df$start]) - ceiling(df$t_exposed[df$t_inf > 0 & !df$start] + runif(length(df$t_exposed[df$t_inf > 0 & !df$start]), min = -0.5, max = 0.5)) + 1)
     # 

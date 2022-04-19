@@ -271,7 +271,7 @@ initialize_NH = function(n_contacts = 10, rel_trans_common = 1, rel_trans_room_s
            detected = 0,
            # detected_q = 0,
            # detected_q_start = 0,
-           quarantined = 0,
+           quarantined = F,
            # quarantined2 = 0,
            test_ct = 0,
            # test_ct_q = 0,
@@ -605,9 +605,29 @@ run_room = function(a, df){
     staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
     
     # determine whether staff becomes infected
-    prob_staff = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*staff_vec$not_inf < 1,
-                                                                df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*staff_vec$not_inf,
-                                                                1))
+    prob_staff <- c()
+    for(row in 1:nrow(staff_vec)){
+      if(staff_vec[row,]$role==0){
+        prob_staff = append(prob_staff, rbinom(1, size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec[row,]$susp*staff_vec[row,]$present_susp*staff_vec[row,]$not_inf*3 < 1,
+                                                                     df$room_trans_prob[df$id==a]*staff_vec[row,]$susp*staff_vec[row,]$present_susp*staff_vec[row,]$not_inf*3,
+                                                                     1)))
+      }else if(staff_vec[row,]$role==1){
+        prob_staff = append(prob_staff, rbinom(1, size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec[row,]$susp*staff_vec[row,]$present_susp*staff_vec[row,]$not_inf*2 < 1,
+                                                         df$room_trans_prob[df$id==a]*staff_vec[row,]$susp*staff_vec[row,]$present_susp*staff_vec[row,]$not_inf*2,
+                                                         1)))
+      }else if(staff_vec[row,]$role==2){
+        prob_staff = append(prob_staff, rbinom(1, size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec[row,]$susp*staff_vec[row,]$present_susp*staff_vec[row,]$not_inf*10 < 1,
+                                                     df$room_trans_prob[df$id==a]*staff_vec[row,]$susp*staff_vec[row,]$present_susp*staff_vec[row,]$not_inf*10,
+                                                     1)))
+      }else {
+        prob_staff = append(prob_staff, rbinom(1, size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec[row,]$susp*staff_vec[row,]$present_susp*staff_vec[row,]$not_inf < 1,
+                                                       df$room_trans_prob[df$id==a]*staff_vec[row,]$susp*staff_vec[row,]$present_susp*staff_vec[row,]$not_inf,
+                                                       1)))
+      }
+    }
+    # prob_staff = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*staff_vec$not_inf < 1,
+    #                                                             df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*staff_vec$not_inf,
+    #                                                             1))
     staff = staff_vec$id
     
     # list infected staff
@@ -649,9 +669,29 @@ run_room = function(a, df){
     res_vec = res_vec[rowSums(is.na(res_vec)) != ncol(res_vec),]
     
     # determine whether residents become infected
-    prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf < 1,
-                                                                df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf,
-                                                                1))
+    prob_res <- c()
+    for(row in 1:nrow(res_vec)){
+      if(df$role[df$id==a]==0){
+        prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf*3 < 1,
+                                                                 df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf*3,
+                                                                 1))
+      }else if(df$role[df$id==a]==1){
+        prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf*2 < 1,
+                                                                 df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf*2,
+                                                                 1))
+      }else if(df$role[df$id==a]==2){
+        prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf*10 < 1,
+                                                                 df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf*10,
+                                                                 1))
+      }else {
+        prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf < 1,
+                                                                 df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf,
+                                                                 1))
+      }
+    }
+    # prob_res = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf < 1,
+    #                                                             df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf,
+    #                                                             1))
     res = res_vec$id
     
     # list infected residents
@@ -756,7 +796,7 @@ run_common = function(a, df, area_contacts){
   
   # pull contacts from random graph (of residents and staff present at NH)
   id = which(df$id[df$present]==a)
-  contact_id = df$id[df$present & df$flag_room!=1][area_contacts[[id]][[1]]]
+  contact_id = ifelse(quarantine, df$id[df$present & df$flag_room!=1][area_contacts[[id]][[1]]], df$id[df$present][area_contacts[[id]][[1]]])
   #print(length(contact_id))
   contacts = df[df$id %in% contact_id,]
   
@@ -865,24 +905,25 @@ make_quarantine = function(class_quarantine, df.u, quarantine.length = 10, quara
 #' Set infection parameters for individuals infected at a particular timestep
 #'
 #' @param df.u data frame in run_model() of infected individuals
-#' @param time_inf length of infectious period, defaults to 18 (6 days) (used to be days_inf)
+#' @param time_inf_mild length of infectious period for mild COVID, defaults to 15 (5 days) (used to be days_inf)
+#' @param time_inf_mod length of infectious period for moderate COVID, defaults to 30 (10 days)
+#' @param time_inf_severe length of infectious period for severe COVID, defaults to 60 (20 days)
 #' @param set indication of seeding model vs. creating infections
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
 #' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1 (used to be mult_asymp_child)
 #' @param seed_asymp when making a seed, force to be asymptomatic; default is false
-#' @param turnaround.time test turnaround time, default = 3 (1 day) (remove)
 #' @param overdisp_off all overdispersion off; defaults to F
 #'
 #' @return df.u with updated parameters
 #'
 #' @export
 # note to self -- add additional parameters to change around here
-make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, overdisp_off = F){
+make_infected = function(df.u, time_inf_mild = 15, time_inf_mod = 30, time_inf_severe = 60, set = NA, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, overdisp_off = F){
   
   if(is.na(set)[1]){
     #  set infectivity  parameters
     df.u$symp = rbinom(nrow(df.u), size = 1, prob = 1-df.u$p_asymp)
-    df.u$t_symp = df.u$t_exposed + rgamma(nrow(df.u), shape = 17.4, scale=.32)
+    df.u$t_symp = df.u$t_exposed + rgamma(nrow(df.u), shape = 17.4, scale=0.95)
     val = rnorm(nrow(df.u), mean = 6, sd = 1.2)
     df.u$t_inf = ifelse(df.u$t_symp - val > df.u$t_exposed + 3, df.u$t_symp - val,
                         df.u$t_exposed + 3)
@@ -895,7 +936,7 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
     }
     df.u$t_inf = set + runif(nrow(df.u), min = -1.5, max = 1.5)
     df.u$t_symp = df.u$t_inf + rnorm(nrow(df.u), mean = 6, sd = 1.2)
-    symp_gap <- rgamma(nrow(df.u), shape = 17.4, scale=.32)
+    symp_gap <- rgamma(nrow(df.u), shape = 17.4, scale=.95)
     df.u$t_exposed = ifelse(df.u$t_symp - symp_gap < df.u$t_inf - 3, df.u$t_symp - symp_gap, df.u$t_inf - 3)
   }
   
@@ -912,8 +953,12 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
   df.u$relative_trans_common = ifelse(df.u$symp & df.u$isolate==0, df.u$relative_trans_common*df.u$relative_trans_room_symp_res, df.u$relative_trans_common)
   
   # add end time
-  df.u$t_end_inf_home = df.u$t_inf +
-    rlnorm(nrow(df.u), meanlog = log(time_inf)-log((time_inf^2 + 6)/time_inf^2)/2, sdlog = sqrt(log((time_inf^2 + 6)/time_inf^2)))
+  df.u$t_end_inf_home = ifelse(df.u$comorbid==0, df.u$t_symp +
+    rlnorm(nrow(df.u), meanlog = log(time_inf_mild)-log((time_inf_mild^2 + 6)/time_inf_mild^2)/2, sdlog = sqrt(log((time_inf_mild^2 + 6)/time_inf_mild^2))), df.u$t_end_inf_home)
+  df.u$t_end_inf_home = ifelse(df.u$comorbid==1, df.u$t_symp +
+                                 rlnorm(nrow(df.u), meanlog = log(time_inf_mod)-log((time_inf_mod^2 + 6)/time_inf_mod^2)/2, sdlog = sqrt(log((time_inf_mod^2 + 6)/time_inf_mod^2))), df.u$t_end_inf_home)
+  df.u$t_end_inf_home = ifelse(df.u$comorbid==2, df.u$t_symp +
+                                 rlnorm(nrow(df.u), meanlog = log(time_inf_severe)-log((time_inf_severe^2 + 6)/time_inf_severe^2)/2, sdlog = sqrt(log((time_inf_severe^2 + 6)/time_inf_severe^2))), df.u$t_end_inf_home)
 
   df.u$t_end_inf = ifelse(df.u$symp==1 & df.u$isolate & df.u$t_symp<df.u$t_end_inf_home, df.u$t_symp, df.u$t_end_inf_home)
   
@@ -952,7 +997,9 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
 #' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1 (used to be mult_asymp_child)
-#' @param time_inf length of infectious period (assuming mild case or quarantined on symptoms) (used to be days_inf)
+#' @param time_inf_mild length of infectious period for mild COVID, defaults to 15 (5 days) (used to be days_inf)
+#' @param time_inf_mod length of infectious period for moderate COVID, defaults to 30 (10 days)
+#' @param time_inf_severe length of infectious period for severe COVID, defaults to 60 (20 days)
 #' @param seed_asymp whether to seed with an asymptomatic case
 #' @param time_seed_inf time(s) at which to introduce new infectious individuals; defaults to NA and randomly selects one time
 #' @param start_type type of seed; default is "mix" (also "resident", "staff", "visitor", "cont")
@@ -961,7 +1008,6 @@ make_infected = function(df.u, time_inf, set = NA, mult_asymp_res = 1, mult_asym
 #' @param start_mult value to indicate relative frequency of resident/staff infections; defaults to 0.5 - used to default to 1 
 #' (staff 2x as likely as residents since residents don't leave) (are staff or residents more likely to get infected?)
 #' @param num_staff number of staff interacting with residents, defaults to 4 (used to be num_adults)
-#' @param turnaround.time test turnaround time, default = 3 (1 day)
 #' @param nonres_prob if start_type = "cont", set daily probability of infectious entry for staff and visitors, defaults to .05 (used to be child_prob)
 #' @param res_prob if start_type = "cont", set daily probability of infectious entry for residents, defaults to .01 (used to be adult_prob)
 #' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2 (used to be rel_trans_adult)
@@ -988,7 +1034,9 @@ run_model = function(time = 30,
                      test_start_day = 1,
                      n_staff_contact = 5,
                      n_start = 1,
-                     time_inf = 18,
+                     time_inf_mild = 15,
+                     time_inf_mod = 30, 
+                     time_inf_severe = 60,
                      mult_asymp_res = 1,
                      mult_asymp_nonres = 1,
                      seed_asymp = F,
@@ -998,7 +1046,6 @@ run_model = function(time = 30,
                      # quarantine.grace = 9,
                      start_mult = 1,
                      num_staff = 4,
-                     turnaround.time = 3,
                      nonres_prob = 0.005,
                      res_prob = 0.0025,
                      rel_trans_staff = 2,
@@ -1059,10 +1106,11 @@ run_model = function(time = 30,
   
   # setup
   if(nrow(df.temp)>0){
-    df[df$id%in%df.temp$id.samp,] = make_infected(df.u = df[df$id%in%df.temp$id.samp,], time_inf = time_inf,
+    df[df$id%in%df.temp$id.samp,] = make_infected(df.u = df[df$id%in%df.temp$id.samp,], time_inf_mild = time_inf_mild,
+                                                  time_inf_mod = time_inf_mod, time_inf_severe = time_inf_severe,
                                                   set = df.temp$time_seed_inf, seed_asymp = seed_asymp,
                                                   mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres,
-                                                  turnaround.time = turnaround.time, overdisp_off = overdisp_off)
+                                                  overdisp_off = overdisp_off)
     df$start = df$id %in% df.temp$id.samp
     df$start.init = df$id %in% df.temp$id.samp
     
@@ -1077,15 +1125,10 @@ run_model = function(time = 30,
   if(test_days == "day") {
     testing_days = c(1:(time*3+43))}
   if(test_days == "2x_week"){
-    if(turnaround.time>3){
-      testing_days = c(seq(13, (time*3+43), by = 21), seq(1, (time*3+43), by = 21))
-      testing_days = append(testing_days, c(seq(14, (time*3+43), by = 21), seq(2, (time*3+43), by = 21)))
-      testing_days = append(testing_days, c(seq(15, (time*3+43), by = 21), seq(3, (time*3+43), by = 21)))
-    } else{
       testing_days = c(seq(10, (time*3+43), by = 21), seq(1, (time*3+43), by = 21))
       testing_days = append(testing_days, c(seq(11, (time*3+43), by = 21), seq(2, (time*3+43), by = 21)))
       testing_days = append(testing_days, c(seq(12, (time*3+43), by = 21), seq(3, (time*3+43), by = 21)))
-    }}
+  }
   # df$switch = 0
   # df$temp_switch = 0
   
@@ -1109,6 +1152,7 @@ run_model = function(time = 30,
     # room quarantines (rooms in quarantine)
     # rooms_quarantined = room_quarantine[room_quarantine$t_notify > -1 & room_quarantine$t_notify <= t & t <= (room_quarantine$t_notify + quarantine.length-3),]
     df$present = sched$present[sched$t==t]
+    # df$quarantined = ifelse(quarantine & df$start & df$t_exposed<t & df$t_notify<=t & df$t_notify!=-17 & df$t_inf>t, T, df$quarantined)
     
     # mark who is infectious
     df$inf = df$t_inf > -1 & df$t_inf <= t & df$t_end_inf >= t
@@ -1266,18 +1310,6 @@ run_model = function(time = 30,
         df$source_symp = ifelse(df$id%in%inf_vec, df$symp[df$id==a], df$source_symp)
         df$not_inf = ifelse(df$id%in%inf_vec, F, df$not_inf)
         df$present_susp = ifelse(df$id%in%inf_vec, F, df$present_susp)
-        
-        df$quarantined = ifelse(quarantine & df$id%in%inf_vec & df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17, 
-               ifelse(df$t_end_inf_home[df$id%in%inf_vec]>=t, T, F), df$quarantined)
-        
-        if(quarantine){
-          for(id in inf_vec){
-            if(df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17 & df$t_end_inf_home[df$id==id]>=t){
-              df$quarantined = T
-            }
-          }
-          
-        }
       }
       
       # run model for infectious individuals in staff interactions
@@ -1353,7 +1385,10 @@ run_model = function(time = 30,
       
       df$start[df$now] = 0      # remove seed if infected earlier
       df$t_exposed[df$now] = t
-      df[df$now,] = make_infected(df[df$now,], time_inf = time_inf, mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres, turnaround.time = turnaround.time, overdisp_off = overdisp_off)
+      df[df$now,] = make_infected(df[df$now,], time_inf_mild = time_inf_mild, time_inf_mod = time_inf_mod, 
+                                  time_inf_severe = time_inf_severe, mult_asymp_res = mult_asymp_res, 
+                                  mult_asymp_nonres = mult_asymp_nonres, overdisp_off = overdisp_off)
+      # df$quarantined = ifelse(quarantine & df$now & df$t_notify>t & df$t_notify!=-17 & df$t_inf>t, T, df$quarantined)
       #print("New exposures:")
       #print(df %>% filter(now) %>% arrange(source) %>% select(id, HH_id, class, group, adult, family, source, location, symp))
     }
@@ -1413,7 +1448,9 @@ run_model = function(time = 30,
 #' @param n_staff_contact number of contacts a teacher/staff member has with other teachers/staff members; defaults to 5
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param time_seed_inf time(s) at which to introduce new infectious individuals; defaults to NA and randomly selects one time
-#' @param time_inf length of infectious period (assuming mild case or quarantined on symptoms) (used to be days_inf)
+#' @param time_inf_mild length of infectious period for mild COVID, defaults to 15 (5 days) (used to be days_inf)
+#' @param time_inf_mod length of infectious period for moderate COVID, defaults to 30 (10 days)
+#' @param time_inf_severe length of infectious period for severe COVID, defaults to 60 (20 days)
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1
 #' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1
 #' @param seed_asymp whether to seed with an asymptomatic case
@@ -1432,7 +1469,6 @@ run_model = function(time = 30,
 #' @param res_prob if start_type = "cont", set daily probability of infectious entry for residents, defaults to .01
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 10
 #' @param quarantine.grace length of grace period after which a quarantined class returns not to be "re-quarantined"
-#' @param turnaround.time test turnaround time, default = 3 (1 day)
 #' @param num_adults number of staff interacting with residents, defaults to 4
 #' @param includeFamily whether to include family, default = FALSE
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
@@ -1447,10 +1483,11 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 10, rel_trans_
                      p_asymp_staff = 0.8, p_asymp_res = 0.4, attack = 0.01, 
                      rel_nonres_trans = 1, rel_nonres_susp = 0.5, res_vax = 0, staff_vax_req = F, visit_vax = 0, 
                      res_trans_red = 1, staff_trans_red = 1, visit_trans_red = 1, disperse_transmission = T, 
-                     n_staff_contact = 5, n_start = 1, time_seed_inf = NA, time_inf = 18, mult_asymp_res = 1, 
+                     n_staff_contact = 5, n_start = 1, time_seed_inf = NA, time_inf_mild = 15, time_inf_mod = 30, 
+                     time_inf_severe = 60, mult_asymp_res = 1, 
                      mult_asymp_nonres = 1, seed_asymp = F, isolate = T, time = 30, test = T, 
                      test_sens = 0.7, test_frac = 0.9, test_days = 'week', test_type = 'all', test_start_day = 1, 
-                     start_mult = 1, start_type = 'cont', nonres_prob = 0.005, res_prob = 0.0025, turnaround.time = 3, 
+                     start_mult = 1, start_type = 'cont', nonres_prob = 0.005, res_prob = 0.0025,
                      num_adults = 4, vax_eff = 0.9, overdisp_off = F, synthpop, nh = NA){
   
   keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N), 
@@ -1487,9 +1524,10 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 10, rel_trans_
     ## run model
     df = run_model(time = time, test = test, test_days = test_days, test_sens = test_sens, 
                    test_frac = test_frac, test_start_day = test_start_day, n_staff_contact = n_staff_contact, 
-                   n_start = n_start, time_inf = time_inf, mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres, 
+                   n_start = n_start, time_inf_mild = time_inf_mild, time_inf_mod = time_inf_mod, 
+                   time_inf_severe = time_inf_severe, mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres, 
                    seed_asymp = seed_asymp, time_seed_inf = time_seed_inf, start_type = start_type, start_mult = start_mult, 
-                   num_staff = num_staff, turnaround.time = turnaround.time, nonres_prob = nonres_prob, res_prob = res_prob, 
+                   num_staff = num_staff, nonres_prob = nonres_prob, res_prob = res_prob, 
                    rel_trans_staff = rel_trans_staff, test_type = test_type, overdisp_off = overdisp_off, df = nh, sched = sched)
     
     time_keep = df$start.time[1]

@@ -257,12 +257,13 @@ initialize_NH = function(n_contacts = 10, rel_trans_common = 1, rel_trans_room_s
   
   # initialize data frame
   df = start %>%
-    mutate(start = F,
+    mutate(cohorting = ifelse(is.na(rn_cohort_morning) & type==0, F, ifelse(type==0, T, F)),
+           start = F,
            start.init = F,
            t_exposed = -99,
            t_inf = -1,
            symp = NA,
-           sub_clin = NA,
+           # sub_clin = NA,
            t_symp = -1,
            t_end_inf = -1,
            t_end_inf_home = -1,
@@ -1149,6 +1150,23 @@ run_model = function(time = 30,
   for(t in time_seed_inf:(time_seed_inf+(time*3)-3)){
     #print(paste("Time:", t, sched$day[sched$t==t][1], sched$group_two[sched$t==t][1]))
     
+    # assign direct-care staff accordingly if not cohorted
+    if(df$cohorting[df$id==1]==F){
+      for(resident in 1:nrow(df[df$type==0,])){
+        df$rn_cohort_morning[df$id==resident] <- sched$rn_cohort_morning[sched$id==resident & sched$t==t]
+        df$rn_cohort_evening[df$id==resident] <- sched$rn_cohort_evening[sched$id==resident & sched$t==t]
+        df$rn_cohort_night[df$id==resident] <- sched$rn_cohort_night[sched$id==resident & sched$t==t]
+        df$lpn_cohort_morning[df$id==resident] <- sched$lpn_cohort_morning[sched$id==resident & sched$t==t]
+        df$lpn_cohort_evening[df$id==resident] <- sched$lpn_cohort_evening[sched$id==resident & sched$t==t]
+        df$lpn_cohort_night[df$id==resident] <- sched$lpn_cohort_night[sched$id==resident & sched$t==t]
+        df$cna_cohort_morning[df$id==resident] <- sched$cna_cohort_morning[sched$id==resident & sched$t==t]
+        df$cna_cohort_evening[df$id==resident] <- sched$cna_cohort_evening[sched$id==resident & sched$t==t]
+        df$cna_cohort_night[df$id==resident] <- sched$cna_cohort_night[sched$id==resident & sched$t==t]
+        df$ma_cohort_morning[df$id==resident] <- sched$ma_cohort_morning[sched$id==resident & sched$t==t]
+        df$ma_cohort_evening[df$id==resident] <- sched$ma_cohort_evening[sched$id==resident & sched$t==t]
+      }
+    }
+    
     # room quarantines (rooms in quarantine)
     # rooms_quarantined = room_quarantine[room_quarantine$t_notify > -1 & room_quarantine$t_notify <= t & t <= (room_quarantine$t_notify + quarantine.length-3),]
     df$present = sched$present[sched$t==t]
@@ -1638,12 +1656,12 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 10, rel_trans_
     keep$common[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$location == "Common area")
     keep$staff_interactions[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$location == "Staff interactions")
     keep$num_room[i] = length(unique(df$room[df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$room < 43]))
-    keep$clin_staff[i] = sum(df$t_notify>=15*3 & df$symp & !df$sub_clin & df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3, na.rm = T)
-    keep$clin_res[i] = sum(df$t_notify>=15*3 & df$symp & !df$sub_clin & df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3, na.rm = T)
-    keep$clin_visit[i] = sum(df$t_notify>=15*3 & df$symp & !df$sub_clin & df$type==2 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3, na.rm = T)
-    keep$clin_staff2[i] = sum(df$t_notify>=15*3 & df$symp & !df$sub_clin & df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)
-    keep$clin_res2[i] = sum(df$t_notify>=15*3 & df$symp & !df$sub_clin & df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)
-    keep$clin_visit2[i] = sum(df$t_notify>=15*3 & df$symp & !df$sub_clin & df$type==2 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)
+    keep$clin_staff[i] = sum(df$t_notify>=15*3 & df$symp & df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3, na.rm = T)
+    keep$clin_res[i] = sum(df$t_notify>=15*3 & df$symp & df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3, na.rm = T)
+    keep$clin_visit[i] = sum(df$t_notify>=15*3 & df$symp & df$type==2 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3, na.rm = T)
+    keep$clin_staff2[i] = sum(df$t_notify>=15*3 & df$symp & df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)
+    keep$clin_res2[i] = sum(df$t_notify>=15*3 & df$symp & df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)
+    keep$clin_visit2[i] = sum(df$t_notify>=15*3 & df$symp & df$type==2 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time*3 - 3 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)
     keep$notify_staff[i] = sum(df$t_notify>=15*3 & df$type==1 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)
     keep$notify_res[i] = sum(df$t_notify>=15*3 & df$type==0 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)
     keep$notify_visit[i] = sum(df$t_notify>=15*3 & df$type==2 & df$t_notify <= time_keep + time*3 - 3, na.rm = T)

@@ -1313,7 +1313,11 @@ run_model = function(time = 30,
           
           # quarantine
           # if pre/asymptomatic, find when infected tests positive/symptoms show
+<<<<<<< HEAD
           if(test & df[df$shift==shift,]$type[df[df$shift==shift,]$id==a][1]!=2){
+=======
+          if(test & df$type[df$id==a][1]!=2){
+>>>>>>> 81e2e46c5aee848d810117b5f051a83702d624a3
             future_days<-c()
             for(day in testing_days){
               future_days = append(future_days, ifelse(day-t>0, day, 0))
@@ -1324,7 +1328,11 @@ run_model = function(time = 30,
             df$t_quarantine[df$id%in%contact_id] = 
               ifelse(df$symp[df$id==a][1]==1 & df$t_symp[df$id==a][1]!=-1, 
                      df$t_symp[df$id==a][1], 
+<<<<<<< HEAD
                      ifelse(test & df[df$shift==shift,]$type[df[df$shift==shift,]$id==a][1]!=2 & (next_day-df$t_inf[df$id==a][1] < df$days_inf[df$id==a][1]), next_day, df$t_quarantine[df$id%in%contact_id]))
+=======
+                     ifelse(test & df$type[df$id==a][1]!=2 & (next_day-df$t_inf[df$id==a][1] < df$days_inf[df$id==a][1]), next_day, df$t_quarantine[df$id%in%contact_id]))
+>>>>>>> 81e2e46c5aee848d810117b5f051a83702d624a3
             
             df$t_end_quarantine[df$id%in%contact_id] = 
               ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 

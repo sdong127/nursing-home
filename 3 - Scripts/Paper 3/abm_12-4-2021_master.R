@@ -553,16 +553,13 @@ make_schedule = function(time = 45, start){
 #'
 #' @param a id of infected individual
 #' @param df data frame in run_model()
-#' @param test whether testing occurs
-#' @param testing_days days on which testing occurs
 #' @param t current day
 #' @param quarantine whether quarantine occurs
-#' @param quarantine.length length of quarantine
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_room = function(a, df, test, testing_days, t, quarantine, quarantine.length){
+run_room = function(a, df, t, quarantine){
   
   ## if infected is resident
   if(df$type[df$id==a]==0){
@@ -599,7 +596,7 @@ run_room = function(a, df, test, testing_days, t, quarantine, quarantine.length)
     staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
     
     # determine whether staff becomes infected
-    prob_staff = ifelse(quarantine & (df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17) | (df$symp[df$id==a]==1 & df$t_symp[df$id==a]<=t & df$t_symp!=-1),
+    prob_staff = ifelse(quarantine & (df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17) | (df$symp[df$id==a]==1 & df$t_symp[df$id==a]<=t & df$t_symp[df$id==a]!=-1),
                         rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*staff_vec$not_inf*.5 < 1,
                                                                         df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*staff_vec$not_inf*.5,
                                                                         1)),
@@ -646,21 +643,6 @@ run_room = function(a, df, test, testing_days, t, quarantine, quarantine.length)
     # make vector of residents that staff treats
     res_vec = df[(df[staff_role]==staff_role_id) & df$type==0,]
     res_vec = res_vec[rowSums(is.na(res_vec)) != ncol(res_vec),]
-    
-    # quarantine
-    # if pre/asymptomatic, find when infected tests positive/symptoms show
-    if(test){
-      future_days<-c()
-      for(day in testing_days){
-        future_days = append(future_days, ifelse(day-t>0, day, 0))
-      }
-      next_day = t+min(abs(future_days-t))
-    }
-    if(quarantine){
-      res_vec_id = res_vec$id
-      df$t_quarantine = ifelse(df$id%in%res_vec_id & df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, df$t_symp[df$id==a], ifelse(test, next_day, df$t_quarantine))
-      df$t_end_quarantine = ifelse(df$id%in%res_vec_id & df$t_quarantine!=-13, df$t_quarantine+quarantine.length, df$t_end_quarantine)
-    }
     
     # determine whether residents become infected
     prob_res = ifelse(res_vec$quarantined, rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf*.5 < 1,
@@ -742,16 +724,12 @@ run_room = function(a, df, test, testing_days, t, quarantine, quarantine.length)
 #' @param a id of infected individual
 #' @param df data frame in run_model()
 #' @param area_contacts graph of common area contacts during current shift
-#' @param test whether testing occurs
-#' @param testing_days days on which testing occurs
-#' @param t current day
 #' @param quarantine whether quarantine occurs
-#' @param quarantine.length length of quarantine
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_common = function(a, df, area_contacts, test, testing_days, t, quarantine, quarantine.length){
+run_common = function(a, df, area_contacts, quarantine){
   
   # pull contacts from random graph (of those present at NH)
   if(quarantine){
@@ -761,20 +739,6 @@ run_common = function(a, df, area_contacts, test, testing_days, t, quarantine, q
   }
   #print(length(contact_id))
   contacts = df[df$id %in% contact_id,]
-  
-  # quarantine
-  # if pre/asymptomatic, find when infected tests positive/symptoms show
-  if(test){
-    future_days<-c()
-    for(day in testing_days){
-      future_days = append(future_days, ifelse(day-t>0, day, 0))
-      next_day = t+min(abs(future_days-t))
-    }
-  }
-  if(quarantine){
-    df$t_quarantine = ifelse(df$id%in%contact_id & df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, df$t_symp[df$id==a], ifelse(test, next_day, df$t_quarantine))
-    df$t_end_quarantine = ifelse(df$id%in%contact_id & df$t_quarantine!=-13, df$t_quarantine+quarantine.length, df$t_end_quarantine)
-  }
   
   # determine whether a contact becomes infected
   prob_common = rbinom(nrow(contacts), size = 1,
@@ -1064,6 +1028,12 @@ run_model = function(time = 30,
   # test_frac_orig = test_frac
   # df$uh.oh = 0
   
+  # infectious days
+  df$days_inf = 0
+  df$days_inf = ifelse(df$comorbid==0, days_inf_mild, df$days_inf)
+  df$days_inf = ifelse(df$comorbid==1, days_inf_mod, df$days_inf)
+  df$days_inf = ifelse(df$comorbid==2, days_inf_severe, df$days_inf)
+  
   # repeat each row 3 times
   df = df[rep(seq_len(nrow(df)), each = 3), ]
   
@@ -1134,13 +1104,13 @@ run_model = function(time = 30,
     if(quarantine){
       df$quarantined = df$flag_room==1 & df$type==0 & !df$trans_now
       df$quarantined = ifelse(df$t_quarantine<=t & df$t_quarantine!=-13 & df$t_end_quarantine>=t, T, df$quarantined)
-      df$t_end_quarantine = ifelse(df$t_quarantine<=t & df$t_quarantine!=-13 & df$t_notify!=-17, df$t_notify, df$t_end_quarantine)
+      # df$t_end_quarantine = ifelse(df$t_quarantine<=t & df$t_quarantine!=-13 & df$t_notify!=-17, df$t_notify, df$t_end_quarantine)
     }
     
     # re-estimate who is present (among staff and visitors)
     df$present[df$type!=0] = sched$present[sched$t==t & sched$type!=0] & !df$isolate_home[df$type!=0]
     if("family"%in%colnames(df)){
-      df$present[df$type==2] = sched$present[sched$t==t & sched$type==2] & ifelse(df$isolate, df$flag_fam[df$type==2]!=1, T)
+      df$present[df$type==2] = sched$present[sched$t==t & sched$type==2] & ifelse(df$isolate[df$type==0], df$flag_fam[df$type==2]!=1, T)
     }
     df$inf = df$t_inf > -1 & df$t_inf <= t & df$t_end_inf_home >= t
     
@@ -1204,7 +1174,63 @@ run_model = function(time = 30,
         # ROOM CONTACTS
         inf_vec <- c()
         for(shift in 1:3){
-          inf_vec = append(inf_vec, run_room(a, df[df$shift==shift,], test, testing_days, t, quarantine, quarantine.length))
+          inf_vec = append(inf_vec, run_room(a, df[df$shift==shift,], t, quarantine))
+          
+          # if infected is direct-care staff
+          if(df[df$shift==shift,]$type[df[df$shift==shift,]$id==a]==1 & df[df$shift==shift,]$role[df[df$shift==shift,]$id==a]!=4 & df[df$shift==shift,]$present[df[df$shift==shift,]$id==a]){
+            
+            # find out what role they are
+            staff_row = c(df[df$shift==shift,][df[df$shift==shift,]$id==a,9:19])
+            staff_role = names(staff_row[!is.na(staff_row)])
+            staff_role_id = staff_row[!is.na(staff_row)][[1]]
+            
+            # make vector of residents that staff treats
+            res_vec = df[df$shift==shift,][(df[df$shift==shift,][staff_role]==staff_role_id) & df[df$shift==shift,]$type==0,]
+            res_vec = res_vec[rowSums(is.na(res_vec)) != ncol(res_vec),]
+          }
+          
+          # quarantine
+          # if pre/asymptomatic, find when infected tests positive/symptoms show
+          if(test){
+            future_days<-c()
+            for(day in testing_days){
+              future_days = append(future_days, ifelse(day-t>0, day, 0))
+            }
+            next_day = t+min(abs(future_days-t))
+          }
+          if(quarantine){
+            res_vec_id = res_vec$id
+            
+            df$t_quarantine[df$id%in%res_vec_id] = ifelse(df$symp[df$id==a][1]==1 & df$t_symp[df$id==a][1]!=-1, 
+                                                          df$t_symp[df$id==a][1], ifelse(test & (next_day-df$t_inf[df$id==a][1] < df$days_inf[df$id==a][1]), next_day, df$t_quarantine[df$id%in%res_vec_id]))
+            
+            df$t_end_quarantine[df$id%in%res_vec_id] = ifelse(df$t_quarantine[df$id%in%res_vec_id]!=-13, 
+                                                              df$t_quarantine[df$id%in%res_vec_id]+quarantine.length, df$t_end_quarantine[df$id%in%res_vec_id])
+          }
+          
+          # if infected is visitor
+          if(df[df$shift==shift,]$type[df[df$shift==shift,]$id==a]==2 & df[df$shift==shift,]$present[df[df$shift==shift,]$id==a]){
+            
+            # make vector of residents that visitor sees, including roommates
+            res_vec = df[df$shift==shift,][df[df$shift==shift,]$family==df[df$shift==shift,]$family[df[df$shift==shift,]$id==a] & df[df$shift==shift,]$id!=a,]
+            res_vec = res_vec[rowSums(is.na(res_vec)) != ncol(res_vec),]
+            res_id = res_vec$id
+            if(df[df$shift==shift,]$room[df[df$shift==shift,]$id==res_id]<43){
+              roommate = df[df$shift==shift,][df[df$shift==shift,]$room==res_vec$room & df[df$shift==shift,]$id!=res_id,]
+              res_vec[nrow(res_vec) + 1,] = roommate[rowSums(is.na(roommate)) != ncol(roommate),]
+            }
+          }
+            
+          # quarantine
+          # if pre/asymptomatic, find when symptoms show
+          if(quarantine){
+            res_vec_id = res_vec$id
+            
+            df$t_quarantine[df$id%in%res_vec_id] = ifelse(df$symp[df$id==a][1]==1 & df$t_symp[df$id==a][1]!=-1, df$t_symp[df$id==a][1], df$t_quarantine[df$id%in%res_vec_id])
+            
+            df$t_end_quarantine[df$id%in%res_vec_id] = 
+              ifelse(df$t_quarantine[df$id%in%res_vec_id]!=-13, df$t_quarantine[df$id%in%res_vec_id]+quarantine.length, df$t_end_quarantine[df$id%in%res_vec_id])
+          }
         }
         
         df$location[df$id%in%inf_vec] = "Room"
@@ -1271,13 +1297,42 @@ run_model = function(time = 30,
           # sample from a random regular graph
           # this approach ensures reciprocity
           # you may want to split out to ensure reciprocity in contact type
-          common_contacts = sample_k_regular(ifelse(quarantine, sum(df[!df$isolated & !df$quarantined & df$shift==shift,]$present), sum(df[!df$isolated & df$shift==shift,]$present)), df$n_contact[1])
+          common_contacts = sample_k_regular(ifelse(quarantine, sum(df$present[!df$isolated & !df$quarantined & df$shift==shift]), sum(df$present[!df$isolated & df$shift==shift])), df$n_contact[1])
           #if(n_staff_contact>0) random_staff_contacts = sample_k_regular(sum(df$present & df$adult & !df$family), n_staff_contact)
           
           # choose contacts that become infected
-          inf_vec = tryCatch({run_common(a, df[df$shift==shift,], common_contacts, test, testing_days, t, quarantine, quarantine.length)}, error = function(err) {0})
+          inf_vec = tryCatch({run_common(a, df[df$shift==shift,], common_contacts, quarantine)}, error = function(err) {0})
           #rand_trans = 0
+          
+          # pull contacts from random graph (of those present at NH)
+          if(quarantine){
+            contact_id = tryCatch(df[df$shift==shift,]$id[df[df$shift==shift,]$present & !df[df$shift==shift,]$isolated & !df[df$shift==shift,]$quarantined][common_contacts[[a]][[1]]], error = function(err) {0})
+          } else{
+            contact_id = tryCatch(df[df$shift==shift,]$id[df[df$shift==shift,]$present & !df[df$shift==shift,]$isolated][common_contacts[[a]][[1]]], error = function(err) {0})
+          }
+          
+          # quarantine
+          # if pre/asymptomatic, find when infected tests positive/symptoms show
+          if(test & df$type[df$id==a][1]!=2){
+            future_days<-c()
+            for(day in testing_days){
+              future_days = append(future_days, ifelse(day-t>0, day, 0))
+              next_day = t+min(abs(future_days-t))
+            }
+          }
+          if(quarantine){
+            df$t_quarantine[df$id%in%contact_id] = 
+              ifelse(df$symp[df$id==a][1]==1 & df$t_symp[df$id==a][1]!=-1, 
+                     df$t_symp[df$id==a][1], 
+                     ifelse(test & df$type[df$id==a][1]!=2 & (next_day-df$t_inf[df$id==a][1] < df$days_inf[df$id==a][1]), next_day, df$t_quarantine[df$id%in%contact_id]))
+            
+            df$t_end_quarantine[df$id%in%contact_id] = 
+              ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 
+                     df$t_quarantine[df$id%in%contact_id]+quarantine.length, 
+                     df$t_end_quarantine[df$id%in%contact_id])
+          }
         }
+
         df$location[df$id%in%inf_vec] = "Common area"
         
         #Track risk set for unit testing

@@ -274,6 +274,7 @@ initialize_NH = function(n_contacts = 6, rel_trans_common = 1, rel_trans_room_sy
            # detected_q_start = 0,
            quarantined = F,
            # quarantined2 = 0,
+           test = 0,
            test_ct = 0,
            # test_ct_q = 0,
            n_contact = n_contacts,
@@ -1135,8 +1136,29 @@ run_model = function(time = 30,
       #print(test); print(t); print(testing_days)
       #print(t)
       #print("got to testing"); print(dim(df)); print(df %>% group_by(vacc) %>% summarize(sum(test_type)))
-      df$test_ct = df$test_ct + rbinom(nrow(df), size = 1, prob = df$present*test_frac*as.numeric(df$test_type)) # count how many tests individual takes
-      df$test = rbinom(nrow(df), size = 1, prob = test_sens*test_frac*as.numeric(df$test_type)) # record only accurate test results?
+      
+      # resident testing
+      for(id in unique(df[df$type==0,]$id)){
+        df[df$id==id,]$test_ct[1] = ifelse(df[df$id==id,]$type==0, df[df$id==id,]$test_ct[1] + rbinom(nrow(df)/3, size = 1, prob = df[df$shift==1,]$present*test_frac*as.numeric(df[df$shift==1,]$test_type)), df[df$id==id,]$test_ct[1])
+        df[df$id==id,]$test_ct[2] = df[df$id==id,]$test_ct[1]
+        df[df$id==id,]$test_ct[3] = df[df$id==id,]$test_ct[1]
+        
+        df[df$id==id,]$test[1] = ifelse(df[df$id==id,]$type==0, rbinom(nrow(df)/3, size = 1, prob = test_sens*test_frac*as.numeric(df[df$shift==1,]$test_type)), df[df$id==id,]$test[1])
+        df[df$id==id,]$test[2] = df[df$id==id,]$test[1]
+        df[df$id==id,]$test[3] = df[df$id==id,]$test[1]
+      }
+      
+      # staff testing
+      for(shift in 1:3){
+        df[df$shift==shift,]$test_ct = ifelse(df[df$shift==shift,]$present & df[df$shift==shift,]$type==1, 
+                            df[df$shift==shift,]$test_ct + rbinom(nrow(df)/3, size = 1, prob = df[df$shift==shift,]$present*test_frac*as.numeric(df[df$shift==shift,]$test_type)),
+                            df[df$shift==shift,]$test_ct)
+    
+        df[df$shift==shift,]$test = ifelse(df[df$shift==shift,]$present & df[df$shift==shift,]$type==1,
+                         rbinom(nrow(df)/3, size = 1, prob = test_sens*test_frac*as.numeric(df[df$shift==shift,]$test_type)),
+                         df[df$shift==shift,]$test)
+      }
+      
       df$t_end_inf = ifelse(df$test & df$trans_now, t, df$t_end_inf)
       df$t_notify = ifelse(df$test & df$trans_now, t, df$t_notify)
       df$detected = ifelse(df$test & df$trans_now, 1, df$detected)
@@ -1313,11 +1335,8 @@ run_model = function(time = 30,
           
           # quarantine
           # if pre/asymptomatic, find when infected tests positive/symptoms show
-<<<<<<< HEAD
+          
           if(test & df[df$shift==shift,]$type[df[df$shift==shift,]$id==a][1]!=2){
-=======
-          if(test & df$type[df$id==a][1]!=2){
->>>>>>> 81e2e46c5aee848d810117b5f051a83702d624a3
             future_days<-c()
             for(day in testing_days){
               future_days = append(future_days, ifelse(day-t>0, day, 0))
@@ -1325,14 +1344,8 @@ run_model = function(time = 30,
             }
           }
           if(quarantine){
-            df$t_quarantine[df$id%in%contact_id] = 
-              ifelse(df$symp[df$id==a][1]==1 & df$t_symp[df$id==a][1]!=-1, 
-                     df$t_symp[df$id==a][1], 
-<<<<<<< HEAD
-                     ifelse(test & df[df$shift==shift,]$type[df[df$shift==shift,]$id==a][1]!=2 & (next_day-df$t_inf[df$id==a][1] < df$days_inf[df$id==a][1]), next_day, df$t_quarantine[df$id%in%contact_id]))
-=======
-                     ifelse(test & df$type[df$id==a][1]!=2 & (next_day-df$t_inf[df$id==a][1] < df$days_inf[df$id==a][1]), next_day, df$t_quarantine[df$id%in%contact_id]))
->>>>>>> 81e2e46c5aee848d810117b5f051a83702d624a3
+            df$t_quarantine[df$id%in%contact_id] = ifelse(df$symp[df$id==a][1]==1 & df$t_symp[df$id==a][1]!=-1, 
+                     df$t_symp[df$id==a][1], ifelse(test & df[df$shift==shift,]$type[df[df$shift==shift,]$id==a][1]!=2 & (next_day-df$t_inf[df$id==a][1] < df$days_inf[df$id==a][1]), next_day, df$t_quarantine[df$id%in%contact_id]))
             
             df$t_end_quarantine[df$id%in%contact_id] = 
               ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 

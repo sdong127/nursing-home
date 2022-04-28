@@ -1426,24 +1426,26 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 6, rel_trans_c
                      rel_trans_room_symp_res = 1, rel_trans = 1/8, rel_trans_staff = 2, 
                      p_asymp_staff = 0.8, p_asymp_res = 0.4, attack = 0.01, 
                      rel_nonres_trans = 1, rel_nonres_susp = 0.5, res_vax = 0, staff_vax_req = F, staff_vax = 0, 
-                     visit_vax = 0, staff_trans_red = 1, visit_trans_red = 1, disperse_transmission = T, 
-                     n_staff_contact = 5, n_start = 1, time_seed_inf = NA, days_inf_mild = 5, days_inf_mod = 10, 
+                     visit_vax = 0, staff_trans_red = 1, staff_susp_red = 1, visit_trans_red = 1, visit_susp_red = 1, disperse_transmission = T, 
+                     n_staff_contact = 10, n_start = 1, time_seed_inf = NA, days_inf_mild = 5, days_inf_mod = 10, 
                      days_inf_severe = 20, mult_asymp_res = 1, 
                      mult_asymp_nonres = 1, seed_asymp = F, isolate = T, time = 30, test = T, 
                      test_sens = 0.7, test_frac = 0.9, test_days = 'week', test_type = 'all', test_start_day = 1, 
-                     start_mult = 1, start_type = 'cont', nonres_prob = 0.005, res_prob = 0.0025, quarantine = T, 
+                     start_mult = 1, start_type = 'cont', nonres_prob = 0.001, res_prob = 0.0005, quarantine = F, 
                      quarantine.length = 7, vax_eff = 0.9, overdisp_off = F, synthpop, nh = NA){
   
-  # keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N), 
-  #                   start_visit = numeric(N), start_res = numeric(N), source_asymp = numeric(N), source_asymp_visit = numeric(N), 
-  #                   res_all = numeric(N), staff_all = numeric(N), visit_all = numeric(N), staff_tot = numeric(N), visit_tot = numeric(N),
-  #                   res_tot = numeric(N), attack = numeric(N), symp = numeric(N), symp_res = numeric(N), asymp_res = numeric(N), 
-  #                   asymp_staff = numeric(N), room = numeric(N), common = numeric(N), staff_interactions = numeric(N), avg_infs = numeric(N), 
-  #                   room_test_ind = numeric(N), num_room = numeric(N), quarantine_check = numeric(N), from_staff = numeric(N), isolated = numeric(N), 
-  #                   avg_room = numeric(N), clin_res = numeric(N), clin_staff = numeric(N), clin_visit = numeric(N), notify_staff = numeric(N), 
-  #                   notify_res = numeric(N), notify_visit = numeric(N))
-  keep = data.frame()
-  
+  keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N),
+                    start_visit = numeric(N), start_res = numeric(N), start_symp = numeric(N), source_asymp = numeric(N), source_asymp_visit = numeric(N),
+                    res_all = numeric(N), staff_all = numeric(N), visit_all = numeric(N), staff_tot = numeric(N), visit_tot = numeric(N),
+                    res_tot = numeric(N), attack = numeric(N), test = numeric(N), detected = numeric(N), detected_staff = numeric(N), 
+                    detected_res = numeric(N), symp = numeric(N), symp_res = numeric(N), asymp_res = numeric(N), symp_staff = numeric(N),
+                    asymp_staff = numeric(N), room = numeric(N), common = numeric(N), staff_interactions = numeric(N), avg_infs = numeric(N),
+                    num_room = numeric(N), quarantine_check = numeric(N), quarantined = numeric(N), quarantined_res = numeric(N),
+                    from_staff = numeric(N), isolated = numeric(N),
+                    avg_room = numeric(N), clin_res = numeric(N), clin_staff = numeric(N), clin_visit = numeric(N), notify_staff = numeric(N),
+                    notify_res = numeric(N), notify_visit = numeric(N), clin_res2 = numeric(N), clin_staff2 = numeric(N), clin_visit2 = numeric(N), 
+                    notify_staff2 = numeric(N), notify_res2 = numeric(N), notify_visit2 = numeric(N))
+
   #tic()
   # run over time
   for(i in 1:N){
@@ -1451,7 +1453,7 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 6, rel_trans_c
     ## make nursing home
     if(is.na(unlist(nh))[1]){
       
-      nh_synthpop = make_NH(synthpop = synthpop, visitors = visitors)
+      nh_synthpop = make_NH(synthpop = synthpop, cohorting = cohorting, visitors = visitors)
       
     }
     ## add COVID characteristcs
@@ -1551,7 +1553,7 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 6, rel_trans_c
     # keep$room_test_ind[i] = df$room_test_ind[1]
     # keep$room_test_ind_q[i] = df$room_test_ind_q[1]
     # keep$test_qs[i] = sum(df$test_ct_q)
-    keep$test_regular[i] = sum(df$test_ct)
+    keep$test[i] = sum(df$test_ct)
     keep$detected[i] = sum(df$detected)
     # keep$detected_q[i] = sum(df$detected_q)
     # keep$detected_q_start[i] = sum(df$detected_q_start)
@@ -1580,6 +1582,8 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 6, rel_trans_c
     keep$symp[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==1 & df$t_inf <= time_keep + time - 1, na.rm = T)
     keep$symp_res[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==1 & df$t_inf <= time_keep + time - 1 & df$type==0, na.rm = T)
     keep$asymp_res[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==0 & df$t_inf <= time_keep + time - 1 & df$type==0, na.rm = T)
+    keep$symp_staff[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==1 & df$t_inf <= time_keep + time - 1 & df$type==1, na.rm = T)
+    keep$asymp_staff[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==0 & df$t_inf <= time_keep + time - 1 & df$type==1, na.rm = T)
     keep$sick_at_end[i] = sum(df$t_inf<=time_keep + time - 1 & df$t_end_inf > time_keep + time - 1)
     keep$room[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & df$location == "Room")
     keep$common[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & df$location == "Common area")

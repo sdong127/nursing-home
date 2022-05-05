@@ -214,15 +214,13 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' It adds epidemiological attributes of the full nursing home community.
 
 #' @param n_contacts Number of contacts in NH common area; defaults to 6
-#' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1 (used to be rel_trans_HH)
+#' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1/4 (used to be rel_trans_HH)
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; 
 #' defaults to 1 (used to be rel_trans_HH_symp_child)
-#' @param rel_trans Relative attack rate of sustained contact (vs. resident room); defaults to 1/8
-#' @param p_asymp_staff Fraction of staff with asymptomatic disease; defaults to 0.8 (used to be p_asymp_adult)
+#' @param p_asymp_staff Fraction of staff with asymptomatic disease; defaults to 0.5 (used to be p_asymp_adult)
 #' @param p_asymp_res Fraction of residents with asymptomatic disease; defaults to 0.4 (used to be p_asymp_child)
 #' @param attack Average daily attack rate in residents; defaults to 0.01
 #' @param rel_nonres_trans Relative transmissibility of staff and visitors (vs. residents); defaults to 1 (used to be child_trans)
-#' @param rel_nonres_susp Relative susceptibility of staff and visitors (vs. residents); defaults to .5 (used to be child_susp)
 #' @param res_vax Vaccination rate of residents; defaults to some amount (used to be child_vax)
 #' @param staff_vax_req Whether staff are required to get vaccine; defaults to F
 #' @param staff_vax Vaccination rate of visitors; defaults to some amount based on community vax rate
@@ -231,6 +229,12 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' (used to be teacher_trans)
 #' @param visit_trans_red Factor by which visitor transmissibility is reduced due to intervention; defaults to 1
 #' (used to be family_susp)
+#' @param res_trans_red Factor by which resident transmissibility is reduced due to intervention; defaults to 1
+#' #' @param staff_susp_red Factor by which staff susceptibility is reduced due to intervention; defaults to 1
+#' (used to be teacher_trans)
+#' @param visit_susp_red Factor by which visitor susceptibility is reduced due to intervention; defaults to 1
+#' (used to be family_susp)
+#' @param res_susp_red Factor by which resident susceptibility is reduced due to intervention; defaults to 1
 #' @param disperse_transmission Whether transmission is overdispersed (vs. all have equal attack rate); default to T
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
@@ -239,9 +243,9 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' @return df data frame of resident and staff attributes.
 #'
 #' @export
-initialize_NH = function(n_contacts = 6, rel_trans_common = 1, rel_trans_room_symp_res = 1, 
-                         rel_trans = 1/8, p_asymp_staff = .35, p_asymp_res = .7, attack = .01, 
-                         rel_nonres_trans = 1, rel_nonres_susp = .5, res_vax = 0, staff_vax_req = F, 
+initialize_NH = function(n_contacts = 6, rel_trans_common = 1/4, rel_trans_room_symp_res = 1, 
+                         rel_trans = 1/8, p_asymp_staff = .5, p_asymp_res = .4, attack = .01, 
+                         rel_nonres_trans = 1, res_vax = 0, staff_vax_req = F, 
                          staff_vax = 0, visit_vax = 0, staff_trans_red = 1, 
                          staff_susp_red = 1, visit_trans_red = 1, visit_susp_red = 1, 
                          disperse_transmission = T, isolate = T, vax_eff = .9, start){
@@ -275,7 +279,6 @@ initialize_NH = function(n_contacts = 6, rel_trans_common = 1, rel_trans_room_sy
            test = 0,
            test_ct = 0,
            n_contact = n_contacts,
-           relative_trans = rel_trans,
            relative_trans_common = rel_trans_common,
            relative_trans_room_symp_res = ifelse(type != 0, 1, rel_trans_room_symp_res),
            attack_rate = attack,
@@ -315,7 +318,6 @@ initialize_NH = function(n_contacts = 6, rel_trans_common = 1, rel_trans_room_sy
            room_trans_prob = ifelse(type == 2, room_trans_prob*visit_trans_red, room_trans_prob),
            
            # susceptibility
-           rel_nonres_susp_val = rel_nonres_susp, # used to be child_susp_val
            res_vax_val = res_vax, # used to be child_vax_val
            staff_vax_val = staff_vax,
            visit_vax_val = visit_vax,
@@ -325,8 +327,7 @@ initialize_NH = function(n_contacts = 6, rel_trans_common = 1, rel_trans_room_sy
            vacc = ifelse(type == 1, rbinom(n, size = 1, prob = staff_vax_val), vacc),
            vacc = ifelse(type == 2, rbinom(n, size = 1, prob = visit_vax_val), vacc),
            
-           susp = ifelse(vacc==0, 1, 1-vax_eff_val),
-           susp = ifelse(type != 0, rel_nonres_susp_val*susp, susp))
+           susp = ifelse(vacc==0, 1, 1-vax_eff_val))
   
   return(df)
 }
@@ -706,8 +707,8 @@ run_common = function(a, df, area_contacts){
   
   # determine whether a contact becomes infected
   prob_common = rbinom(nrow(contacts), size = 1,
-                     prob = ifelse(df$relative_trans_common[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*contacts$not_inf < 1,
-                                   df$relative_trans_common[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*contacts$not_inf,
+                     prob = ifelse(df$room_trans_prob[df$id==a]*df$relative_trans_common[df$id==a]*contacts$susp*contacts$present_susp*contacts$not_inf < 1,
+                                   df$room_trans_prob[df$id==a]*df$relative_trans_common[df$id==a]*contacts$susp*contacts$present_susp*contacts$not_inf,
                                    1))
   
   # infected individuals
@@ -727,12 +728,12 @@ run_common = function(a, df, area_contacts){
 #' @param df school data frame in run_model()
 #' @param n_contact number of contacts staff encounters in nursing home during shift
 #' @param rel_trans_staff relative transmission in staff-staff interactions (vs. resident room);
-#' defaults to 2 (look into this), used to be rel_trans_adult
+#' defaults to 1/4, used to be rel_trans_adult
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_staff = function(a, df, n_contact, rel_trans_staff = 2){
+run_staff = function(a, df, n_contact, rel_trans_staff = 1/4){
   
   if(n_contact>0){
     # pull contacts from random graph of staff present in nursing home
@@ -745,8 +746,8 @@ run_staff = function(a, df, n_contact, rel_trans_staff = 2){
     
     # determine whether a contact becomes infected
     prob_staff = rbinom(nrow(contacts), size = 1,
-                       prob = ifelse(df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_staff*contacts$not_inf < 1,
-                                     df$room_trans_prob[df$id==a]*df$relative_trans[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_staff*contacts$not_inf,
+                       prob = ifelse(df$room_trans_prob[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_staff*contacts$not_inf < 1,
+                                     df$room_trans_prob[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_staff*contacts$not_inf,
                                      1))
     # infected individuals
     infs = contacts$id*prob_staff
@@ -859,10 +860,9 @@ make_infected = function(df.u, days_inf_mild = 5, days_inf_mod = 10, days_inf_se
 #' @param start_mult value to indicate relative frequency of resident/staff infections; defaults to 1 
 #' (staff 2x as likely as residents since residents don't leave) (are staff or residents more likely to get infected?)
 #' @param nonres_prob if start_type = "cont", set daily probability of infectious entry for staff and visitors, defaults to .05 (used to be child_prob)
-#' @param res_prob if start_type = "cont", set daily probability of infectious entry for residents, defaults to .01 (used to be adult_prob)
 #' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2 (used to be rel_trans_adult)
 #' @param quarantine whether or not people quarantine upon exposure; defaults to F
-#' @param quarantine.length length of quarantine when someone is infectious; defaults to 7
+#' @param quarantine.length length of quarantine when someone is infectious; defaults to 5
 #' @param overdisp_off all overdispersion off; defaults to F
 #' @param df data frame from initialize_NH()
 #' @param sched schedule data frame from make_schedule()
@@ -891,9 +891,8 @@ run_model = function(time = 30,
                      start_type = "cont",
                      start_mult = 1,
                      nonres_prob = 0.001,
-                     res_prob = 0.0005,
                      quarantine = F,
-                     quarantine.length = 7,
+                     quarantine.length = 5,
                      rel_trans_staff = 2,
                      test_type = "all",
                      overdisp_off = F,
@@ -958,13 +957,7 @@ run_model = function(time = 30,
   # if null, make this Monday
   if(test_days == "week") {testing_days = seq(test_start_day, (time+15), by = 7)}
   if(test_days == "day") {testing_days = 1:(time+15)}
-  if(test_days == "2x_week"){
-    if(turnaround.time>1){
-      testing_days = c(seq(5, (time+15), by = 7), seq(1, (time+15), by = 7))
-    } else{
-      testing_days = c(seq(4, (time+15), by = 7), seq(1, (time+15), by = 7))
-    }
-  }
+  if(test_days == "2x_week"){testing_days = c(seq(5, (time+15), by = 7), seq(1, (time+15), by = 7))}
   # df$switch = 0
   # df$temp_switch = 0
   
@@ -1381,13 +1374,11 @@ run_model = function(time = 30,
 #' @param n_contacts Number of sustained contacts in NH common area; defaults to 6
 #' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; defaults to 1
-#' @param rel_trans Relative attack rate of sustained contact (vs. resident room); defaults to 1/8
 #' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2
 #' @param p_asymp_staff Fraction of staff with asymptomatic (unsuspected) disease; defaults to 0.8
 #' @param p_asymp_res Fraction of residents with asymptomatic (unsuspected) disease; defaults to 0.4
 #' @param attack Average daily attack rate in residents; defaults to 0.01
 #' @param rel_nonres_trans Relative transmissibility of staff and visitors (vs. residents); defaults to 1
-#' @param rel_nonres_susp Relative susceptibility of staff and visitors (vs. residents); defaults to .5
 #' @param res_vax Vaccination rate of residents; defaults to 0
 #' @param staff_vax_req Whether staff are required to get vaccine; defaults to F
 #' @param staff_vax Vaccination rate of staff; defaults to some amount
@@ -1415,7 +1406,6 @@ run_model = function(time = 30,
 #' @param start_mult value to indicate relative frequency of adult/child infections; defaults to 1 (adults 2x as likely as kids)
 #' @param start_type type of seed; default is "mix" (also "residents", "staff", "visitor", "cont")
 #' @param nonres_prob if start_type = "cont", set daily probability of infectious entry for staff and visitors, defaults to .05
-#' @param res_prob if start_type = "cont", set daily probability of infectious entry for residents, defaults to .01
 #' @param quarantine whether people quarantine upon exposure; defaults to T
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 7
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
@@ -1427,13 +1417,13 @@ run_model = function(time = 30,
 mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 6, rel_trans_common = 1, 
                      rel_trans_room_symp_res = 1, rel_trans = 1/8, rel_trans_staff = 2, 
                      p_asymp_staff = 0.8, p_asymp_res = 0.4, attack = 0.01, 
-                     rel_nonres_trans = 1, rel_nonres_susp = 0.5, res_vax = 0, staff_vax_req = F, staff_vax = 0, 
+                     rel_nonres_trans = 1, res_vax = 0, staff_vax_req = F, staff_vax = 0, 
                      visit_vax = 0, staff_trans_red = 1, staff_susp_red = 1, visit_trans_red = 1, visit_susp_red = 1, disperse_transmission = T, 
                      n_staff_contact = 10, n_start = 1, time_seed_inf = NA, days_inf_mild = 5, days_inf_mod = 10, 
                      days_inf_severe = 20, mult_asymp_res = 1, 
                      mult_asymp_nonres = 1, seed_asymp = F, isolate = T, time = 30, test = T, 
                      test_sens = 0.7, test_frac = 0.9, test_days = 'week', test_type = 'all', test_start_day = 1, 
-                     start_mult = 1, start_type = 'cont', nonres_prob = 0.001, res_prob = 0.0005, quarantine = F, 
+                     start_mult = 1, start_type = 'cont', nonres_prob = 0.001, quarantine = F, 
                      quarantine.length = 7, vax_eff = 0.9, overdisp_off = F, synthpop, nh = NA){
   
   keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N),
@@ -1462,7 +1452,7 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 6, rel_trans_c
     nh = initialize_NH(n_contacts = n_contacts, rel_trans_common = rel_trans_common,
                        rel_trans_room_symp_res = rel_trans_room_symp_res, rel_trans = rel_trans, 
                        p_asymp_staff = p_asymp_staff, p_asymp_res = p_asymp_res, attack = attack, rel_nonres_trans = rel_nonres_trans, 
-                       rel_nonres_susp = rel_nonres_susp, res_vax = res_vax, staff_vax_req = staff_vax_req, staff_vax = staff_vax, 
+                       res_vax = res_vax, staff_vax_req = staff_vax_req, staff_vax = staff_vax, 
                        visit_vax = visit_vax, staff_trans_red = staff_trans_red, staff_susp_red = staff_susp_red, 
                        visit_trans_red = visit_trans_red, visit_susp_red = visit_susp_red, disperse_transmission = disperse_transmission, 
                        isolate = isolate, vax_eff = vax_eff, start = nh_synthpop)
@@ -1476,7 +1466,7 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 6, rel_trans_c
                    n_start = n_start, days_inf_mild = days_inf_mild, days_inf_mod = days_inf_mod, 
                    days_inf_severe = days_inf_severe, mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres, 
                    seed_asymp = seed_asymp, time_seed_inf = time_seed_inf, start_type = start_type, start_mult = start_mult, 
-                   nonres_prob = nonres_prob, res_prob = res_prob, quarantine = quarantine, quarantine.length = quarantine.length,
+                   nonres_prob = nonres_prob, quarantine = quarantine, quarantine.length = quarantine.length,
                    rel_trans_staff = rel_trans_staff, test_type = test_type, overdisp_off = overdisp_off, df = nh, sched = sched)
     
     time_keep = df$start.time[1]

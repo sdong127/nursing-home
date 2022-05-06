@@ -1,4 +1,4 @@
-l#!/bin/bash                                                                                                    
+#!/bin/bash                                                                                                    
 #SBATCH -J TestCalib # A single job name for the array                                                         
 #SBATCH -n 10 # Number of cores                                                                                
 #SBATCH -N 1 # All cores on one machine 

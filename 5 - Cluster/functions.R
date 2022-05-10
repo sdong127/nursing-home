@@ -614,6 +614,7 @@ run_room = function(a, df, t, quarantine){
     # make vector of residents that staff treats
     res_vec = df[df[staff_role]==staff_role_id & df$type==0,]
     res_vec = res_vec[rowSums(is.na(res_vec)) != ncol(res_vec),]
+    res = res_vec$id
     
     # determine whether residents become infected
     prob_res = ifelse(res_vec$quarantined, rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf*.5 < 1,
@@ -621,9 +622,6 @@ run_room = function(a, df, t, quarantine){
                                                                                          1)), 
                       rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf < 1, 
                                                                     df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp*res_vec$not_inf, 1)))
-    
-    
-    res = res_vec$id
     
     # list infected residents
     res_infs = res*prob_res

@@ -1230,7 +1230,7 @@ run_model = function(time = 30,
             (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$not_inf[df$id%in%res_vec$id &
                                                                                                                                                           df$type==0 & df$susp != 0])
           # check visitors in room
-          if('family' %in% colnames(df) & any(df$shift=="morning" & df$type==2) & length(res)>0){
+          if(df$shift[df$id==a]=="morning" & 'family' %in% colnames(df) & any(df$shift=="morning" & df$type==2) & length(res)>0){
             visit_vec <- c()
             for(b in res){
               if(df$flag_fam[df$id==b]!=1){
@@ -1277,17 +1277,10 @@ run_model = function(time = 30,
                                                                                                                                                                df$type==0 & df$susp != 0])
           # make vector of staff in visitor's resident's room at current time
           staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",] %>% 
-            bind_rows(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==res_id] & df$type==1 & df$shift=="evening",]) %>% 
-            bind_rows(df[df$rn_cohort_night==df$rn_cohort_night[df$id==res_id] & df$type==1 & df$shift=="night",]) %>% 
             bind_rows(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]) %>% 
-            bind_rows(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==res_id] & df$type==1 & df$shift=="evening",]) %>%
-            bind_rows(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==res_id] & df$type==1 & df$shift=="night",]) %>% 
             bind_rows(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]) %>% 
-            bind_rows(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==res_id] & df$type==1 & df$shift=="evening",]) %>% 
-            bind_rows(df[df$cna_cohort_night==df$cna_cohort_night[df$id==res_id] & df$type==1 & df$shift=="night",]) %>% 
             bind_rows(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]) %>% 
-            bind_rows(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==res_id] & df$type==1 & df$shift=="evening",])
-          staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
+            staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
           
           df$person.days.at.risk.room.staff[df$id == a] <- df$person.days.at.risk.room.staff[df$id == a] +
             (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%staff_vec$id & 
@@ -1386,6 +1379,7 @@ run_model = function(time = 30,
                                                                                                                         df$t_inf[df$id == a] <= t & 
                                                                                                                         df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
               }
+              
             }else{
               common_inf_vec = tryCatch({run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated,], common_contacts)}, error = function(err) {0})
               id = which(df[(df$shift=="morning" | df$shift=="all") & !df$isolated,]$id[df$shift!="absent"]==a)
@@ -1402,6 +1396,25 @@ run_model = function(time = 30,
                                                                                                                         df$t_inf[df$id == a] <= t & 
                                                                                                                         df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
               }
+            }
+            # quarantine
+            # if pre/asymptomatic, find when infected tests positive/symptoms show
+            if(test & df$type[df$id==a]!=2 & length(contact_id)>0){
+              future_days<-c()
+              for(day in testing_days){
+                future_days = append(future_days, ifelse(day-t>0, day, 0))
+                next_day = t+min(abs(future_days-t))
+              }
+            }
+            if(quarantine & length(contact_id)>0){
+              df$t_quarantine[df$id%in%contact_id] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
+                                                            df$t_symp[df$id==a], ifelse(test & df$type[df$id==a]!=2, 
+                                                                                        ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, df$t_quarantine[df$id%in%contact_id]), df$t_quarantine[df$id%in%contact_id]))
+              
+              df$t_end_quarantine[df$id%in%contact_id] = 
+                ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 
+                       df$t_quarantine[df$id%in%contact_id]+quarantine.length, 
+                       df$t_end_quarantine[df$id%in%contact_id])
             }
           }
           if(shift==2 & (df$shift[df$id==a]=="evening" | df$shift[df$id==a]=="all")){
@@ -1441,6 +1454,25 @@ run_model = function(time = 30,
                                                                                                                         df$t_inf[df$id == a] <= t & 
                                                                                                                         df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
               }
+            }
+            # quarantine
+            # if pre/asymptomatic, find when infected tests positive/symptoms show
+            if(test & df$type[df$id==a]!=2 & length(contact_id)>0){
+              future_days<-c()
+              for(day in testing_days){
+                future_days = append(future_days, ifelse(day-t>0, day, 0))
+                next_day = t+min(abs(future_days-t))
+              }
+            }
+            if(quarantine & length(contact_id)>0){
+              df$t_quarantine[df$id%in%contact_id] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
+                                                            df$t_symp[df$id==a], ifelse(test & df$type[df$id==a]!=2, 
+                                                                                        ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, df$t_quarantine[df$id%in%contact_id]), df$t_quarantine[df$id%in%contact_id]))
+              
+              df$t_end_quarantine[df$id%in%contact_id] = 
+                ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 
+                       df$t_quarantine[df$id%in%contact_id]+quarantine.length, 
+                       df$t_end_quarantine[df$id%in%contact_id])
             }
           }
           if(shift==3 & (df$shift[df$id==a]=="night" | df$shift[df$id==a]=="all")){
@@ -1487,26 +1519,25 @@ run_model = function(time = 30,
                                                                                                                         df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
               }
             }
-          }
-          
-          # quarantine
-          # if pre/asymptomatic, find when infected tests positive/symptoms show
-          if(test & df$type[df$id==a]!=2 & length(contact_id)>0){
-            future_days<-c()
-            for(day in testing_days){
-              future_days = append(future_days, ifelse(day-t>0, day, 0))
-              next_day = t+min(abs(future_days-t))
+            # quarantine
+            # if pre/asymptomatic, find when infected tests positive/symptoms show
+            if(test & df$type[df$id==a]!=2 & length(contact_id)>0){
+              future_days<-c()
+              for(day in testing_days){
+                future_days = append(future_days, ifelse(day-t>0, day, 0))
+                next_day = t+min(abs(future_days-t))
+              }
             }
-          }
-          if(quarantine & length(contact_id)>0){
-            df$t_quarantine[df$id%in%contact_id] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
-                                                          df$t_symp[df$id==a], ifelse(test & df$type[df$id==a]!=2, 
-                                                                                      ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, df$t_quarantine[df$id%in%contact_id]), df$t_quarantine[df$id%in%contact_id]))
-            
-            df$t_end_quarantine[df$id%in%contact_id] = 
-              ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 
-                     df$t_quarantine[df$id%in%contact_id]+quarantine.length, 
-                     df$t_end_quarantine[df$id%in%contact_id])
+            if(quarantine & length(contact_id)>0){
+              df$t_quarantine[df$id%in%contact_id] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
+                                                            df$t_symp[df$id==a], ifelse(test & df$type[df$id==a]!=2, 
+                                                                                        ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, df$t_quarantine[df$id%in%contact_id]), df$t_quarantine[df$id%in%contact_id]))
+              
+              df$t_end_quarantine[df$id%in%contact_id] = 
+                ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 
+                       df$t_quarantine[df$id%in%contact_id]+quarantine.length, 
+                       df$t_end_quarantine[df$id%in%contact_id])
+            }
           }
         }
         

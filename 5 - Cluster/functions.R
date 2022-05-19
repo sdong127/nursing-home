@@ -217,7 +217,7 @@ make_NH = function(synthpop, cohorting = FALSE, visitors = FALSE){
 #' This function takes in a data frame exported by make_NH().
 #' It adds epidemiological attributes of the full nursing home community.
 
-#' @param n_contacts Number of close contacts in NH common area; defaults to 4 with no visitors, 8 with visitors
+#' @param n_contacts Number of close contacts in NH common area; defaults to 4
 #' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1/4 (used to be rel_trans_HH)
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; 
 #' defaults to 1 (used to be rel_trans_HH_symp_child)
@@ -300,7 +300,6 @@ initialize_NH = function(n_contacts = 4, rel_trans_common = 1/4, rel_trans_room_
            person.days.at.risk.room.visit = 0,
            person.days.at.risk.common.res = 0,
            person.days.at.risk.common.staff = 0,
-           person.days.at.risk.common.visit = 0,
            person.days.at.risk.staff.staff = 0,
            # inf_days = 0,
            # symp_days = 0,
@@ -1179,7 +1178,7 @@ run_model = function(time = 30,
             (df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%staff_vec$id & df$susp != 0])
           if("family"%in%colnames(df)){
             df$person.days.at.risk.room.visit[df$id == a] <- df$person.days.at.risk.room.visit[df$id == a] +
-              (df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$family == df$family[df$family == a] &
+              (df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$family == df$family[df$id == a] &
                                                                                                      df$type==2 & df$susp != 0])
           }
         }
@@ -1207,14 +1206,14 @@ run_model = function(time = 30,
           
           # quarantine
           # if pre/asymptomatic, find when infected tests positive/symptoms show
-          if(test){
+          if(test & quarantine){
+            # get next day of testing
             future_days<-c()
             for(day in testing_days){
               future_days = append(future_days, ifelse(day-t>0, day, 0))
             }
             next_day = t+min(abs(future_days-t))
-          }
-          if(quarantine){
+            
             res_vec_id = res_vec$id
             
             df$t_quarantine[df$id%in%res_vec_id] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
@@ -1279,8 +1278,8 @@ run_model = function(time = 30,
           staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",] %>% 
             bind_rows(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]) %>% 
             bind_rows(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]) %>% 
-            bind_rows(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]) %>% 
-            staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
+            bind_rows(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])
+          staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
           
           df$person.days.at.risk.room.staff[df$id == a] <- df$person.days.at.risk.room.staff[df$id == a] +
             (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%staff_vec$id & 
@@ -1340,14 +1339,13 @@ run_model = function(time = 30,
       
       # run model for infectious individuals in common area of nursing home
       if(quarantine){
-        common_infs = df$id[df$trans_now & !df$isolated & !df$quarantined]
+        common_infs = df$id[df$trans_now & !df$isolated & !df$quarantined & df$type!=2]
       } else{
-        common_infs = df$id[df$trans_now & !df$isolated]
+        common_infs = df$id[df$trans_now & !df$isolated & df$type!=2]
       }
       if(length(common_infs)>1) common_infs = sample(common_infs)
       
       common_inf_vec = c()
-      # COMMON AREA CONTACTS (NO NIGHTTTIME TRANSMISSION)
       for(a in common_infs){
         for(shift in 1:3){
           #if(n_staff_contact>0) random_staff_contacts = sample_k_regular(sum(df$present & df$adult & !df$family), n_staff_contact)
@@ -1358,14 +1356,14 @@ run_model = function(time = 30,
             # sample from a random regular graph
             # this approach ensures reciprocity
             # you may want to split out to ensure reciprocity in contact type
-            common_contacts = sample_k_regular(ifelse(quarantine, 
-                                                      sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="morning" | df$shift=="all"),])), 
-                                                      sum(nrow(df[!df$isolated & (df$shift=="morning" | df$shift=="all"),]))), df$n_contact[1])
+            common_contacts = tryCatch(sample_k_regular(ifelse(quarantine, 
+                                                               sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="morning" | df$shift=="all") & df$type!=2,])), 
+                                                               sum(nrow(df[!df$isolated & (df$shift=="morning" | df$shift=="all") & df$type!=2,]))), df$n_contact[1]), error = function(err) {0})
             # choose contacts that become infected
             if(quarantine){
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined][common_contacts[[id]][[1]]], error = function(err) {0})
+              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], common_contacts)}, error = function(err) {0})
+              id = which(df[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,]$id[df$shift!="absent"]==a)
+              contact_id = tryCatch(df$id[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
               
               #Track risk set for unit testing
               df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
@@ -1374,16 +1372,10 @@ run_model = function(time = 30,
               df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                       df$t_inf[df$id == a] <= t & 
                                                                                                                       df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              if("family"%in%colnames(df)){
-                df$person.days.at.risk.common.visit[df$id == a] <- df$person.days.at.risk.common.visit[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                        df$t_inf[df$id == a] <= t & 
-                                                                                                                        df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              }
-              
             }else{
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="morning" | df$shift=="all") & !df$isolated,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="morning" | df$shift=="all") & !df$isolated][common_contacts[[id]][[1]]], error = function(err) {0})
+              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated & df$type!=2,], common_contacts)}, error = function(err) {0})
+              id = which(df[(df$shift=="morning" | df$shift=="all") & !df$isolated & df$type!=2,]$id[df$shift!="absent"]==a)
+              contact_id = tryCatch(df$id[(df$shift=="morning" | df$shift=="all") & !df$isolated & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
               
               df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                   df$t_inf[df$id == a] <= t & 
@@ -1391,41 +1383,34 @@ run_model = function(time = 30,
               df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                       df$t_inf[df$id == a] <= t & 
                                                                                                                       df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              if("family"%in%colnames(df)){
-                df$person.days.at.risk.common.visit[df$id == a] <- df$person.days.at.risk.common.visit[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                        df$t_inf[df$id == a] <= t & 
-                                                                                                                        df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              }
             }
             # quarantine
             # if pre/asymptomatic, find when infected tests positive/symptoms show
-            if(test & df$type[df$id==a]!=2 & length(contact_id)>0){
+            if(test & quarantine & length(df[df$id%in%contact_id & (df$type!=1 | df$role==4),])>0){
               future_days<-c()
               for(day in testing_days){
                 future_days = append(future_days, ifelse(day-t>0, day, 0))
                 next_day = t+min(abs(future_days-t))
               }
-            }
-            if(quarantine & length(contact_id)>0){
-              df$t_quarantine[df$id%in%contact_id] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
-                                                            df$t_symp[df$id==a], ifelse(test & df$type[df$id==a]!=2, 
-                                                                                        ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, df$t_quarantine[df$id%in%contact_id]), df$t_quarantine[df$id%in%contact_id]))
+              df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
+                                                                                        df$t_symp[df$id==a], ifelse(test, 
+                                                                                                                    ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, 
+                                                                                                                           df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]), df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]))
               
-              df$t_end_quarantine[df$id%in%contact_id] = 
-                ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 
-                       df$t_quarantine[df$id%in%contact_id]+quarantine.length, 
-                       df$t_end_quarantine[df$id%in%contact_id])
+              df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]!=-13, 
+                                                                                            df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]+quarantine.length, 
+                                                                                            df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)])
             }
           }
           if(shift==2 & (df$shift[df$id==a]=="evening" | df$shift[df$id==a]=="all")){
-            common_contacts = sample_k_regular(ifelse(quarantine, 
-                                                      sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="evening" | df$shift=="all"),])), 
-                                                      sum(nrow(df[!df$isolated & (df$shift=="evening" | df$shift=="all"),]))), df$n_contact[1])
+            common_contacts = tryCatch(sample_k_regular(ifelse(quarantine, 
+                                                               sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="evening" | df$shift=="all") & df$type!=2,])), 
+                                                               sum(nrow(df[!df$isolated & (df$shift=="evening" | df$shift=="all") & df$type!=2,]))), df$n_contact[1]), error = function(err) {0})
             
             if(quarantine){
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined][common_contacts[[id]][[1]]], error = function(err) {0})
+              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], common_contacts)}, error = function(err) {0})
+              id = which(df[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,]$id[df$shift!="absent"]==a)
+              contact_id = tryCatch(df$id[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
               
               df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                   df$t_inf[df$id == a] <= t & 
@@ -1433,15 +1418,10 @@ run_model = function(time = 30,
               df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                       df$t_inf[df$id == a] <= t & 
                                                                                                                       df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              if("family"%in%colnames(df)){
-                df$person.days.at.risk.common.visit[df$id == a] <- df$person.days.at.risk.common.visit[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                        df$t_inf[df$id == a] <= t & 
-                                                                                                                        df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              }
             }else{
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="evening" | df$shift=="all") & !df$isolated,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="evening" | df$shift=="all") & !df$isolated,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="evening" | df$shift=="all") & !df$isolated][common_contacts[[id]][[1]]], error = function(err) {0})
+              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="evening" | df$shift=="all") & !df$isolated & df$type!=2,], common_contacts)}, error = function(err) {0})
+              id = which(df[(df$shift=="evening" | df$shift=="all") & !df$isolated & df$type!=2,]$id[df$shift!="absent"]==a)
+              contact_id = tryCatch(df$id[(df$shift=="evening" | df$shift=="all") & !df$isolated & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
               
               df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                   df$t_inf[df$id == a] <= t & 
@@ -1449,30 +1429,23 @@ run_model = function(time = 30,
               df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                       df$t_inf[df$id == a] <= t & 
                                                                                                                       df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              if("family"%in%colnames(df)){
-                df$person.days.at.risk.common.visit[df$id == a] <- df$person.days.at.risk.common.visit[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                        df$t_inf[df$id == a] <= t & 
-                                                                                                                        df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              }
             }
             # quarantine
             # if pre/asymptomatic, find when infected tests positive/symptoms show
-            if(test & df$type[df$id==a]!=2 & length(contact_id)>0){
+            if(test & quarantine & length(df[df$id%in%contact_id & (df$type!=1 | df$role==4),])>0){
               future_days<-c()
               for(day in testing_days){
                 future_days = append(future_days, ifelse(day-t>0, day, 0))
                 next_day = t+min(abs(future_days-t))
               }
-            }
-            if(quarantine & length(contact_id)>0){
-              df$t_quarantine[df$id%in%contact_id] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
-                                                            df$t_symp[df$id==a], ifelse(test & df$type[df$id==a]!=2, 
-                                                                                        ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, df$t_quarantine[df$id%in%contact_id]), df$t_quarantine[df$id%in%contact_id]))
+              df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
+                                                                                        df$t_symp[df$id==a], ifelse(test, 
+                                                                                                                    ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, 
+                                                                                                                           df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]), df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]))
               
-              df$t_end_quarantine[df$id%in%contact_id] = 
-                ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 
-                       df$t_quarantine[df$id%in%contact_id]+quarantine.length, 
-                       df$t_end_quarantine[df$id%in%contact_id])
+              df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]!=-13, 
+                                                                                            df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]+quarantine.length, 
+                                                                                            df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)])
             }
           }
           if(shift==3 & (df$shift[df$id==a]=="night" | df$shift[df$id==a]=="all")){
@@ -1481,14 +1454,14 @@ run_model = function(time = 30,
             # sample from a random regular graph
             # this approach ensures reciprocity
             # you may want to split out to ensure reciprocity in contact type
-            common_contacts = sample_k_regular(ifelse(quarantine, 
-                                                      sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="night" | df$shift=="all"),])), 
-                                                      sum(nrow(df[!df$isolated & (df$shift=="night" | df$shift=="all"),]))), df$n_contact[1])
+            common_contacts = tryCatch(sample_k_regular(ifelse(quarantine, 
+                                                               sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="night" | df$shift=="all") & df$type!=2,])), 
+                                                               sum(nrow(df[!df$isolated & (df$shift=="night" | df$shift=="all") & df$type!=2,]))), df$n_contact[1]), error = function(err) {0})
             # choose contacts that become infected
             if(quarantine){
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined][common_contacts[[id]][[1]]], error = function(err) {0})
+              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], common_contacts)}, error = function(err) {0})
+              id = which(df[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,]$id[df$shift!="absent"]==a)
+              contact_id = tryCatch(df$id[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
               
               #Track risk set for unit testing
               df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
@@ -1497,15 +1470,10 @@ run_model = function(time = 30,
               df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                       df$t_inf[df$id == a] <= t & 
                                                                                                                       df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              if("family"%in%colnames(df)){
-                df$person.days.at.risk.common.visit[df$id == a] <- df$person.days.at.risk.common.visit[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                        df$t_inf[df$id == a] <= t & 
-                                                                                                                        df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              }
             }else{
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="night" | df$shift=="all") & !df$isolated,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="night" | df$shift=="all") & !df$isolated,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="night" | df$shift=="all") & !df$isolated][common_contacts[[id]][[1]]], error = function(err) {0})
+              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="night" | df$shift=="all") & !df$isolated & df$type!=2,], common_contacts)}, error = function(err) {0})
+              id = which(df[(df$shift=="night" | df$shift=="all") & !df$isolated & df$type!=2,]$id[df$shift!="absent"]==a)
+              contact_id = tryCatch(df$id[(df$shift=="night" | df$shift=="all") & !df$isolated & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
               
               df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                   df$t_inf[df$id == a] <= t & 
@@ -1513,30 +1481,23 @@ run_model = function(time = 30,
               df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                       df$t_inf[df$id == a] <= t & 
                                                                                                                       df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              if("family"%in%colnames(df)){
-                df$person.days.at.risk.common.visit[df$id == a] <- df$person.days.at.risk.common.visit[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                        df$t_inf[df$id == a] <= t & 
-                                                                                                                        df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==2 & df$susp != 0 & !(df$id %in% c(room_inf_vec, staff_inf_vec))])
-              }
             }
             # quarantine
             # if pre/asymptomatic, find when infected tests positive/symptoms show
-            if(test & df$type[df$id==a]!=2 & length(contact_id)>0){
+            if(test & quarantine & length(df[df$id%in%contact_id & (df$type!=1 | df$role==4),])>0){
               future_days<-c()
               for(day in testing_days){
                 future_days = append(future_days, ifelse(day-t>0, day, 0))
                 next_day = t+min(abs(future_days-t))
               }
-            }
-            if(quarantine & length(contact_id)>0){
-              df$t_quarantine[df$id%in%contact_id] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
-                                                            df$t_symp[df$id==a], ifelse(test & df$type[df$id==a]!=2, 
-                                                                                        ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, df$t_quarantine[df$id%in%contact_id]), df$t_quarantine[df$id%in%contact_id]))
+              df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
+                                                                                        df$t_symp[df$id==a], ifelse(test, 
+                                                                                                                    ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, 
+                                                                                                                           df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]), df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]))
               
-              df$t_end_quarantine[df$id%in%contact_id] = 
-                ifelse(df$t_quarantine[df$id%in%contact_id]!=-13, 
-                       df$t_quarantine[df$id%in%contact_id]+quarantine.length, 
-                       df$t_end_quarantine[df$id%in%contact_id])
+              df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]!=-13, 
+                                                                                            df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]+quarantine.length, 
+                                                                                            df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)])
             }
           }
         }
@@ -1575,16 +1536,8 @@ run_model = function(time = 30,
     #print(df %>% #filter(!adult) %>%
     #        group_by(class) %>% summarize(mean(quarantined), sum(quarantined)))
     #if(sum(class_quarantine$t_notify!=-1)>0) print(class_quarantine)
-  } 
-  
-  # remember to add mat back in
-  #print(df$id[df$t_exposed!=-99 & df$class==df$class[df$start]])
-  #print(sum(df$t_exposed!=-99))
-  # df$room_test_ind = room_test_ind
-  # df$room_test_ind_q = room_test_ind_q
-  #print(sum(class_quarantine$t_notify>-1))#; print(tail(class_quarantine))
-  #, time_seed_inf, class_quarantine, mat))
-  return(df) 
+  }
+  return(df)
 }
 
 
@@ -1851,16 +1804,11 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 4, rel_trans_c
     keep$inf_ct_sympS_R_common[i] = sum(df$location == "Common area" & df$type==0 & df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
     keep$inf_ct_asympS_R_common[i] = sum(df$location == "Common area" & df$type==0 & !df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
     
-    keep$inf_ct_sympR_V_common[i] = sum(df$location == "Common area" & df$type==2 & df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
-    keep$inf_ct_asympR_V_common[i] = sum(df$location == "Common area" & df$type==2 & !df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
-    keep$inf_ct_sympS_V_common[i] = sum(df$location == "Common area" & df$type==2 & df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
-    keep$inf_ct_asympS_V_common[i] = sum(df$location == "Common area" & df$type==2 & !df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
-    keep$inf_ct_sympV_V_common[i] = sum(df$location == "Common area" & df$type==2 & df$source_symp & df$source %in% df$id[df$type==2], na.rm = TRUE)
-    keep$inf_ct_asympV_V_common[i] = sum(df$location == "Common area" & df$type==2 & !df$source_symp & df$source %in% df$id[df$type==2], na.rm = TRUE)
-    keep$inf_ct_sympV_R_common[i] = sum(df$location == "Common area" & df$type==0 & df$source_symp & df$source %in% df$id[df$type==2], na.rm = TRUE)
-    keep$inf_ct_asympV_R_common[i] = sum(df$location == "Common area" & df$type==0 & !df$source_symp & df$source %in% df$id[df$type==2], na.rm = TRUE)
-    keep$inf_ct_sympV_S_common[i] = sum(df$location == "Common area" & df$type==1 & df$source_symp & df$source %in% df$id[df$type==2], na.rm = TRUE)
-    keep$inf_ct_asympV_S_common[i] = sum(df$location == "Common area" & df$type==1 & !df$source_symp & df$source %in% df$id[df$type==2], na.rm = TRUE)
+    keep$inf_ct_R_V_common[i] = sum(df$location == "Common area" & df$type==2 & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_S_V_common[i] = sum(df$location == "Common area" & df$type==2 & df$source %in% df$id[df$type==1], na.rm = TRUE)
+    keep$inf_ct_V_V_common[i] = sum(df$location == "Common area" & df$type==2 & df$source %in% df$id[df$type==2], na.rm = TRUE)
+    keep$inf_ct_V_R_common[i] = sum(df$location == "Common area" & df$type==0 & df$source %in% df$id[df$type==2], na.rm = TRUE)
+    keep$inf_ct_V_S_common[i] = sum(df$location == "Common area" & df$type==1 & df$source %in% df$id[df$type==2], na.rm = TRUE)
     
     keep$inf_ct_R_R_staff[i] = sum(df$location == "Staff interactions" & df$type==0 & df$source %in% df$id[df$type==0], na.rm = TRUE)
     keep$inf_ct_R_S_staff[i] = sum(df$location == "Staff interactions" & df$type==1 & df$source %in% df$id[df$type==0], na.rm = TRUE)
@@ -1898,17 +1846,6 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 4, rel_trans_c
     keep$risk_ct_asympS_S_common[i] = sum(df$person.days.at.risk.common.staff[!df$symp & df$type==1], na.rm = TRUE)
     keep$risk_ct_sympS_R_common[i] = sum(df$person.days.at.risk.common.res[df$symp & df$type==1], na.rm = TRUE)
     keep$risk_ct_asympS_R_common[i] = sum(df$person.days.at.risk.common.res[!df$symp & df$type==1], na.rm = TRUE)
-    
-    keep$risk_ct_sympR_V_common[i] = sum(df$person.days.at.risk.common.visit[df$symp & df$type==0], na.rm = TRUE)
-    keep$risk_ct_asympR_V_common[i] = sum(df$person.days.at.risk.common.visit[!df$symp & df$type==0], na.rm = TRUE)
-    keep$risk_ct_sympS_V_common[i] = sum(df$person.days.at.risk.common.visit[df$symp & df$type==1], na.rm = TRUE)
-    keep$risk_ct_asympS_V_common[i] = sum(df$person.days.at.risk.common.visit[!df$symp & df$type==1], na.rm = TRUE)
-    keep$risk_ct_sympV_V_common[i] = sum(df$person.days.at.risk.common.visit[df$symp & df$type==2], na.rm = TRUE)
-    keep$risk_ct_asympV_V_common[i] = sum(df$person.days.at.risk.common.visit[!df$symp & df$type==2], na.rm = TRUE)
-    keep$risk_ct_sympV_R_common[i] = sum(df$person.days.at.risk.common.res[df$symp & df$type==2], na.rm = TRUE)
-    keep$risk_ct_asympV_R_common[i] = sum(df$person.days.at.risk.common.res[!df$symp & df$type==2], na.rm = TRUE)
-    keep$risk_ct_sympV_S_common[i] = sum(df$person.days.at.risk.common.staff[df$symp & df$type==2], na.rm = TRUE)
-    keep$risk_ct_asympV_S_common[i] = sum(df$person.days.at.risk.common.staff[!df$symp & df$type==2], na.rm = TRUE)
     
     keep$risk_ct_sympS_S_staff[i] = sum(df$person.days.at.risk.staff.staff[df$symp & df$type==1], na.rm = TRUE)
     keep$risk_ct_asympS_S_staff[i] = sum(df$person.days.at.risk.staff.staff[!df$symp & df$type==1], na.rm = TRUE)
@@ -1990,7 +1927,7 @@ mult_runs = function(N, cohorting = F, visitors = F, n_contacts = 4, rel_trans_c
 
 #***************************** SET UP PARAMETERS *****************************#
 # baseline simulation parameters
-s.n_tot = 2
+s.n_tot = 500
 s.attack = .08
 s.disperse_transmission = F; s.overdisp_off = F
 s.start_type = "cont"; s.start_mult = 1

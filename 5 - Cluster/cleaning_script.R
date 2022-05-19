@@ -19,7 +19,7 @@ bind_em = function(path){
   
   # reset working directory and save files
   setwd("/gpfs/home/sdong12/nursing.home/nursing-home/5 - Cluster")
-  save(out, file = "/gpfs/home/sdong12/nursing.home/nursing-home/5 - Cluster/output.RData")
+  save(out, file = "/gpfs/home/sdong12/nursing.home/nursing-home/5 - Cluster/output1.RData")
   print(path)
 }
 

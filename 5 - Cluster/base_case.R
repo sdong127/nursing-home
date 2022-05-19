@@ -4,7 +4,7 @@
 source("functions.R")
 
 # local
-wd = paste0("/gpfs/home/sdong12/nursing.home/nursing-home/5 - Cluster/Output")
+wd = "/gpfs/home/sdong12/nursing.home/nursing-home/5 - Cluster/Output"
 print(wd)
 setwd(wd)
 

@@ -2,7 +2,7 @@ library(data.table)
 
 #Set working directory where model output is stored
 ##Use the model code in "/2 - Tests/abm_12-4-2021_master.R" to generate the model output -- this code collects additional results used to unit test the model output
-setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/1 - Tests/Test Output")
+setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output/Test Output")
 
 #Bind model output into single data table
 filelist <- list.files()
@@ -44,16 +44,18 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
                     start_res_time.mean = mean(start_res_time, na.rm = TRUE), start_nonres_time.mean = mean(start_nonres_time, na.rm = TRUE),
                     not_inf_start.mean = mean(not_inf_start, na.rm = TRUE), test_type.check.mean = mean(test_type.check, na.rm = TRUE), vaxxed.mean = mean(vaxxed, na.rm = TRUE),
                     
-                    group = paste(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf_mild, days_inf_mod, days_inf_severe, rel_trans_common, vax_eff, attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, test_frac, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)),
+                    group = paste(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, test_frac, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)),
                  
-                 by = .(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf_mild, days_inf_mod, days_inf_severe, rel_trans_common, vax_eff, attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, test_frac, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)]
+                 by = .(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, test_frac, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)]
 
 #Create table to compare observed SAR with predicted SAR
 ##NB: This does not really work with testing yet, since it is difficult to determine a closed-form formula for the predicted SAR
-sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), isolate = c(T,F), comorbid = c(0,1,2), symptomatic = c(T,F), group = output$group) %>% left_join(output, by = "group") %>%
+sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), isolate = c(T,F), symptomatic = c(T,F), group = output$group) %>% left_join(output, by = "group") %>%
   mutate(expected.sar = attack*
-           ifelse(source=="res" & comorbid==1, res_trans_red*1/2, 1)*
-           ifelse(source=="res" & comorbid==2, res_trans_red*1/4, 1)*
+           ifelse(source=="res", res_trans_red, 1)*
+           # ifelse(source=="res" & comorbid==0, NA, 1)*
+           # ifelse(source=="res" & comorbid==1, res_trans_red*1/2, 1)*
+           # ifelse(source=="res" & comorbid==2, res_trans_red*1/4, 1)*
            ifelse(source=="staff", staff_trans_red, 1)*
            ifelse(source=="visit", visit_trans_red, 1)*
            ifelse(source=="res" & !symptomatic, mult_asymp_res, 1)*

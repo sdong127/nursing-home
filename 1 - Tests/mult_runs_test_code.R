@@ -9,7 +9,7 @@ filelist <- list.files()
 output <- rbindlist(lapply(1:length(filelist), function(a){load(filelist[a]); output = out; return(output)}))
 
 output <- data.table(output)
-output$attack = 0.8
+output$attack = 0.08
 output$test = T
 visitors = F
 

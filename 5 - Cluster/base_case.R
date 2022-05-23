@@ -75,7 +75,7 @@ df_ELEM = make_df()
 
 # make class
 set.seed(3232)
-nh = make_NH(synthpop = synthpop, cohorting = F, visitors = F)
+nh = make_NH(synthpop = synthpop, cohorting = T, visitors = F)
 
 
 print(detectCores())

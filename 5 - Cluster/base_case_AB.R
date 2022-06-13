@@ -7,7 +7,7 @@ source("functions.R")
 #wd = "/gpfs/home/sdong12/nursing.home/nursing-home/5 - Cluster/Output"
 # this assumes that I open as an R project
 library(here)
-wd = here("5 - Cluster/Output")
+wd = here("3 - Output")
 print(wd)
 setwd(wd)
 
@@ -86,21 +86,23 @@ print(detectCores())
 
 # profiling library
 library(profvis)
+library(ggplot2)
 
 # wrapper function
-tic()
-profvis({
-g = run_parallel(df_ELEM[1,], synthpop, nh = nh)
-})
-toc()
+# tic()
+# profvis({
+# g = run_parallel(df_ELEM[1,], synthpop, nh = nh)
+# })
+# toc()
 
 # more general function w/simplification
 profvis({
-  sims(df_ELEM, 1, synthpop, nh = nh)
+  g <- ggplot(sims(df_ELEM, 1, synthpop, nh = nh))
+  print(g)
 })
 
 
 # more general function
-profvis({
-  sims(df_ELEM, 1, synthpop, nh = nh)
-}, simplify = FALSE)
+# profvis({
+#   sims(df_ELEM, 1, synthpop, nh = nh)
+# }, simplify = FALSE)

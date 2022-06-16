@@ -13,34 +13,7 @@ library(tictoc)
 
 synthpop = read.csv("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/0 - Synthetic Population/synthpop.csv")
 
-#' Synthetic Rhode Island nursing home population
-#'
-#' A data frame containing a synthetic population of nursing home residents
-#' representative of nursing homes in Rhode Island.
-#' This is used by make_NH().
-#'
-#' @docType data
-#' @format A data frame with
-#' \describe{
-#'  \item{id}{individual id #}
-#'  \item{type}{0: resident, 1: staff}
-#'  \item{age}{age}
-#'  \item{role}{if staff; 0: RN, 1: LPN, 2: CNA, 3: medication aide/technician, 4: admin/support (non-direct care) staff}
-#'  \item{sex}{0: male, 1: female}
-#'  \item{private_room}{true if resident has private room}
-#'  \item{comorbid}{0: low risk level (mild infection), 1: moderate risk level (moderate infection), 2: high risk level (severe infection)}
-#' }
-#'
-#' @usage data (synthpop)
-#'
-#' @keywords datasets
-#'
-#' @source
-#'
-"synthpop"
-
-
-#' Structure nursing home and staff/visitor-patient relationships
+#' Structure nursing home and staff/visitor-resident relationships
 #'
 #' This function sorts nursing home residents into rooms (42 doubles, 36 singles), adds staffing shifts,
 #' option for cohorting among staff and residents, and allows/assigns visitors to residents.
@@ -188,7 +161,8 @@ make_NH = function(synthpop, cohorting = T, visitors = FALSE){
   }
   
   # bind residents, staff, and visitors into dataframe
-  out = rbind(residents, rn, lpn, cna, med_aide, admin)
+  out = residents %>% bind_rows(rn) %>% bind_rows(lpn) %>% bind_rows(cna) %>% 
+    bind_rows(med_aide) %>% bind_rows(admin)
   
   # ------------------------------------------------------------------------------------------------
   
@@ -199,7 +173,7 @@ make_NH = function(synthpop, cohorting = T, visitors = FALSE){
                           family = 1:nrow(residents), comorbid = 0)
     out['family'] = ifelse(out$type == 0, 1:nrow(residents), NA)
     
-    out = rbind(out, visitors)
+    out = out %>% bind_rows(visitors)
   }
   
   return(out)
@@ -207,21 +181,18 @@ make_NH = function(synthpop, cohorting = T, visitors = FALSE){
 }
 
 
-
 #' Initialize nursing home
 #'
 #' This function takes in a data frame exported by make_NH().
 #' It adds epidemiological attributes of the full nursing home community.
 
-#' @param n_contacts Number of close contacts in NH common area; defaults to 4
-#' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1/4 (used to be rel_trans_HH)
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; 
 #' defaults to 1 (used to be rel_trans_HH_symp_child)
 #' @param p_asymp_nonres Fraction of non-residents with asymptomatic disease; defaults to 0.5 (used to be p_asymp_adult)
 #' @param p_asymp_res Fraction of residents with asymptomatic disease; defaults to 0.4 (used to be p_asymp_child)
 #' @param p_subclin_nonres Fraction of non-residents with subclinical but not techincally asymptomatic disease; defaults to 0
 #' @param p_subclin_res Fraction of residents with subclinical but not techincally asymptomatic disease; defaults to 0
-#' @param attack Average daily attack rate for mild infection; defaults to 0.08
+#' @param attack Average daily attack rate for mild infection; defaults to 0.11
 #' @param res_vax Vaccination rate of residents; defaults to some amount (used to be child_vax)
 #' @param staff_vax_req Whether staff are required to get vaccine; defaults to F
 #' @param staff_vax Vaccination rate of visitors; defaults to some amount based on community vax rate
@@ -238,18 +209,18 @@ make_NH = function(synthpop, cohorting = T, visitors = FALSE){
 #' @param res_susp_red Factor by which resident susceptibility is reduced due to intervention; defaults to 1
 #' @param disperse_transmission Whether transmission is overdispersed (vs. all have equal attack rate); default to T
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
-#' @param vax_eff Vaccine efficacy, defaults to 0.9
+#' @param vax_eff Vaccine efficacy, defaults to 0
 #' @param start Data frame from make_NH()
 #'
 #' @return df data frame of resident and staff attributes.
 #'
 #' @export
-initialize_NH = function(n_contacts = 4, rel_trans_common = 1/4, rel_trans_room_symp_res = 1, 
+initialize_NH = function(rel_trans_room_symp_res = 1, 
                          p_asymp_nonres = .5, p_asymp_res = .4, p_subclin_nonres = 0, p_subclin_res = 0,
-                         attack = .11, staff_vax_req = F, res_vax = 0.65, staff_vax = 0.4, visit_vax = 0.4, 
+                         attack = .11, staff_vax_req = F, res_vax = 0, staff_vax = 0, visit_vax = 0, 
                          staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
                          staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, 
-                         disperse_transmission = T, isolate = T, vax_eff = .6, start){
+                         disperse_transmission = T, isolate = T, vax_eff = 0, start){
   
   n = nrow(start)
   
@@ -280,8 +251,6 @@ initialize_NH = function(n_contacts = 4, rel_trans_common = 1/4, rel_trans_room_
            quarantined = F,
            test = 0,
            test_ct = 0,
-           n_contact = n_contacts,
-           relative_trans_common = rel_trans_common,
            relative_trans_room_symp_res = ifelse(type != 0, 0, rel_trans_room_symp_res),
            attack_rate = attack,
            source = 0,
@@ -340,13 +309,13 @@ initialize_NH = function(n_contacts = 4, rel_trans_common = 1/4, rel_trans_room_
 #' Make a schedule of when staff and visitors are present/absent
 #'
 #' @param time number of days; defaults to 45 (to capture 30-day picture)
-#' @param start data frame from make_NH()
+#' @param nh data frame from initialize_NH()
 #'
 #' @return d Returns an n x time data frame that indicates whether an individual is in the 
 #' nursing home at a particular time
 #'
 #' @export
-make_schedule = function(time = 45, start){
+make_schedule = function(time = 45, nh){
   
   # basic time vector
   vec = data.frame(
@@ -357,27 +326,27 @@ make_schedule = function(time = 45, start){
   )
   
   # replicate for each person
-  vec_exp = vec %>% slice(rep(1:n(), times = nrow(start))) %>% mutate(id = rep(1:nrow(start), each = time))
+  vec_exp = vec %>% slice(rep(1:n(), times = nrow(nh))) 
+  vec_exp$id = rep(1:nrow(nh), each = time)
   
   
   # time matrix for residents, staff, visitors
-  if("family" %in% colnames(start)){
-    d = start %>% select(id, type, role, room, family, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
-                         lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
-                         cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
-                         admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
-      
-      # mark staff and residents present based on time of day
-      mutate(shift = ifelse(type==0, "all", "absent"),
-             shift = ifelse(type==1 & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
-                                         !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
-                                         !is.na(admin_cohort_morning)), "morning", shift),
-             shift = ifelse(type==1 & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
-                                         !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
-                                         !is.na(admin_cohort_evening)), "evening", shift),
-             shift = ifelse(type==1 & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
-                                         !is.na(cna_cohort_night)), "night", shift)
-      )
+  if("family" %in% colnames(nh)){
+    d = select(nh, id, type, role, room, family, rn_cohort_morning, rn_cohort_evening, rn_cohort_night, 
+               lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
+               cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
+               admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id")
+    
+    # mark staff and residents present based on time of day
+    d$shift = ifelse(d$type==0, "all", "absent")
+    d$shift = ifelse(d$type==1 & (!is.na(d$rn_cohort_morning) | !is.na(d$lpn_cohort_morning) | 
+                                    !is.na(d$cna_cohort_morning) | !is.na(d$ma_cohort_morning) | 
+                                    !is.na(d$admin_cohort_morning)), "morning", d$shift)
+    d$shift = ifelse(d$type==1 & (!is.na(d$rn_cohort_evening) | !is.na(d$lpn_cohort_evening) | 
+                                    !is.na(d$cna_cohort_evening) | !is.na(d$ma_cohort_evening) | 
+                                    !is.na(d$admin_cohort_evening)), "evening", d$shift)
+    d$shift = ifelse(d$type==1 & (!is.na(d$rn_cohort_night) | !is.na(d$lpn_cohort_night) | 
+                                    !is.na(d$cna_cohort_night)), "night", d$shift)
     
     # mark visitors present in the mornings, rotating throughout the week
     # each visitor comes 4-5 times a month
@@ -392,105 +361,104 @@ make_schedule = function(time = 45, start){
     d$shift[d$type == 2] = visitor_sched
     
   }else{ # time matrix for just residents and staff
-    d = start %>% select(id, type, role, room, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
-                         lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
-                         cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
-                         admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id") %>%
-      
-      # mark staff and residents present based on time of day
-      mutate(shift = ifelse(type==0, "all", "absent"),
-             shift = ifelse(type==1 & (!is.na(rn_cohort_morning) | !is.na(lpn_cohort_morning) | 
-                                         !is.na(cna_cohort_morning) | !is.na(ma_cohort_morning) | 
-                                         !is.na(admin_cohort_morning)), "morning", shift),
-             shift = ifelse(type==1 & (!is.na(rn_cohort_evening) | !is.na(lpn_cohort_evening) | 
-                                         !is.na(cna_cohort_evening) | !is.na(ma_cohort_evening) | 
-                                         !is.na(admin_cohort_evening)), "evening", shift),
-             shift = ifelse(type==1 & (!is.na(rn_cohort_night) | !is.na(lpn_cohort_night) | 
-                                         !is.na(cna_cohort_night)), "night", shift)
-      )
+    d = select(nh, id, type, role, room, rn_cohort_morning, rn_cohort_evening, rn_cohort_night,
+               lpn_cohort_morning, lpn_cohort_evening, lpn_cohort_night, cna_cohort_morning, 
+               cna_cohort_evening, cna_cohort_night, ma_cohort_morning, ma_cohort_evening,
+               admin_cohort_morning, admin_cohort_evening) %>% left_join(vec_exp, "id")
+    
+    # mark staff and residents present based on time of day
+    d$shift = ifelse(d$type==0, "all", "absent")
+    d$shift = ifelse(d$type==1 & (!is.na(d$rn_cohort_morning) | !is.na(d$lpn_cohort_morning) | 
+                                    !is.na(d$cna_cohort_morning) | !is.na(d$ma_cohort_morning) | 
+                                    !is.na(d$admin_cohort_morning)), "morning", d$shift)
+    d$shift = ifelse(d$type==1 & (!is.na(d$rn_cohort_evening) | !is.na(d$lpn_cohort_evening) | 
+                                    !is.na(d$cna_cohort_evening) | !is.na(d$ma_cohort_evening) | 
+                                    !is.na(d$admin_cohort_evening)), "evening", d$shift)
+    d$shift = ifelse(d$type==1 & (!is.na(d$rn_cohort_night) | !is.na(d$lpn_cohort_night) | 
+                                    !is.na(d$cna_cohort_night)), "night", d$shift)
   }
   
   # assign staff to residents and randomize each day if no cohorting
-  if(is.na(start$rn_cohort_morning[start$id==1])){
-    rn_morning = start[!is.na(start$rn_cohort_morning),]$rn_cohort_morning
-    rn_evening = start[!is.na(start$rn_cohort_evening),]$rn_cohort_evening
-    rn_night = start[!is.na(start$rn_cohort_night),]$rn_cohort_night
-    lpn_morning = start[!is.na(start$lpn_cohort_morning),]$lpn_cohort_morning
-    lpn_evening = start[!is.na(start$lpn_cohort_evening),]$lpn_cohort_evening
-    lpn_night = start[!is.na(start$lpn_cohort_night),]$lpn_cohort_night
-    cna_morning = start[!is.na(start$cna_cohort_morning),]$cna_cohort_morning
-    cna_evening = start[!is.na(start$cna_cohort_evening),]$cna_cohort_evening
-    cna_night = start[!is.na(start$cna_cohort_night),]$cna_cohort_night
-    ma_morning = start[!is.na(start$ma_cohort_morning),]$ma_cohort_morning
-    ma_evening = start[!is.na(start$ma_cohort_evening),]$ma_cohort_evening
+  if(is.na(nh$rn_cohort_morning[nh$id==1])){
+    rn_morning = nh[!is.na(nh$rn_cohort_morning),]$rn_cohort_morning
+    rn_evening = nh[!is.na(nh$rn_cohort_evening),]$rn_cohort_evening
+    rn_night = nh[!is.na(nh$rn_cohort_night),]$rn_cohort_night
+    lpn_morning = nh[!is.na(nh$lpn_cohort_morning),]$lpn_cohort_morning
+    lpn_evening = nh[!is.na(nh$lpn_cohort_evening),]$lpn_cohort_evening
+    lpn_night = nh[!is.na(nh$lpn_cohort_night),]$lpn_cohort_night
+    cna_morning = nh[!is.na(nh$cna_cohort_morning),]$cna_cohort_morning
+    cna_evening = nh[!is.na(nh$cna_cohort_evening),]$cna_cohort_evening
+    cna_night = nh[!is.na(nh$cna_cohort_night),]$cna_cohort_night
+    ma_morning = nh[!is.na(nh$ma_cohort_morning),]$ma_cohort_morning
+    ma_evening = nh[!is.na(nh$ma_cohort_evening),]$ma_cohort_evening
     
     for(i in 1:time){
       
       # assign morning staff
       res = 1
       for(j in rn_morning){
-        d$rn_cohort_morning[d$id %in% res:(res+(nrow(subset(start,type==0))/length(rn_morning))-1) 
+        d$rn_cohort_morning[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(rn_morning))-1) 
                             & d$type==0 & d$t==i] = sample(rn_morning,1)
-        res = res + (nrow(subset(start,type==0))/length(rn_morning))
+        res = res + (nrow(subset(nh,type==0))/length(rn_morning))
       }
       res = 1
       for(j in lpn_morning){
-        d$lpn_cohort_morning[d$id %in% res:(res+(nrow(subset(start,type==0))/length(lpn_morning))-1) 
+        d$lpn_cohort_morning[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(lpn_morning))-1) 
                              & d$type==0 & d$t==i] = sample(lpn_morning,1)
-        res = res + (nrow(subset(start,type==0))/length(lpn_morning))
+        res = res + (nrow(subset(nh,type==0))/length(lpn_morning))
       }
       res = 1
       for(j in cna_morning){
-        d$cna_cohort_morning[d$id %in% res:(res+(nrow(subset(start,type==0))/length(cna_morning))-1) 
+        d$cna_cohort_morning[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(cna_morning))-1) 
                              & d$type==0 & d$t==i] = sample(cna_morning,1)
-        res = res + (nrow(subset(start,type==0))/length(cna_morning))
+        res = res + (nrow(subset(nh,type==0))/length(cna_morning))
       }
       res = 1
       for(j in ma_morning){
-        d$ma_cohort_morning[d$id %in% res:(res+(nrow(subset(start,type==0))/length(ma_morning))-1) 
+        d$ma_cohort_morning[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(ma_morning))-1) 
                             & d$type==0 & d$t==i] = sample(ma_morning,1)
-        res = res + (nrow(subset(start,type==0))/length(ma_morning))
+        res = res + (nrow(subset(nh,type==0))/length(ma_morning))
       }
       
       # assign evening staff
       res = 1
       for(j in rn_evening){
-        d$rn_cohort_evening[d$id %in% res:(res+(nrow(subset(start,type==0))/length(rn_evening))-1) 
+        d$rn_cohort_evening[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(rn_evening))-1) 
                             & d$type==0 & d$t==i] = sample(rn_evening,1)
-        res = res + (nrow(subset(start,type==0))/length(rn_evening))
+        res = res + (nrow(subset(nh,type==0))/length(rn_evening))
       }
       res = 1
       for(j in lpn_evening){
-        d$lpn_cohort_evening[d$id %in% res:(res+(nrow(subset(start,type==0))/length(lpn_evening))-1) 
+        d$lpn_cohort_evening[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(lpn_evening))-1) 
                              & d$type==0 & d$t==i] = sample(lpn_evening,1)
-        res = res + (nrow(subset(start,type==0))/length(lpn_evening))
+        res = res + (nrow(subset(nh,type==0))/length(lpn_evening))
       }
       res = 1
       for(j in cna_evening){
-        d$cna_cohort_evening[d$id %in% res:(res+(nrow(subset(start,type==0))/length(cna_evening))-1) 
+        d$cna_cohort_evening[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(cna_evening))-1) 
                              & d$type==0 & d$t==i] = sample(cna_evening,1)
-        res = res + (nrow(subset(start,type==0))/length(cna_evening))
+        res = res + (nrow(subset(nh,type==0))/length(cna_evening))
       }
       d$ma_cohort_evening[d$type==0 & d$t==i] = 3
       
       # assign night staff
       res = 1
       for(j in rn_night){
-        d$rn_cohort_night[d$id %in% res:(res+(nrow(subset(start,type==0))/length(rn_night))-1) 
+        d$rn_cohort_night[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(rn_night))-1) 
                           & d$type==0 & d$t==i] = sample(rn_night,1)
-        res = res + (nrow(subset(start,type==0))/length(rn_night))
+        res = res + (nrow(subset(nh,type==0))/length(rn_night))
       }
       res = 1
       for(j in lpn_night & i%%3==0){
-        d$lpn_cohort_night[d$id %in% res:(res+(nrow(subset(start,type==0))/length(lpn_night))-1) 
+        d$lpn_cohort_night[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(lpn_night))-1) 
                            & d$type==0 & d$t==i] = sample(lpn_night,1)
-        res = res + (nrow(subset(start,type==0))/length(lpn_night))
+        res = res + (nrow(subset(nh,type==0))/length(lpn_night))
       }
       res = 1
       for(j in cna_night & i%%3==0){
-        d$cna_cohort_night[d$id %in% res:(res+(nrow(subset(start,type==0))/length(cna_night))-1) 
+        d$cna_cohort_night[d$id %in% res:(res+(nrow(subset(nh,type==0))/length(cna_night))-1) 
                            & d$type==0 & d$t==i] = sample(cna_night,1)
-        res = res + (nrow(subset(start,type==0))/length(cna_night))
+        res = res + (nrow(subset(nh,type==0))/length(cna_night))
       }
     }
     
@@ -537,18 +505,28 @@ run_room = function(a, df, t, quarantine){
     }else{roommate_infs = 0}
     
     # make vector of staff in infected resident's room at current time
-    staff_vec = rbind(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",], 
-                      df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",],
-                      df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",],
-                      df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",],
-                      df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",],
-                      df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",],
-                      df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",], 
-                      df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",],
-                      df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",],
-                      df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",],
-                      df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])
-    staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
+    staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                             != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
+    staff_vec[2,] = df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                 != ncol(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
+    staff_vec[3,] = df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                           != ncol(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
+    staff_vec[4,] = df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                   != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
+    staff_vec[5,] = df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                   != ncol(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
+    staff_vec[6,] = df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                             != ncol(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
+    staff_vec[7,] = df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                   != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
+    staff_vec[8,] = df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                   != ncol(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
+    staff_vec[9,] = df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                             != ncol(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
+    staff_vec[10,] = df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                  != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
+    staff_vec[11,] = df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                  != ncol(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
     
     # determine whether staff becomes infected
     prob_staff = ifelse(quarantine & (df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17) | (df$symp[df$id==a]==1 & df$t_symp[df$id==a]<=t & df$t_symp[df$id==a]!=-1),
@@ -675,18 +653,14 @@ run_room = function(a, df, t, quarantine){
     res_infs = res*prob_res
     
     # make vector of staff in visitor's resident's room at current time
-    staff_vec = rbind(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",], 
-                      df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==res_id] & df$type==1 & df$shift=="evening",],
-                      df[df$rn_cohort_night==df$rn_cohort_night[df$id==res_id] & df$type==1 & df$shift=="night",],
-                      df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",],
-                      df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==res_id] & df$type==1 & df$shift=="evening",],
-                      df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==res_id] & df$type==1 & df$shift=="night",],
-                      df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",], 
-                      df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==res_id] & df$type==1 & df$shift=="evening",],
-                      df[df$cna_cohort_night==df$cna_cohort_night[df$id==res_id] & df$type==1 & df$shift=="night",],
-                      df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",],
-                      df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==res_id] & df$type==1 & df$shift=="evening",])
-    staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
+    staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                  != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
+    staff_vec[2,] = df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                        != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
+    staff_vec[3,] = df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                        != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
+    staff_vec[4,] = df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                       != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
     
     # determine whether staff becomes infected
     prob_staff = ifelse(quarantine & (df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17) | (df$symp[df$id==a]==1 & df$t_symp[df$id==a]<=t & df$t_symp[df$id==a]!=-1),
@@ -721,30 +695,37 @@ run_room = function(a, df, t, quarantine){
 #'
 #' @param a id of infected individual
 #' @param df data frame in run_model()
-#' @param area_contacts graph of common area contacts during current shift
+#' @param n_contact_common number of contacts staff/visitors encounter in nursing home common area
+#' @param rel_trans_staff relative transmission in common area interactions (vs. resident room);
+#' defaults to 1/4
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_common = function(a, df, area_contacts){
+run_common = function(a, df, n_contact_common, rel_trans_common = 1/4){
   
-  # pull contacts from random graph (of those present at NH)
-  id = which(df$id==a)
-  # pull contacts from random graph (of those present at NH)
-  contact_id = tryCatch(df$id[area_contacts[[id]][[1]]], error = function(err) {0})
-  #print(length(contact_id))
-  contacts = df[df$id %in% contact_id,]
-  
-  # determine whether a contact becomes infected
-  prob_common = rbinom(nrow(contacts), size = 1,
-                       prob = ifelse(df$room_trans_prob[df$id==a]*df$relative_trans_common[df$id==a]*contacts$susp*contacts$present_susp < 1,
-                                     df$room_trans_prob[df$id==a]*df$relative_trans_common[df$id==a]*contacts$susp*contacts$present_susp,
-                                     1))
-  
-  # infected individuals
-  infs = contacts$id*prob_common
-  #print(a); print(infs)
-  return(infs)
+  if(n_contact_common>0){
+    # pull contacts from random graph of staff present in nursing home
+    tot = length(df$id[!df$isolated & !df$quarantined & df$type!=2])
+    contact_take = ifelse(n_contact_common<=tot, n_contact_common, tot)
+    contact_id = sample(df$id[!df$isolated & !df$quarantined & df$type!=2], contact_take)
+    contacts = df[df$id %in% contact_id & df$id!=a,]
+    id.susp = contacts[contacts$present_susp & contacts$susp!=0,]$id
+    #print(dim(contacts))
+    
+    # determine whether a contact becomes infected
+    prob_common = rbinom(nrow(contacts), size = 1,
+                        prob = ifelse(df$room_trans_prob[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_common < 1,
+                                      df$room_trans_prob[df$id==a]*contacts$susp*contacts$present_susp*rel_trans_common,
+                                      1))
+    # infected individuals
+    infs = contacts$id*prob_common
+    
+    return(list(infs, id.susp))
+  }
+  else{
+    return(0)
+  }
 }
 
 
@@ -756,19 +737,19 @@ run_common = function(a, df, area_contacts){
 #'
 #' @param a id of infected staff member
 #' @param df school data frame in run_model()
-#' @param n_contact number of contacts staff encounters in nursing home during shift
+#' @param n_contact_staff number of contacts staff encounters in nursing home during shift
 #' @param rel_trans_staff relative transmission in staff-staff interactions (vs. resident room);
 #' defaults to 1/4, used to be rel_trans_adult
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_staff = function(a, df, n_contact, rel_trans_staff = 1/4){
+run_staff = function(a, df, n_contact_staff, rel_trans_staff = 1/4){
   
-  if(n_contact>0){
+  if(n_contact_staff>0){
     # pull contacts from random graph of staff present in nursing home
     tot = length(df$id[!df$isolated & df$type == 1])
-    contact_take = ifelse(n_contact<=tot, n_contact, tot)
+    contact_take = ifelse(n_contact_staff<=tot, n_contact_staff, tot)
     contact_id = sample(df$id[!df$isolated & df$type == 1], contact_take)
     contacts = df[df$id %in% contact_id & df$id!=a,]
     id.susp = contacts[contacts$present_susp & contacts$susp != 0,]$id
@@ -844,7 +825,7 @@ make_infected = function(df.u, days_inf = 5, set = NA, mult_asymp_res = 1, mult_
   
   # adjust for asymptomatic infection
   df.u$room_trans_prob = ifelse(!df.u$symp, ifelse(df.u$type==0, df.u$room_trans_prob*mult_asymp_res, df.u$room_trans_prob*mult_asymp_nonres), df.u$room_trans_prob)
-  df.u$relative_trans_common = ifelse(df.u$symp & df.u$isolate==0, df.u$relative_trans_common*df.u$relative_trans_room_symp_res, df.u$relative_trans_common)
+  # df.u$relative_trans_common = ifelse(df.u$symp & df.u$isolate==0, df.u$relative_trans_common*df.u$relative_trans_room_symp_res, df.u$relative_trans_common)
   
   # add end time
   # df.u$t_end_inf_home = ifelse(df.u$comorbid==0, df.u$t_symp + 
@@ -882,7 +863,8 @@ make_infected = function(df.u, days_inf = 5, set = NA, mult_asymp_res = 1, mult_
 #' @param test_days test frequency; "day", "week", "2x_week"; defaults to "week"
 #' @param test_type group tested; defaults to "all", also allows "residents" and "staff"
 #' @param test_start_day day tests are implemented for weekly testing; defaults to 1 = Monday
-#' @param n_staff_contact number of contacts a staff member has with other staff members during a shift; defaults to 10
+#' @param n_contact_common number of contacts a staff/visitor has with other staff/visitors in the common area; defaults to 6
+#' @param n_contact_staff number of contacts a staff member has with other staff members during a shift; defaults to 10
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
 #' @param mult_asymp_nonres multiplier on asymptomatic infection for staff and visitors; default is 1 (used to be mult_asymp_child)
@@ -895,7 +877,8 @@ make_infected = function(df.u, days_inf = 5, set = NA, mult_asymp_res = 1, mult_
 #' @param start_mult value to indicate relative frequency of resident/staff infections; defaults to 1 
 #' (staff 2x as likely as residents since residents don't leave) (are staff or residents more likely to get infected?)
 #' @param nonres_prob if start_type = "cont", set daily probability of infectious entry for staff and visitors, defaults to .05 (used to be child_prob)
-#' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2 (used to be rel_trans_adult)
+#' @param rel_trans_common relative transmission in common area interactions vs. resident's room; defaults to 1/4
+#' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 1/4 (used to be rel_trans_adult)
 #' @param quarantine whether or not people quarantine upon exposure; defaults to F
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 5
 #' @param overdisp_off all overdispersion off; defaults to F
@@ -914,7 +897,8 @@ run_model = function(time = 30,
                      test_sens =  .7,
                      test_frac = .9,
                      test_start_day = 1,
-                     n_staff_contact = 10,
+                     n_contact_common = 6,
+                     n_contact_staff = 10,
                      n_start = 1,
                      days_inf = 5,
                      # days_inf_mild = 5,
@@ -929,10 +913,11 @@ run_model = function(time = 30,
                      nonres_prob = 0.001,
                      quarantine = F,
                      quarantine.length = 5,
+                     rel_trans_common = 1/4,
                      rel_trans_staff = 1/4,
                      test_type = "all",
                      overdisp_off = F,
-                     df, sched){
+                     df = nh, sched){
   
   #### SEED MODEL ####
   # seed with an infectious case
@@ -1141,19 +1126,15 @@ run_model = function(time = 30,
         for(shift in 1:3){
           if(shift==1 & (df$shift[df$id==a]=="morning" | df$shift[df$id==a]=="all")){
             room_inf_vec = append(room_inf_vec, run_room(a, df[df$shift=="morning" | df$shift=="all",], t, quarantine))
-            df$present_susp = ifelse(df$id%in%room_inf_vec, F, df$present_susp)
-            room_inf_vec_total = append(room_inf_vec_total, room_inf_vec)
           }
           if(shift==2 & (df$shift[df$id==a]=="evening" | df$shift[df$id==a]=="all")){
             room_inf_vec = append(room_inf_vec, run_room(a, df[df$shift=="evening" | df$shift=="all",], t, quarantine))
-            df$present_susp = ifelse(df$id%in%room_inf_vec, F, df$present_susp)
-            room_inf_vec_total = append(room_inf_vec_total, room_inf_vec)
           }
           if(shift==3 & (df$shift[df$id==a]=="night" | df$shift[df$id==a]=="all")){
             room_inf_vec = append(room_inf_vec, run_room(a, df[df$shift=="night" | df$shift=="all",], t, quarantine))
-            df$present_susp = ifelse(df$id%in%room_inf_vec, F, df$present_susp)
-            room_inf_vec_total = append(room_inf_vec_total, room_inf_vec)
           }
+          df$present_susp[df$id%in%room_inf_vec] = 0
+          room_inf_vec_total = append(room_inf_vec_total, room_inf_vec)
         } 
         
         df$location[df$id%in%room_inf_vec] = "Room"
@@ -1162,18 +1143,28 @@ run_model = function(time = 30,
         if(df$type[df$id==a]==0){
           
           # check staff in resident's room
-          staff_vec = rbind(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",], 
-                            df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",],
-                            df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",],
-                            df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",],
-                            df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",],
-                            df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",],
-                            df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",], 
-                            df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",],
-                            df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",],
-                            df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",],
-                            df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])
-          staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
+          staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                   != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
+          staff_vec[2,] = df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                       != ncol(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
+          staff_vec[3,] = df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                 != ncol(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
+          staff_vec[4,] = df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                         != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
+          staff_vec[5,] = df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                         != ncol(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
+          staff_vec[6,] = df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                   != ncol(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
+          staff_vec[7,] = df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                         != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
+          staff_vec[8,] = df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                         != ncol(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
+          staff_vec[9,] = df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                   != ncol(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
+          staff_vec[10,] = df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                        != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
+          staff_vec[11,] = df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                        != ncol(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
           
           #Track risk set for unit testing
           df$person.days.at.risk.room.res[df$id == a] <- df$person.days.at.risk.room.res[df$id == a] + 
@@ -1181,7 +1172,7 @@ run_model = function(time = 30,
                                                                                                    df$type==0 & df$susp != 0])
           df$person.days.at.risk.room.staff[df$id == a] <- df$person.days.at.risk.room.staff[df$id == a] +
             (df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%staff_vec$id & df$susp != 0])
-          if("family"%in%colnames(df)){
+          if("family" %in% colnames(df)){
             df$person.days.at.risk.room.visit[df$id == a] <- df$person.days.at.risk.room.visit[df$id == a] +
               (df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$family == df$family[df$id == a] &
                                                                                                      df$type==2 & df$susp != 0])
@@ -1231,8 +1222,8 @@ run_model = function(time = 30,
           
           #Track risk set for unit testing
           df$person.days.at.risk.room.res[df$id == a] <- df$person.days.at.risk.room.res[df$id == a] +
-            (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%res_vec$id &
-                                                                                                                                                               df$type==0 & df$susp != 0])
+            (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a]<=t & df$t_end_inf_home[df$id == a]>=t)*sum(df$present_susp[df$id%in%res_vec$id &
+                                                                                                                                                               df$type==0 & df$susp!=0])
           # check visitors in room
           if(df$shift[df$id==a]=="morning" & 'family' %in% colnames(df) & any(df$shift=="morning" & df$type==2) & length(res)>0){
             visit_vec <- c()
@@ -1280,11 +1271,14 @@ run_model = function(time = 30,
             (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%res_vec$id &
                                                                                                                                                                df$type==0 & df$susp != 0])
           # make vector of staff in visitor's resident's room at current time
-          staff_vec = rbind(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",], 
-                            df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",],
-                            df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",], 
-                            df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])
-          staff_vec = staff_vec[rowSums(is.na(staff_vec)) != ncol(staff_vec),]
+          staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                        != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
+          staff_vec[2,] = df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                              != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
+          staff_vec[3,] = df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                              != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
+          staff_vec[4,] = df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                            != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
           
           df$person.days.at.risk.room.staff[df$id == a] <- df$person.days.at.risk.room.staff[df$id == a] +
             (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%staff_vec$id & 
@@ -1299,8 +1293,6 @@ run_model = function(time = 30,
         df$source = ifelse(df$id%in%room_inf_vec, a, df$source)
         df$source_symp = ifelse(df$id%in%room_inf_vec, df$symp[df$id==a], df$source_symp)
         df$not_inf = ifelse(df$id%in%room_inf_vec, F, df$not_inf)
-        df$present_susp = ifelse(df$id%in%room_inf_vec, F, df$present_susp)
-        
       }
       
       # run model for infectious individuals in staff interactions
@@ -1314,17 +1306,15 @@ run_model = function(time = 30,
         # STAFF INTERACTIONS
         for(shift in 1:3){
           if(shift==1 & (df$shift[df$id==a]=="morning")){
-            staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="morning",], n_staff_contact, rel_trans_staff))
-            df$present_susp = ifelse(df$id%in%staff_inf_vec.out[[1]], F, df$present_susp)
+            staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="morning" & df$type==1,], n_contact_staff, rel_trans_staff))
           }
           if(shift==2 & (df$shift[df$id==a]=="evening")){
-            staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="evening",], n_staff_contact, rel_trans_staff))
-            df$present_susp = ifelse(df$id%in%staff_inf_vec.out[[1]], F, df$present_susp)
+            staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="evening" & df$type==1,], n_contact_staff, rel_trans_staff))
           }
           if(shift==3 & (df$shift[df$id==a]=="night")){
-            staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="night",], n_staff_contact, rel_trans_staff))
-            df$present_susp = ifelse(df$id%in%staff_inf_vec.out[[1]], F, df$present_susp)
+            staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="night" & df$type==1,], n_contact_staff, rel_trans_staff))
           }
+          df$present_susp = ifelse(df$id%in%staff_inf_vec.out[[1]], F, df$present_susp)
         }
         staff_inf_vec <- staff_inf_vec.out[[1]]
         staff_inf_vec_total = append(staff_inf_vec_total, staff_inf_vec)
@@ -1344,186 +1334,57 @@ run_model = function(time = 30,
         df$source = ifelse(df$id%in%staff_inf_vec, a, df$source)
         df$source_symp = ifelse(df$id%in%staff_inf_vec, df$symp[df$id==a], df$source_symp)
         df$not_inf = ifelse(df$id%in%staff_inf_vec, F, df$not_inf)
-        df$present_susp = ifelse(df$id%in%staff_inf_vec, F, df$present_susp)
       }
       
       # run model for infectious individuals in common area of nursing home
-      if(quarantine){
-        common_infs = df$id[df$trans_now & !df$isolated & !df$quarantined & df$type!=2]
-      } else{
-        common_infs = df$id[df$trans_now & !df$isolated & df$type!=2]
-      }
+      common_infs = df$id[df$trans_now & !df$isolated & !df$quarantined & df$type!=2]
       if(length(common_infs)>1) common_infs = sample(common_infs)
       
-      common_inf_vec_total <- c()
       for(a in common_infs){
-        common_inf_vec = c()
+        common_inf_vec.out <- c()
         
+        # COMMON AREA INTERACTIONS
         for(shift in 1:3){
-          #if(n_staff_contact>0) random_staff_contacts = sample_k_regular(sum(df$present & df$adult & !df$family), n_staff_contact)
-          
           if(shift==1 & (df$shift[df$id==a]=="morning" | df$shift[df$id==a]=="all")){
-            
-            # COMMON AREA CONTACT STRUCTURE
-            # sample from a random regular graph
-            # this approach ensures reciprocity
-            # you may want to split out to ensure reciprocity in contact type
-            common_contacts = tryCatch(sample_k_regular(ifelse(quarantine, 
-                                                               sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="morning" | df$shift=="all") & df$type!=2,])), 
-                                                               sum(nrow(df[!df$isolated & (df$shift=="morning" | df$shift=="all") & df$type!=2,]))), df$n_contact[1]), error = function(err) {0})
-            # choose contacts that become infected
-            if(quarantine){
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
-              common_inf_vec_total = append(common_inf_vec_total, common_inf_vec)
-              
-              #Track risk set for unit testing
-              df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                  df$t_inf[df$id == a] <= t & 
-                                                                                                                  df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==0 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-              df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                      df$t_inf[df$id == a] <= t & 
-                                                                                                                      df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-            }else{
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated & df$type!=2,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="morning" | df$shift=="all") & !df$isolated & df$type!=2,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="morning" | df$shift=="all") & !df$isolated & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
-              common_inf_vec_total = append(common_inf_vec_total, common_inf_vec)
-              
-              df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                  df$t_inf[df$id == a] <= t & 
-                                                                                                                  df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==0 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-              df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                      df$t_inf[df$id == a] <= t & 
-                                                                                                                      df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-            }
-            df$present_susp = ifelse(df$id%in%common_inf_vec, F, df$present_susp)
-            # quarantine
-            # if pre/asymptomatic, find when infected tests positive/symptoms show
-            if(test & quarantine & length(df[df$id%in%contact_id & (df$type!=1 | df$role==4),])>0){
-              future_days<-c()
-              for(day in testing_days){
-                future_days = append(future_days, ifelse(day-t>0, day, 0))
-                next_day = t+min(abs(future_days-t))
-              }
-              df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
-                                                                                        df$t_symp[df$id==a], ifelse(test, 
-                                                                                                                    ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, 
-                                                                                                                           df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]), df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]))
-              
-              df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]!=-13, 
-                                                                                            df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]+quarantine.length, 
-                                                                                            df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)])
-            }
+            common_inf_vec.out = append(common_inf_vec.out, run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], n_contact_common, rel_trans_common))
           }
           if(shift==2 & (df$shift[df$id==a]=="evening" | df$shift[df$id==a]=="all")){
-            common_contacts = tryCatch(sample_k_regular(ifelse(quarantine, 
-                                                               sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="evening" | df$shift=="all") & df$type!=2,])), 
-                                                               sum(nrow(df[!df$isolated & (df$shift=="evening" | df$shift=="all") & df$type!=2,]))), df$n_contact[1]), error = function(err) {0})
-            
-            if(quarantine){
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
-              common_inf_vec_total = append(common_inf_vec_total, common_inf_vec)
-              
-              df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                  df$t_inf[df$id == a] <= t & 
-                                                                                                                  df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==0 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-              df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                      df$t_inf[df$id == a] <= t & 
-                                                                                                                      df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-            }else{
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="evening" | df$shift=="all") & !df$isolated & df$type!=2,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="evening" | df$shift=="all") & !df$isolated & df$type!=2,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="evening" | df$shift=="all") & !df$isolated & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
-              common_inf_vec_total = append(common_inf_vec_total, common_inf_vec)
-              
-              df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                  df$t_inf[df$id == a] <= t & 
-                                                                                                                  df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==0 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-              df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                      df$t_inf[df$id == a] <= t & 
-                                                                                                                      df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-            }
-            df$present_susp = ifelse(df$id%in%common_inf_vec, F, df$present_susp)
-            # quarantine
-            # if pre/asymptomatic, find when infected tests positive/symptoms show
-            if(test & quarantine & length(df[df$id%in%contact_id & (df$type!=1 | df$role==4),])>0){
-              future_days<-c()
-              for(day in testing_days){
-                future_days = append(future_days, ifelse(day-t>0, day, 0))
-                next_day = t+min(abs(future_days-t))
-              }
-              df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
-                                                                                        df$t_symp[df$id==a], ifelse(test, 
-                                                                                                                    ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, 
-                                                                                                                           df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]), df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]))
-              
-              df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]!=-13, 
-                                                                                            df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]+quarantine.length, 
-                                                                                            df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)])
-            }
+            common_inf_vec.out = append(common_inf_vec.out, run_common(a, df[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], n_contact_common, rel_trans_common))
           }
           if(shift==3 & (df$shift[df$id==a]=="night" | df$shift[df$id==a]=="all")){
-            
-            # COMMON AREA CONTACT STRUCTURE
-            # sample from a random regular graph
-            # this approach ensures reciprocity
-            # you may want to split out to ensure reciprocity in contact type
-            common_contacts = tryCatch(sample_k_regular(ifelse(quarantine, 
-                                                               sum(nrow(df[!df$isolated & !df$quarantined & (df$shift=="night" | df$shift=="all") & df$type!=2,])), 
-                                                               sum(nrow(df[!df$isolated & (df$shift=="night" | df$shift=="all") & df$type!=2,]))), df$n_contact[1]), error = function(err) {0})
-            # choose contacts that become infected
-            if(quarantine){
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
-              common_inf_vec_total = append(common_inf_vec_total, common_inf_vec)
-              
-              #Track risk set for unit testing
-              df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                  df$t_inf[df$id == a] <= t & 
-                                                                                                                  df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==0 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-              df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                      df$t_inf[df$id == a] <= t & 
-                                                                                                                      df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-            }else{
-              common_inf_vec = tryCatch({run_common(a, df[(df$shift=="night" | df$shift=="all") & !df$isolated & df$type!=2,], common_contacts)}, error = function(err) {0})
-              id = which(df[(df$shift=="night" | df$shift=="all") & !df$isolated & df$type!=2,]$id[df$shift!="absent"]==a)
-              contact_id = tryCatch(df$id[(df$shift=="night" | df$shift=="all") & !df$isolated & df$type!=2][common_contacts[[id]][[1]]], error = function(err) {0})
-              common_inf_vec_total = append(common_inf_vec_total, common_inf_vec)
-              
-              df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                  df$t_inf[df$id == a] <= t & 
-                                                                                                                  df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==0 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-              df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
-                                                                                                                      df$t_inf[df$id == a] <= t & 
-                                                                                                                      df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% contact_id & df$type==1 & df$susp != 0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
-            }
-            df$present_susp = ifelse(df$id%in%common_inf_vec, F, df$present_susp)
-            # quarantine
-            # if pre/asymptomatic, find when infected tests positive/symptoms show
-            if(test & quarantine & length(df[df$id%in%contact_id & (df$type!=1 | df$role==4),])>0){
-              future_days<-c()
-              for(day in testing_days){
-                future_days = append(future_days, ifelse(day-t>0, day, 0))
-                next_day = t+min(abs(future_days-t))
-              }
-              df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
-                                                                                        df$t_symp[df$id==a], ifelse(test, 
-                                                                                                                    ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, 
-                                                                                                                           df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]), df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]))
-              
-              df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)] = ifelse(df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]!=-13, 
-                                                                                            df$t_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)]+quarantine.length, 
-                                                                                            df$t_end_quarantine[df$id%in%contact_id & (df$type!=1 | df$role==4)])
-            }
+            common_inf_vec.out = append(common_inf_vec.out, run_common(a, df[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], n_contact_common, rel_trans_common))
           }
+          df$present_susp = ifelse(df$id%in%common_inf_vec.out[[1]], F, df$present_susp)
+        }
+        common_inf_vec <- common_inf_vec.out[[1]]
+        
+        # quarantine
+        # if pre/asymptomatic, find when infected tests positive/symptoms show
+        if(test & quarantine & length(df[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4),])>0){
+          future_days <- c()
+          for(day in testing_days){
+            future_days = append(future_days, ifelse(day-t>0, day, 0))
+            next_day = t+min(abs(future_days-t))
+          }
+          df$t_quarantine[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4)] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
+                                                                                    df$t_symp[df$id==a], ifelse(test, 
+                                                                                                                ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, 
+                                                                                                                       df$t_quarantine[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4)]), df$t_quarantine[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4)]))
+          
+          df$t_end_quarantine[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4)] = ifelse(df$t_quarantine[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4)]!=-13, 
+                                                                                        df$t_quarantine[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4)]+quarantine.length, 
+                                                                                        df$t_end_quarantine[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4)])
         }
         
         df$location[df$id%in%common_inf_vec] = "Common area"
+        
+        #Track risk set for unit testing
+        df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
+                                                                                                            df$t_inf[df$id == a] <= t & 
+                                                                                                            df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% common_inf_vec.out[[2]] & df$type==0 & df$susp!=0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
+        df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
+                                                                                                                df$t_inf[df$id == a] <= t & 
+                                                                                                                df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% common_inf_vec.out[[2]] & df$type==1 & df$susp!=0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
         
         # add to total # of infections from this person
         df$tot_inf[df$id==a] = df$tot_inf[df$id==a] + sum(unique(common_inf_vec)>0, na.rm=T)
@@ -1533,7 +1394,6 @@ run_model = function(time = 30,
         df$source = ifelse(df$id%in%common_inf_vec, a, df$source)
         df$source_symp = ifelse(df$id%in%common_inf_vec, df$symp[df$id==a], df$source_symp)
         df$not_inf = ifelse(df$id%in%common_inf_vec, F, df$not_inf)
-        df$present_susp = ifelse(df$id%in%common_inf_vec, F, df$present_susp)
       }
     }
     
@@ -1561,15 +1421,25 @@ run_model = function(time = 30,
 }
 
 
+start = make_NH(synthpop = synthpop, cohorting = T, visitors = F)
+nh = initialize_NH(rel_trans_room_symp_res = 1, 
+                   p_asymp_nonres = .5, p_asymp_res = .4, p_subclin_nonres = 0, p_subclin_res = 0,
+                   attack = .11, staff_vax_req = F, res_vax = 0, staff_vax = 0, visit_vax = 0, 
+                   staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
+                   staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, 
+                   disperse_transmission = T, isolate = T, vax_eff = 0, start = start)
+sched = make_schedule(time = 45, nh = nh)
+
+
+
 #' Run model multiple times and summarize results
 #'
 #' @param N number of runs
 #' @param cohorting whether certain staff are assigned to certain residents; defaults to F
 #' @param visitors whether visitors are allowed; defaults to F
-#' @param n_contacts Number of sustained contacts in NH common area; defaults to 4
-#' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1
+#' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1/4
+#' @param rel_trans_staff Relative attack rate of staff-staff interactions (vs. room); defaults to 1/4
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; defaults to 1
-#' @param rel_trans_staff relative transmission in staff-staff interactions vs. resident's room; defaults to 2
 #' @param p_asymp_nonres Fraction of staff with asymptomatic (unsuspected) disease; defaults to 0.8
 #' @param p_asymp_res Fraction of residents with asymptomatic (unsuspected) disease; defaults to 0.4
 #' @param p_subclin_nonres Fraction of non-residents with subclinical but not techincally asymptomatic disease; defaults to 0
@@ -1586,7 +1456,8 @@ run_model = function(time = 30,
 #' @param visit_susp_red Factor by which visitor susceptibility is reduced due to intervention; defaults to 1
 #' @param res_susp_red Factor by which resident susceptibility is reduced due to intervention; defaults to 1
 #' @param disperse_transmission Whether transmission is overdispersed (vs. all have equal attack rate); default to T
-#' @param n_staff_contact number of contacts a teacher/staff member has with other teachers/staff members; defaults to 5
+#' @param n_contact_common number of contacts a staff/resident has with other staff/residents in common area; defaults to 6
+#' @param n_contact_staff number of contacts a staff member has with other staff members; defaults to 10
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param time_seed_inf time(s) at which to introduce new infectious individuals; defaults to NA and randomly selects one time
 #' @param days_inf_mild length of infectious period for mild COVID, defaults to 5 (used to be days_inf)
@@ -1610,19 +1481,19 @@ run_model = function(time = 30,
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 5
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
 #' @param overdisp_off all overdispersion off; defaults to F
-#' @param synthpop synthetic population; defaults to synthpop_NH stored in file
-#' @param nh make_NH object; defaults to NA and will call for each simulation
+#' @param nh nursing home population; from initialize_NH()
+#' @param sched nursing home schedule; from make_schedule()
 #'
 #' @export
-mult_runs = function(N, cohorting = T, visitors = F, n_contacts = 4, rel_trans_common = 1/4, 
-                     rel_trans_room_symp_res = 1, rel_trans_staff = 1/4, p_asymp_nonres = 0.5, p_asymp_res = 0.4, 
+mult_runs = function(N, cohorting = T, visitors = F, n_contacts = 4, rel_trans_common = 1/4, rel_trans_staff = 1/4, 
+                     rel_trans_room_symp_res = 1, p_asymp_nonres = 0.5, p_asymp_res = 0.4, 
                      p_subclin_nonres = 0, p_subclin_res = 0, attack = 0.11, staff_vax_req = F, 
-                     res_vax = 0.65, staff_vax = 0.4, visit_vax = 0.4, staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
-                     staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, disperse_transmission = T, 
-                     n_staff_contact = 10, n_start = 1, time_seed_inf = NA, days_inf = 5, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, 
+                     res_vax = 0, staff_vax = 0, visit_vax = 0, staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
+                     staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, disperse_transmission = T, n_contact_common = 6,
+                     n_contact_staff = 10, n_start = 1, time_seed_inf = NA, days_inf = 5, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, 
                      isolate = T, time = 30, test = T, test_sens = 0.7, test_frac = 0.9, test_days = 'week', 
                      test_type = 'all', test_start_day = 1, start_mult = 1, start_type = 'cont', nonres_prob = 0.001, 
-                     quarantine = F, quarantine.length = 5, vax_eff = 0.6, overdisp_off = F, synthpop, nh = NA){
+                     quarantine = F, quarantine.length = 5, vax_eff = 0, overdisp_off = F, nh, sched){
   
   keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N),
                     start_visit = numeric(N), start_res = numeric(N), start_symp = numeric(N), source_asymp = numeric(N), source_asymp_visit = numeric(N),
@@ -1641,32 +1512,14 @@ mult_runs = function(N, cohorting = T, visitors = F, n_contacts = 4, rel_trans_c
   # run over time
   for(i in 1:N){
     
-    ## make nursing home
-    if(is.na(unlist(nh))[1]){
-      
-      nh = make_NH(synthpop = synthpop, cohorting = cohorting, visitors = visitors)
-      
-    }
-    ## add COVID characteristcs
-    nh = initialize_NH(n_contacts = n_contacts, rel_trans_common = rel_trans_common,
-                       rel_trans_room_symp_res = rel_trans_room_symp_res, p_asymp_nonres = p_asymp_nonres, 
-                       p_asymp_res = p_asymp_res, p_subclin_nonres = p_subclin_nonres, p_subclin_res = p_subclin_res, 
-                       attack = attack, res_vax = res_vax, staff_vax_req = staff_vax_req, 
-                       staff_vax = staff_vax, visit_vax = visit_vax, staff_trans_red = staff_trans_red, 
-                       visit_trans_red = visit_trans_red, res_trans_red = res_trans_red, staff_susp_red = staff_susp_red, 
-                       visit_susp_red = visit_susp_red, res_susp_red = res_susp_red, disperse_transmission = disperse_transmission, 
-                       isolate = isolate, vax_eff = vax_eff, start = nh)
-    
-    ## make schedule
-    sched = make_schedule(time = time + 15, start = nh)
-    
     ## run model
     df = run_model(time = time, test = test, test_days = test_days, test_sens = test_sens, 
-                   test_frac = test_frac, test_start_day = test_start_day, n_staff_contact = n_staff_contact, 
+                   test_frac = test_frac, test_start_day = test_start_day, n_contact_common = n_contact_common, 
+                   n_contact_staff = n_contact_staff,
                    n_start = n_start, days_inf = days_inf, mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres, 
                    seed_asymp = seed_asymp, time_seed_inf = time_seed_inf, start_type = start_type, start_mult = start_mult, 
                    nonres_prob = nonres_prob, quarantine = quarantine, quarantine.length = quarantine.length,
-                   rel_trans_staff = rel_trans_staff, test_type = test_type, overdisp_off = overdisp_off, df = nh, sched = sched)
+                   rel_trans_common = rel_trans_common, rel_trans_staff = rel_trans_staff, test_type = test_type, overdisp_off = overdisp_off, df = nh, sched = sched)
     
     time_keep = df$start.time[1]
     #print(time_keep)
@@ -1676,65 +1529,65 @@ mult_runs = function(N, cohorting = T, visitors = F, n_contacts = 4, rel_trans_c
     keep$all[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1)
     keep$tot[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & !df$id%in%c(df$id[df$start==T]))
     
-    keep$all_15[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & df$t_end_inf_home >= 15)
-    keep$tot_15[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 15)
-    keep$detected_15[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==15)
-    
-    keep$all_15_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & df$t_end_inf_home >= 15)
-    keep$tot_15_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 15)
-    keep$detected_15_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==15)
-    
-    keep$all_15_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & df$t_end_inf_home >= 15)
-    keep$tot_15_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 15)
-    keep$detected_15_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==15)
-    
-    keep$all_22[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & df$t_end_inf_home >= 22)
-    keep$tot_22[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 22)
-    keep$detected_22[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==22)
-    
-    keep$all_22_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & df$t_end_inf_home >= 22)
-    keep$tot_22_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 22)
-    keep$detected_22_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==22)
-    
-    keep$all_22_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & df$t_end_inf_home >= 22)
-    keep$tot_22_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 22)
-    keep$detected_22_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==22)
-    
-    keep$all_29[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & df$t_end_inf_home >= 29)
-    keep$tot_29[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 29)
-    keep$detected_29[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==29)
-    
-    keep$all_29_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & df$t_end_inf_home >= 29)
-    keep$tot_29_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 29)
-    keep$detected_29_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==29)
-    
-    keep$all_29_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & df$t_end_inf_home >= 29)
-    keep$tot_29_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 29)
-    keep$detected_29_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==29)
-    
-    keep$all_36[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & df$t_end_inf_home >= 36)
-    keep$tot_36[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 36)
-    keep$detected_36[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==36)
-    
-    keep$all_36_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & df$t_end_inf_home >= 36)
-    keep$tot_36_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 36)
-    keep$detected_36_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==36)
-    
-    keep$all_36_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & df$t_end_inf_home >= 36)
-    keep$tot_36_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 36)
-    keep$detected_36_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==36)
-    
-    keep$all_43[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & df$t_end_inf_home >= 43)
-    keep$tot_43[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 43)
-    keep$detected_43[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==43)
-    
-    keep$all_43_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & df$t_end_inf_home >= 43)
-    keep$tot_43_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 43)
-    keep$detected_43_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==43)
-    
-    keep$all_43_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & df$t_end_inf_home >= 43)
-    keep$tot_43_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 43)
-    keep$detected_43_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==43)
+    # keep$all_15[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & df$t_end_inf_home >= 15)
+    # keep$tot_15[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 15)
+    # keep$detected_15[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==15)
+    # 
+    # keep$all_15_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & df$t_end_inf_home >= 15)
+    # keep$tot_15_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 15)
+    # keep$detected_15_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==15)
+    # 
+    # keep$all_15_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & df$t_end_inf_home >= 15)
+    # keep$tot_15_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 15)
+    # keep$detected_15_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==15)
+    # 
+    # keep$all_22[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & df$t_end_inf_home >= 22)
+    # keep$tot_22[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 22)
+    # keep$detected_22[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==22)
+    # 
+    # keep$all_22_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & df$t_end_inf_home >= 22)
+    # keep$tot_22_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 22)
+    # keep$detected_22_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==22)
+    # 
+    # keep$all_22_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & df$t_end_inf_home >= 22)
+    # keep$tot_22_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 22)
+    # keep$detected_22_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==22)
+    # 
+    # keep$all_29[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & df$t_end_inf_home >= 29)
+    # keep$tot_29[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 29)
+    # keep$detected_29[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==29)
+    # 
+    # keep$all_29_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & df$t_end_inf_home >= 29)
+    # keep$tot_29_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 29)
+    # keep$detected_29_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==29)
+    # 
+    # keep$all_29_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & df$t_end_inf_home >= 29)
+    # keep$tot_29_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 29)
+    # keep$detected_29_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==29)
+    # 
+    # keep$all_36[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & df$t_end_inf_home >= 36)
+    # keep$tot_36[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 36)
+    # keep$detected_36[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==36)
+    # 
+    # keep$all_36_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & df$t_end_inf_home >= 36)
+    # keep$tot_36_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 36)
+    # keep$detected_36_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==36)
+    # 
+    # keep$all_36_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & df$t_end_inf_home >= 36)
+    # keep$tot_36_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 36)
+    # keep$detected_36_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==36)
+    # 
+    # keep$all_43[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & df$t_end_inf_home >= 43)
+    # keep$tot_43[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 43)
+    # keep$detected_43[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==43)
+    # 
+    # keep$all_43_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & df$t_end_inf_home >= 43)
+    # keep$tot_43_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 43)
+    # keep$detected_43_staff[i] = sum(df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==43)
+    # 
+    # keep$all_43_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & df$t_end_inf_home >= 43)
+    # keep$tot_43_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 43)
+    # keep$detected_43_res[i] = sum(df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==43)
     
     # keep$from_staff[i] = 0 #sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & !df$HH_id%in%c(df$HH_id[df$start]) & !df$adult[df$source])
     keep$R0[i] = sum(df$tot_inf[df$start==T])
@@ -1909,7 +1762,7 @@ mult_runs = function(N, cohorting = T, visitors = F, n_contacts = 4, rel_trans_c
                                ifelse(is.na(mean(df$susp[df$type==2 & df$vacc] == 0)),
                                       sum((df$type==2 & df$vacc)),
                                       mean(df$susp[df$type==2 & df$vacc] == 0))*sum((df$type==2 & df$vacc)))/
-        (sum(df$type==0 & df$vacc) +sum(df$type==1 & df$vacc) + sum(df$type==2 & df$vacc))
+        (sum(df$type==0 & df$vacc) + sum(df$type==1 & df$vacc) + sum(df$type==2 & df$vacc))
     } else{
       keep$vax.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc] == 0)),
                                     sum(df$type==0 & df$vacc),
@@ -1917,7 +1770,7 @@ mult_runs = function(N, cohorting = T, visitors = F, n_contacts = 4, rel_trans_c
                                ifelse(is.na(mean(df$susp[df$type==1 & df$vacc] == 0)),
                                       sum((df$type==1 & df$vacc)),
                                       mean(df$susp[df$type==1 & df$vacc] == 0))*sum((df$type==1 & df$vacc)))/
-        (sum(df$type==0 & df$vacc) +sum(df$type==1 & df$vacc))
+        (sum(df$type==0 & df$vacc) + sum(df$type==1 & df$vacc))
     }
     
     

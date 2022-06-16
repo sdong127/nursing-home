@@ -12,6 +12,7 @@ output <- data.table(output)
 output$attack = 0.11
 output$test = T
 visitors = F
+quarantine = F
 
 #Create summary measures of model output, grouped by model input parameters
 output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = TRUE), inf_ct_asympR_R_room.sum = sum(inf_ct_asympR_R_room, na.rm = TRUE), inf_ct_sympR_S_room.sum = sum(inf_ct_sympR_S_room, na.rm = TRUE), inf_ct_asympR_S_room.sum = sum(inf_ct_asympR_S_room, na.rm = TRUE), inf_ct_S_S_room.sum = sum(inf_ct_S_S_room, na.rm = TRUE), inf_ct_sympS_R_room.sum = sum(inf_ct_sympS_R_room, na.rm = TRUE), inf_ct_asympS_R_room.sum = sum(inf_ct_asympS_R_room, na.rm = TRUE),
@@ -50,7 +51,7 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
 
 #Create table to compare observed SAR with predicted SAR
 ##NB: This does not really work with testing yet, since it is difficult to determine a closed-form formula for the predicted SAR
-sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), isolate = T, symptomatic = c(T,F), quarantine = F, group = output$group) %>% left_join(output, by = "group") %>%
+sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), isolate = T, symptomatic = c(T,F), group = output$group) %>% left_join(output, by = "group") %>%
   mutate(expected.sar = attack*
            ifelse(source=="res", res_trans_red, 1)*
            # ifelse(source=="res" & comorbid==0, NA, 1)*
@@ -66,7 +67,7 @@ sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactio
            ifelse(susp=="res", res_susp_red, 1)*
            ifelse(susp=="staff", staff_susp_red, 1)*
            ifelse(susp=="visit", visit_susp_red, 1)*
-           ifelse(location=="Room" & quarantine, 0.5, 1)) %>%
+           ifelse(location=="Room" & (susp=="res" | susp=="staff") & quarantine, 0.5, 1)) %>%
   relocate(expected.sar) %>%
   mutate(observed.sar = NA)
 if(visitors==T){

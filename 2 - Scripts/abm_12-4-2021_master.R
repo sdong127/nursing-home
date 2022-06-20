@@ -10,6 +10,7 @@
 library(tidyverse)
 library(igraph)
 library(tictoc)
+library(data.table)
 
 synthpop = read.csv("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/0 - Synthetic Population/synthpop.csv")
 
@@ -505,37 +506,40 @@ run_room = function(a, df, t, quarantine){
     }else{roommate_infs = 0}
     
     # make vector of staff in infected resident's room at current time
-    staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
-                                                                                                             != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
-    staff_vec[2,] = df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
-                                                                                                                 != ncol(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
-    staff_vec[3,] = df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
-                                                                                                           != ncol(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
-    staff_vec[4,] = df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                   != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
-    staff_vec[5,] = df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
-                                                                                                                   != ncol(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
-    staff_vec[6,] = df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
-                                                                                                             != ncol(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
-    staff_vec[7,] = df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                   != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
-    staff_vec[8,] = df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
-                                                                                                                   != ncol(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
-    staff_vec[9,] = df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
-                                                                                                             != ncol(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
-    staff_vec[10,] = df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                  != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
-    staff_vec[11,] = df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
-                                                                                                                  != ncol(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
+    staff_vec = list(as.data.table(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                           != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]),
+                     as.data.table(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                                != ncol(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]),
+                     as.data.table(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                          != ncol(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]),
+                     as.data.table(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                  != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]),
+                     as.data.table(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                                  != ncol(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]),
+                     as.data.table(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                            != ncol(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]),
+                     as.data.table(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                  != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]),
+                     as.data.table(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                                  != ncol(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]),
+                     as.data.table(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                            != ncol(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]),
+                     as.data.table(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]),
+                     as.data.table(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                                != ncol(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]))
+    staff_vec = rbindlist(staff_vec)
     
     # determine whether staff becomes infected
-    prob_staff = ifelse(quarantine & (df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17) | (df$symp[df$id==a]==1 & df$t_symp[df$id==a]<=t & df$t_symp[df$id==a]!=-1),
-                        rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*.5 < 1,
-                                                                        df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*.5,
-                                                                        1)),
-                        rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp < 1,
-                                                                        df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp,
-                                                                        1)))
+    if(quarantine & ((df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17) | (df$symp[df$id==a]==1 & df$t_symp[df$id==a]<=t & df$t_symp[df$id==a]!=-1))){
+      prob_staff = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*.5 < 1,
+                                                                   df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*.5,
+                                                                   1))
+    }else{
+      prob_staff = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp < 1,
+                                                                   df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp,
+                                                                   1))
+    }
     
     staff = staff_vec$id
     
@@ -544,13 +548,12 @@ run_room = function(a, df, t, quarantine){
     
     # make vector of resident's visitor present at NH
     if('family' %in% colnames(df) & df$flag_fam[df$id==a]!=1 & any(df$shift=="morning" & df$type==2)){
-      visit_vec <- c()
       visitor_id = df$id[df$family==df$family[df$id==a] & df$id!=a]
       visitor_id = visitor_id[!is.na(visitor_id)]
       
       if(length(visitor_id)>0){
         visitor = df[df$id==visitor_id,]
-        if(visitor$shift!="absent") append(visit_vec, visitor)
+        if(visitor$shift!="absent") {visit_vec = visitor}
       }
       
       # determine whether visitor becomes infected
@@ -611,7 +614,7 @@ run_room = function(a, df, t, quarantine){
           visitor_id = visitor_id[!is.na(visitor_id)]
           if(length(visitor_id)>0){
             visitor = df[df$id==visitor_id,]
-            if(visitor$shift!="absent") append(visit_vec, visitor)
+            if(visitor$shift!="absent") {visit_vec = as.data.frame(append(visit_vec, visitor))}
           }
         }
       }
@@ -653,23 +656,26 @@ run_room = function(a, df, t, quarantine){
     res_infs = res*prob_res
     
     # make vector of staff in visitor's resident's room at current time
-    staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                  != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
-    staff_vec[2,] = df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                        != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
-    staff_vec[3,] = df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                        != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
-    staff_vec[4,] = df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                       != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
+    staff_vec = list(as.data.frame(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                     != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]),
+                     as.data.frame(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                       != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]),
+                     as.data.frame(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                       != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]),
+                     as.data.frame(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                     != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]))
+    staff_vec = rbindlist(staff_vec)
     
     # determine whether staff becomes infected
-    prob_staff = ifelse(quarantine & (df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17) | (df$symp[df$id==a]==1 & df$t_symp[df$id==a]<=t & df$t_symp[df$id==a]!=-1),
-                        rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*.5 < 1,
-                                                                        df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*.5,
-                                                                        1)),
-                        rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp < 1,
-                                                                        df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp,
-                                                                        1)))
+    if(quarantine & ((df$t_notify[df$id==a]<=t & df$t_notify[df$id==a]!=-17) | (df$symp[df$id==a]==1 & df$t_symp[df$id==a]<=t & df$t_symp[df$id==a]!=-1))){
+      prob_staff = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*.5 < 1,
+                                                                   df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp*.5,
+                                                                   1))
+    }else{
+      prob_staff = rbinom(nrow(staff_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp < 1,
+                                                                   df$room_trans_prob[df$id==a]*staff_vec$susp*staff_vec$present_susp,
+                                                                   1))
+    }
     
     staff = staff_vec$id
     
@@ -1126,12 +1132,15 @@ run_model = function(time = 30,
         for(shift in 1:3){
           if(shift==1 & (df$shift[df$id==a]=="morning" | df$shift[df$id==a]=="all")){
             room_inf_vec = append(room_inf_vec, run_room(a, df[df$shift=="morning" | df$shift=="all",], t, quarantine))
+            room_inf_vec = room_inf_vec[!room_inf_vec==0]
           }
           if(shift==2 & (df$shift[df$id==a]=="evening" | df$shift[df$id==a]=="all")){
             room_inf_vec = append(room_inf_vec, run_room(a, df[df$shift=="evening" | df$shift=="all",], t, quarantine))
+            room_inf_vec = room_inf_vec[!room_inf_vec==0]
           }
           if(shift==3 & (df$shift[df$id==a]=="night" | df$shift[df$id==a]=="all")){
             room_inf_vec = append(room_inf_vec, run_room(a, df[df$shift=="night" | df$shift=="all",], t, quarantine))
+            room_inf_vec = room_inf_vec[!room_inf_vec==0]
           }
           df$present_susp[df$id%in%room_inf_vec] = 0
           room_inf_vec_total = append(room_inf_vec_total, room_inf_vec)
@@ -1143,28 +1152,29 @@ run_model = function(time = 30,
         if(df$type[df$id==a]==0){
           
           # check staff in resident's room
-          staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                   != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
-          staff_vec[2,] = df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
-                                                                                                                       != ncol(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
-          staff_vec[3,] = df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
-                                                                                                                 != ncol(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
-          staff_vec[4,] = df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                         != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
-          staff_vec[5,] = df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
-                                                                                                                         != ncol(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
-          staff_vec[6,] = df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
-                                                                                                                   != ncol(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
-          staff_vec[7,] = df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                         != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
-          staff_vec[8,] = df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
-                                                                                                                         != ncol(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
-          staff_vec[9,] = df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
-                                                                                                                   != ncol(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]
-          staff_vec[10,] = df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                        != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]
-          staff_vec[11,] = df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
-                                                                                                                        != ncol(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]
+          staff_vec = list(as.data.table(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                      != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]),
+                           as.data.table(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                                      != ncol(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]),
+                           as.data.table(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                                != ncol(df[df$rn_cohort_night==df$rn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]),
+                           as.data.table(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                        != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]),
+                           as.data.table(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                                        != ncol(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]),
+                           as.data.table(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                                  != ncol(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]),
+                           as.data.table(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                        != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]),
+                           as.data.table(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                                        != ncol(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]),
+                           as.data.table(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",][rowSums(is.na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",])) 
+                                                                                                                                  != ncol(df[df$cna_cohort_night==df$cna_cohort_night[df$id==a] & df$type==1 & df$shift=="night",]),]),
+                           as.data.table(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                      != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==a] & df$type==1 & df$shift=="morning",]),]),
+                           as.data.table(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",][rowSums(is.na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",])) 
+                                                                                                                                      != ncol(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==a] & df$type==1 & df$shift=="evening",]),]))
+          staff_vec = rbindlist(staff_vec)
           
           #Track risk set for unit testing
           df$person.days.at.risk.room.res[df$id == a] <- df$person.days.at.risk.room.res[df$id == a] + 
@@ -1206,7 +1216,7 @@ run_model = function(time = 30,
             # get next day of testing
             future_days<-c()
             for(day in testing_days){
-              future_days = append(future_days, ifelse(day-t>0, day, 0))
+              future_days[length(future_days)+1] = ifelse(day-t>0, day, 0)
             }
             next_day = t+min(abs(future_days-t))
             
@@ -1233,7 +1243,7 @@ run_model = function(time = 30,
                 visitor_id = visitor_id[!is.na(visitor_id)]
                 if(length(visitor_id)>0){
                   visitor = df[df$id==visitor_id,]
-                  if(visitor$shift!="absent") append(visit_vec, visitor)
+                  if(visitor$shift!="absent") {visit_vec = as.data.frame(append(visit_vec, visitor))}
                 }
               }
             }
@@ -1271,14 +1281,15 @@ run_model = function(time = 30,
             (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%res_vec$id &
                                                                                                                                                                df$type==0 & df$susp != 0])
           # make vector of staff in visitor's resident's room at current time
-          staff_vec = df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                        != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
-          staff_vec[2,] = df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                              != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
-          staff_vec[3,] = df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                              != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
-          staff_vec[4,] = df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
-                                                                                                                            != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]
+          staff_vec = list(as.data.frame(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                           != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]),
+                           as.data.frame(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                             != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]),
+                           as.data.frame(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                             != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]),
+                           as.data.frame(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",])) 
+                                                                                                                                           != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res_id] & df$type==1 & df$shift=="morning",]),]))
+          staff_vec = rbindlist(staff_vec)
           
           df$person.days.at.risk.room.staff[df$id == a] <- df$person.days.at.risk.room.staff[df$id == a] +
             (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & df$t_inf[df$id == a] <= t & df$t_end_inf_home[df$id == a] >= t)*sum(df$present_susp[df$id%in%staff_vec$id & 
@@ -1286,7 +1297,7 @@ run_model = function(time = 30,
         }
         
         # add to total # of infections from this person
-        df$tot_inf[df$id==a] = df$tot_inf[df$id==a] + sum(unique(room_inf_vec)>0, na.rm=T)
+        df$tot_inf[df$id==a] = df$tot_inf[df$id==a] + sum(unique(room_inf_vec[!room_inf_vec==0])>0, na.rm=T)
         
         # flag people infected at this time step
         df$now = ifelse(df$id%in%room_inf_vec, T, df$now)
@@ -1307,15 +1318,18 @@ run_model = function(time = 30,
         for(shift in 1:3){
           if(shift==1 & (df$shift[df$id==a]=="morning")){
             staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="morning" & df$type==1,], n_contact_staff, rel_trans_staff))
+            staff_inf_vec.out[[1]] = staff_inf_vec.out[[1]][!staff_inf_vec.out[[1]]==0]
           }
           if(shift==2 & (df$shift[df$id==a]=="evening")){
             staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="evening" & df$type==1,], n_contact_staff, rel_trans_staff))
+            staff_inf_vec.out[[1]] = staff_inf_vec.out[[1]][!staff_inf_vec.out[[1]]==0]
           }
           if(shift==3 & (df$shift[df$id==a]=="night")){
             staff_inf_vec.out = append(staff_inf_vec.out, run_staff(a, df[df$shift=="night" & df$type==1,], n_contact_staff, rel_trans_staff))
+            staff_inf_vec.out[[1]] = staff_inf_vec.out[[1]][!staff_inf_vec.out[[1]]==0]
           }
-          df$present_susp = ifelse(df$id%in%staff_inf_vec.out[[1]], F, df$present_susp)
         }
+        df$present_susp = ifelse(df$id%in%staff_inf_vec.out[[1]], F, df$present_susp)
         staff_inf_vec <- staff_inf_vec.out[[1]]
         staff_inf_vec_total = append(staff_inf_vec_total, staff_inf_vec)
         #rand_trans = 0
@@ -1324,10 +1338,10 @@ run_model = function(time = 30,
         #Track risk set for unit testing
         df$person.days.at.risk.staff.staff[df$id == a] <- df$person.days.at.risk.staff.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                               df$t_inf[df$id == a] <= t & 
-                                                                                                              df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% staff_inf_vec.out[[2]] & df$susp!=0 & !(df$id%in%room_inf_vec_total)])
+                                                                                                              df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% staff_inf_vec.out[[2]] & df$susp!=0 & !(df$id%in%unique(room_inf_vec_total))])
         
         # add to total # of infections from this person
-        df$tot_inf[df$id==a] = df$tot_inf[df$id==a] + sum(unique(staff_inf_vec)>0, na.rm=T)
+        df$tot_inf[df$id==a] = df$tot_inf[df$id==a] + sum(unique(staff_inf_vec[!staff_inf_vec==0])>0, na.rm=T)
         
         # flag people infected at this time step
         df$now = ifelse(df$id%in%staff_inf_vec, T, df$now)
@@ -1347,12 +1361,15 @@ run_model = function(time = 30,
         for(shift in 1:3){
           if(shift==1 & (df$shift[df$id==a]=="morning" | df$shift[df$id==a]=="all")){
             common_inf_vec.out = append(common_inf_vec.out, run_common(a, df[(df$shift=="morning" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], n_contact_common, rel_trans_common))
+            common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
           }
           if(shift==2 & (df$shift[df$id==a]=="evening" | df$shift[df$id==a]=="all")){
             common_inf_vec.out = append(common_inf_vec.out, run_common(a, df[(df$shift=="evening" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], n_contact_common, rel_trans_common))
+            common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
           }
           if(shift==3 & (df$shift[df$id==a]=="night" | df$shift[df$id==a]=="all")){
             common_inf_vec.out = append(common_inf_vec.out, run_common(a, df[(df$shift=="night" | df$shift=="all") & !df$isolated & !df$quarantined & df$type!=2,], n_contact_common, rel_trans_common))
+            common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
           }
           df$present_susp = ifelse(df$id%in%common_inf_vec.out[[1]], F, df$present_susp)
         }
@@ -1363,9 +1380,10 @@ run_model = function(time = 30,
         if(test & quarantine & length(df[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4),])>0){
           future_days <- c()
           for(day in testing_days){
-            future_days = append(future_days, ifelse(day-t>0, day, 0))
-            next_day = t+min(abs(future_days-t))
+            future_days[length(future_days)+1] = ifelse(day-t>0, day, 0)
           }
+          next_day = t+min(abs(future_days-t))
+          
           df$t_quarantine[df$id%in%common_inf_vec.out[[2]] & (df$type!=1 | df$role==4)] = ifelse(df$symp[df$id==a]==1 & df$t_symp[df$id==a]!=-1, 
                                                                                     df$t_symp[df$id==a], ifelse(test, 
                                                                                                                 ifelse(next_day-df$t_inf[df$id==a] < df$days_inf[df$id==a], next_day, 
@@ -1381,13 +1399,13 @@ run_model = function(time = 30,
         #Track risk set for unit testing
         df$person.days.at.risk.common.res[df$id == a] <- df$person.days.at.risk.common.res[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                             df$t_inf[df$id == a] <= t & 
-                                                                                                            df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% common_inf_vec.out[[2]] & df$type==0 & df$susp!=0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
+                                                                                                            df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% common_inf_vec.out[[2]] & df$type==0 & df$susp!=0 & !(df$id %in% c(unique(room_inf_vec_total), unique(staff_inf_vec_total)))])
         df$person.days.at.risk.common.staff[df$id == a] <- df$person.days.at.risk.common.staff[df$id == a] + (df$shift[df$id==a]==sched$shift[sched$id==a & sched$t==t] & 
                                                                                                                 df$t_inf[df$id == a] <= t & 
-                                                                                                                df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% common_inf_vec.out[[2]] & df$type==1 & df$susp!=0 & !(df$id %in% c(room_inf_vec_total, staff_inf_vec_total))])
+                                                                                                                df$t_end_inf[df$id == a] >= t)*sum(df$present_susp[df$id %in% common_inf_vec.out[[2]] & df$type==1 & df$susp!=0 & !(df$id %in% c(unique(room_inf_vec_total), unique(staff_inf_vec_total)))])
         
         # add to total # of infections from this person
-        df$tot_inf[df$id==a] = df$tot_inf[df$id==a] + sum(unique(common_inf_vec)>0, na.rm=T)
+        df$tot_inf[df$id==a] = df$tot_inf[df$id==a] + sum(unique(common_inf_vec[!common_inf_vec==0])>0, na.rm=T)
         
         # flag people infected at this time step
         df$now = ifelse(df$id%in%common_inf_vec, T, df$now)

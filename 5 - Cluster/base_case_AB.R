@@ -80,8 +80,8 @@ df_ELEM = make_df()
 set.seed(3232)
 start = make_NH(synthpop = synthpop, cohorting = T, visitors = F)
 nh = initialize_NH(rel_trans_room_symp_res = 1, 
-                   p_asymp_nonres = .5, p_asymp_res = .4, p_subclin_nonres = 0, p_subclin_res = 0,
-                   attack = .11, staff_vax_req = F, res_vax = 0, staff_vax = 0, visit_vax = 0, 
+                   p_asymp_nonres = 0, p_asymp_res = 0, p_subclin_nonres = 0, p_subclin_res = 0,
+                   daily_attack = .18, staff_vax_req = F, res_vax = 0, staff_vax = 0, visit_vax = 0, 
                    staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
                    staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, 
                    disperse_transmission = T, isolate = T, vax_eff = 0, start = start)
@@ -89,11 +89,12 @@ sched = make_schedule(time=45, nh = nh)
 
 
 print(detectCores())
-# run code
 
+df_ELEM$n_tot = 1
+
+# run code
 # profiling library
 library(profvis)
-library(ggplot2)
 
 # wrapper function
 tic()

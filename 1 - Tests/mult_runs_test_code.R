@@ -9,8 +9,8 @@ filelist <- list.files()
 output <- rbindlist(lapply(1:length(filelist), function(a){load(filelist[a]); output = out; return(output)}))
 
 output <- data.table(output)
-output$attack = 0.11
-output$test = T
+output$daily_attack = 0.18
+output$test = F
 visitors = F
 quarantine = F
 symptomatic = T
@@ -46,29 +46,31 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
                     start_res_time.mean = mean(start_res_time, na.rm = TRUE), start_nonres_time.mean = mean(start_nonres_time, na.rm = TRUE),
                     not_inf_start.mean = mean(not_inf_start, na.rm = TRUE), test_type.check.mean = mean(test_type.check, na.rm = TRUE), vaxxed.mean = mean(vaxxed, na.rm = TRUE),
                     
-                    group = paste(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, test_frac, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)),
+                    group = paste(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, daily_attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, test_frac, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)),
                  
-                 by = .(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, test_frac, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)]
+                 by = .(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, daily_attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, test_frac, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)]
 
 #Create table to compare observed SAR with predicted SAR
 ##NB: This does not really work with testing yet, since it is difficult to determine a closed-form formula for the predicted SAR
 sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), isolate = T, group = output$group) %>% left_join(output, by = "group") %>%
-  mutate(expected.sar = attack*
+  mutate(expected.sar = ifelse(source=="staff" | source=="visitor" | susp=="staff" | susp=="visitor", 1-(1-daily_attack)^(1/3), daily_attack)*
            ifelse(source=="res", res_trans_red, 1)*
-           # ifelse(source=="res" & comorbid==0, NA, 1)*
-           # ifelse(source=="res" & comorbid==1, res_trans_red*1/2, 1)*
-           # ifelse(source=="res" & comorbid==2, res_trans_red*1/4, 1)*
-           ifelse(source=="staff", staff_trans_red, 1)*
-           ifelse(source=="visit", visit_trans_red, 1)*
            ifelse(source=="res" & !symptomatic, mult_asymp_res, 1)*
            ifelse(source!="res" & !symptomatic, mult_asymp_nonres, 1)*
-           ifelse(location == "Room", ifelse(source=="res" & symptomatic, rel_trans_room_symp_res, 1), 1)*
-           ifelse(location == "Common area", rel_trans_common*ifelse(source=="res" & symptomatic & !isolate.x, rel_trans_room_symp_res, 1), 1)*
-           ifelse(location == "Staff interactions", rel_trans_staff, 1)*
+           ifelse(source=="staff", staff_trans_red, 1)*
+           ifelse(source=="visit", visit_trans_red, 1)*
            ifelse(susp=="res", res_susp_red, 1)*
            ifelse(susp=="staff", staff_susp_red, 1)*
            ifelse(susp=="visit", visit_susp_red, 1)*
-           ifelse(location=="Room" & (susp=="res" | susp=="staff") & quarantine, 0.5, 1)) %>%
+           ifelse(location == "Room" & source=="res" & symptomatic, rel_trans_room_symp_res, 1)*
+           ifelse(location=="Room" & ((source=="res" & susp=="staff") | (source=="staff" & susp=="res") | (source=="visitor" & susp=="staff")) & quarantine, 0.5, 1)*
+           ifelse(location == "Common area", rel_trans_common, 1)*
+           ifelse(location=="Common area" & source=="res" & symptomatic & !isolate.x, rel_trans_room_symp_res, 1)*
+           ifelse(location == "Staff interactions", rel_trans_staff, 1)
+           # ifelse(source=="res" & comorbid==0, NA, 1)*
+           # ifelse(source=="res" & comorbid==1, res_trans_red*1/2, 1)*
+           # ifelse(source=="res" & comorbid==2, res_trans_red*1/4, 1)*
+         ) %>%
   relocate(expected.sar) %>%
   mutate(observed.sar = NA)
 if(visitors==T){

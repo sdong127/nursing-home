@@ -82,8 +82,8 @@ nh = initialize_NH(rel_trans_room_symp_res = 1,
                    staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
                    staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, 
                    disperse_transmission = T, isolate = T, vax_eff = 0, start = start)
-cohorts = make_cohort(nh = nh)
 sched = make_schedule(time=45, nh = nh)
+cohorts = make_cohort(df = sched)
 
 
 print(detectCores())
@@ -92,5 +92,5 @@ df_ELEM$n_tot = 1
 
 # run code
 tic()
-g = run_parallel(df_ELEM, nh = nh, sched = sched, cohorts = cohorts)
+g = run_parallel(df_ELEM, sched, cohorts)
 toc()

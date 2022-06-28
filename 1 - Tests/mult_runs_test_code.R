@@ -10,7 +10,7 @@ output <- rbindlist(lapply(1:length(filelist), function(a){load(filelist[a]); ou
 
 output <- data.table(output)
 output$daily_attack = 0.18
-output$test = F
+output$test = T
 visitors = F
 quarantine = F
 symptomatic = T

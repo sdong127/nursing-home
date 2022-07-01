@@ -53,7 +53,7 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
 #Create table to compare observed SAR with predicted SAR
 ##NB: This does not really work with testing yet, since it is difficult to determine a closed-form formula for the predicted SAR
 sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), isolate = T, group = output$group) %>% left_join(output, by = "group") %>%
-  mutate(expected.sar = ifelse(source=="staff" | source=="visitor" | susp=="staff" | susp=="visitor", 1-(1-daily_attack)^(1/3), daily_attack)*
+  mutate(expected.sar = ifelse(source=="staff" | source=="visitor" | susp=="staff" | susp=="visitor" | location=="Common area", 1-(1-daily_attack)^(1/3), daily_attack)*
            ifelse(source=="res", res_trans_red, 1)*
            ifelse(source=="res" & !symptomatic, mult_asymp_res, 1)*
            ifelse(source!="res" & !symptomatic, mult_asymp_nonres, 1)*

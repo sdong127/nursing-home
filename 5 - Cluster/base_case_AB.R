@@ -86,6 +86,7 @@ nh = initialize_NH(rel_trans_room_symp_res = 1,
                    staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, 
                    disperse_transmission = T, isolate = T, vax_eff = 0, start = start)
 sched = make_schedule(time=45, nh = nh)
+cohorts = make_cohort(df = sched)
 
 
 print(detectCores())
@@ -99,7 +100,7 @@ library(profvis)
 # wrapper function
 tic()
 profvis({
-g = run_parallel(df_ELEM[1,], nh = nh, sched = sched)
+g = run_parallel(df_ELEM[1,], sched, cohorts)
 })
 toc()
 

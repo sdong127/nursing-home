@@ -16,17 +16,15 @@ quarantine = F
 symptomatic = T
 
 #Create summary measures of model output, grouped by model input parameters
-output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = TRUE), inf_ct_asympR_R_room.sum = sum(inf_ct_asympR_R_room, na.rm = TRUE), inf_ct_sympR_S_room.sum = sum(inf_ct_sympR_S_room, na.rm = TRUE), inf_ct_asympR_S_room.sum = sum(inf_ct_asympR_S_room, na.rm = TRUE), inf_ct_S_S_room.sum = sum(inf_ct_S_S_room, na.rm = TRUE), inf_ct_sympS_R_room.sum = sum(inf_ct_sympS_R_room, na.rm = TRUE), inf_ct_asympS_R_room.sum = sum(inf_ct_asympS_R_room, na.rm = TRUE),
-                    inf_ct_sympR_V_room.sum = sum(inf_ct_sympR_V_room, na.rm = TRUE), inf_ct_asympR_V_room.sum = sum(inf_ct_asympR_V_room, na.rm = TRUE), inf_ct_sympS_V_room.sum = sum(inf_ct_sympS_V_room, na.rm = TRUE), inf_ct_asympS_V_room.sum = sum(inf_ct_asympS_V_room, na.rm = TRUE), inf_ct_V_V_room.sum = sum(inf_ct_V_V_room, na.rm = TRUE), inf_ct_sympV_R_room.sum = sum(inf_ct_sympV_R_room, na.rm = TRUE), inf_ct_asympV_R_room.sum = sum(inf_ct_asympV_R_room, na.rm = TRUE), inf_ct_sympV_S_room.sum = sum(inf_ct_sympV_S_room, na.rm = TRUE), inf_ct_asympV_S_room.sum = sum(inf_ct_asympV_S_room, na.rm = TRUE),
+output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = TRUE), inf_ct_asympR_R_room.sum = sum(inf_ct_asympR_R_room, na.rm = TRUE), inf_ct_sympR_S_room.sum = sum(inf_ct_sympR_S_room, na.rm = TRUE), inf_ct_asympR_S_room.sum = sum(inf_ct_asympR_S_room, na.rm = TRUE), inf_ct_sympS_R_room.sum = sum(inf_ct_sympS_R_room, na.rm = TRUE), inf_ct_asympS_R_room.sum = sum(inf_ct_asympS_R_room, na.rm = TRUE),
+                    inf_ct_sympR_V_room.sum = sum(inf_ct_sympR_V_room, na.rm = TRUE), inf_ct_asympR_V_room.sum = sum(inf_ct_asympR_V_room, na.rm = TRUE), inf_ct_sympV_R_room.sum = sum(inf_ct_sympV_R_room, na.rm = TRUE), inf_ct_asympV_R_room.sum = sum(inf_ct_asympV_R_room, na.rm = TRUE), 
                     
                     inf_ct_sympR_R_common.sum = sum(inf_ct_sympR_R_common, na.rm = TRUE), inf_ct_asympR_R_common.sum = sum(inf_ct_asympR_R_common, na.rm = TRUE), inf_ct_sympR_S_common.sum = sum(inf_ct_sympR_S_common, na.rm = TRUE), inf_ct_asympR_S_common.sum = sum(inf_ct_asympR_S_common, na.rm = TRUE), inf_ct_sympS_S_common.sum = sum(inf_ct_sympS_S_common, na.rm = TRUE), inf_ct_asympS_S_common.sum = sum(inf_ct_asympS_S_common, na.rm = TRUE), inf_ct_sympS_R_common.sum = sum(inf_ct_sympS_R_common, na.rm = TRUE), inf_ct_asympS_R_common.sum = sum(inf_ct_asympS_R_common, na.rm = TRUE),
-                    inf_ct_R_V_common.sum = sum(inf_ct_R_V_common, na.rm = TRUE), inf_ct_S_V_common.sum = sum(inf_ct_S_V_common, na.rm = TRUE), inf_ct_V_V_common.sum = sum(inf_ct_V_V_common, na.rm = TRUE), inf_ct_V_R_common.sum = sum(inf_ct_V_R_common, na.rm = TRUE), inf_ct_V_S_common.sum = sum(inf_ct_V_S_common, na.rm = TRUE), 
                     
-                    inf_ct_R_R_staff.sum = sum(inf_ct_R_R_staff, na.rm = TRUE), inf_ct_R_S_staff.sum = sum(inf_ct_R_S_staff, na.rm = TRUE), inf_ct_sympS_S_staff.sum = sum(inf_ct_sympS_S_staff, na.rm = TRUE), inf_ct_asympS_S_staff.sum = sum(inf_ct_asympS_S_staff, na.rm = TRUE), inf_ct_S_R_staff.sum = sum(inf_ct_S_R_staff, na.rm = TRUE), 
-                    inf_ct_R_V_staff.sum = sum(inf_ct_R_V_staff, na.rm = TRUE), inf_ct_S_V_staff.sum = sum(inf_ct_S_V_staff, na.rm = TRUE), inf_ct_V_V_staff.sum = sum(inf_ct_V_V_staff, na.rm = TRUE), inf_ct_V_R_staff.sum = sum(inf_ct_V_R_staff, na.rm = TRUE), inf_ct_V_S_staff.sum = sum(inf_ct_V_S_staff, na.rm = TRUE),
+                    inf_ct_sympS_S_staff.sum = sum(inf_ct_sympS_S_staff, na.rm = TRUE), inf_ct_asympS_S_staff.sum = sum(inf_ct_asympS_S_staff, na.rm = TRUE), 
                     
                     risk_ct_sympR_R_room.sum = sum(risk_ct_sympR_R_room, na.rm = TRUE), risk_ct_asympR_R_room.sum = sum(risk_ct_asympR_R_room, na.rm = TRUE), risk_ct_sympR_S_room.sum = sum(risk_ct_sympR_S_room, na.rm = TRUE), risk_ct_asympR_S_room.sum = sum(risk_ct_asympR_S_room, na.rm = TRUE), risk_ct_sympS_R_room.sum = sum(risk_ct_sympS_R_room, na.rm = TRUE), risk_ct_asympS_R_room.sum = sum(risk_ct_asympS_R_room, na.rm = TRUE), 
-                    risk_ct_sympR_V_room.sum = sum(risk_ct_sympR_V_room, na.rm = TRUE), risk_ct_asympR_V_room.sum = sum(risk_ct_asympR_V_room, na.rm = TRUE), risk_ct_sympS_V_room.sum = sum(risk_ct_sympS_V_room, na.rm = TRUE), risk_ct_asympS_V_room.sum = sum(risk_ct_asympS_V_room, na.rm = TRUE), risk_ct_sympV_R_room.sum = sum(risk_ct_sympV_R_room, na.rm = TRUE), risk_ct_asympV_R_room.sum = sum(risk_ct_asympV_R_room, na.rm = TRUE), risk_ct_sympV_S_room.sum = sum(risk_ct_sympV_S_room, na.rm = TRUE), risk_ct_asympV_S_room.sum = sum(risk_ct_asympV_S_room, na.rm = TRUE),
+                    risk_ct_sympR_V_room.sum = sum(risk_ct_sympR_V_room, na.rm = TRUE), risk_ct_asympR_V_room.sum = sum(risk_ct_asympR_V_room, na.rm = TRUE), risk_ct_sympV_R_room.sum = sum(risk_ct_sympV_R_room, na.rm = TRUE), risk_ct_asympV_R_room.sum = sum(risk_ct_asympV_R_room, na.rm = TRUE),
                     
                     risk_ct_sympR_R_common.sum = sum(risk_ct_sympR_R_common, na.rm = TRUE), risk_ct_asympR_R_common.sum = sum(risk_ct_asympR_R_common, na.rm = TRUE), risk_ct_sympR_S_common.sum = sum(risk_ct_sympR_S_common, na.rm = TRUE), risk_ct_asympR_S_common.sum = sum(risk_ct_asympR_S_common, na.rm = TRUE), risk_ct_sympS_S_common.sum = sum(risk_ct_sympS_S_common, na.rm = TRUE), risk_ct_asympS_S_common.sum = sum(risk_ct_asympS_S_common, na.rm = TRUE), risk_ct_sympS_R_common.sum = sum(risk_ct_sympS_R_common, na.rm = TRUE), risk_ct_asympS_R_common.sum = sum(risk_ct_asympS_R_common, na.rm = TRUE),
                     
@@ -94,21 +92,13 @@ if(visitors==T){
                                                                     ifelse(symptomatic, 
                                                                            inf_ct_sympS_R_room.sum/risk_ct_sympS_R_room.sum, 
                                                                            inf_ct_asympS_R_room.sum/risk_ct_asympS_R_room.sum),
-                                                                    ifelse(susp=="visit",
-                                                                           ifelse(symptomatic,
-                                                                                  inf_ct_sympS_V_room.sum/risk_ct_sympS_V_room.sum,
-                                                                                  inf_ct_asympS_V_room.sum/risk_ct_asympS_V_room.sum),
-                                                                           observed.sar)),
+                                                                    observed.sar),
                                                              ifelse(source=="visit",
                                                                     ifelse(susp=="res",
                                                                            ifelse(symptomatic,
                                                                                   inf_ct_sympV_R_room.sum/risk_ct_sympV_R_room.sum,
                                                                                   inf_ct_asympV_R_room.sum/risk_ct_asympV_R_room.sum),
-                                                                           ifelse(susp=="staff",
-                                                                                  ifelse(symptomatic,
-                                                                                         inf_ct_sympV_S_room.sum/risk_ct_sympV_S_room.sum,
-                                                                                         inf_ct_asympV_S_room.sum/risk_ct_asympV_S_room.sum),
-                                                                                  observed.sar)),
+                                                                           observed.sar),
                                                                     observed.sar))),
                                                observed.sar))
 }else{

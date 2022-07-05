@@ -1333,7 +1333,11 @@ run_model = function(time = 30,
               common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
               df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
             }else{
-              if(length(infs[[1]])>0){common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]}
+              infs[[1]] = infs[[1]][!infs[[1]]==0]
+              if(length(infs[[1]])>0){
+                common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]
+                df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
+                }
               if(length(infs[[2]])>0){common_inf_vec.out[[2]][(length(common_inf_vec.out[[2]])+1):(length(common_inf_vec.out[[2]])+length(infs[[2]]))] = infs[[2]]}
             }
           }
@@ -1344,7 +1348,11 @@ run_model = function(time = 30,
               common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
               df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
             }else{
-              if(length(infs[[1]])>0){common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]}
+              infs[[1]] = infs[[1]][!infs[[1]]==0]
+              if(length(infs[[1]])>0){
+                common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]
+                df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
+                }
               if(length(infs[[2]])>0){common_inf_vec.out[[2]][(length(common_inf_vec.out[[2]])+1):(length(common_inf_vec.out[[2]])+length(infs[[2]]))] = infs[[2]]}
             }
           }
@@ -1440,7 +1448,7 @@ run_model = function(time = 30,
 }
 
 
-start = make_NH(synthpop = synthpop, cohorting = T, visitors = F)
+start = make_NH(synthpop = synthpop, cohorting = T, visitors = T)
 nh = initialize_NH(rel_trans_room_symp_res = 1, 
                    p_asymp_nonres = 0, p_asymp_res = 0, p_subclin_nonres = 0, p_subclin_res = 0,
                    daily_attack = .18, staff_vax_req = F, res_vax = 0, staff_vax = 0, visit_vax = 0, 

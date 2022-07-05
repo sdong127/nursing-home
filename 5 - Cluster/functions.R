@@ -1363,7 +1363,11 @@ run_model = function(time = 30,
               common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
               df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
             }else{
-              if(length(infs[[1]])>0){common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]}
+              infs[[1]] = infs[[1]][!infs[[1]]==0]
+              if(length(infs[[1]])>0){
+                common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]
+                df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
+              }
               if(length(infs[[2]])>0){common_inf_vec.out[[2]][(length(common_inf_vec.out[[2]])+1):(length(common_inf_vec.out[[2]])+length(infs[[2]]))] = infs[[2]]}
             }
           }
@@ -1374,7 +1378,11 @@ run_model = function(time = 30,
               common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
               df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
             }else{
-              if(length(infs[[1]])>0){common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]}
+              infs[[1]] = infs[[1]][!infs[[1]]==0]
+              if(length(infs[[1]])>0){
+                common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]
+                df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
+              }
               if(length(infs[[2]])>0){common_inf_vec.out[[2]][(length(common_inf_vec.out[[2]])+1):(length(common_inf_vec.out[[2]])+length(infs[[2]]))] = infs[[2]]}
             }
           }

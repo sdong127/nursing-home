@@ -696,34 +696,24 @@ run_room = function(a, df, t, quarantine, cohorts, shift){
 #'
 #' @param a id of infected individual
 #' @param df data frame in run_model()
-#' @param n_contact_common_res number of contacts a staff/residents has with other residents in the common area; defaults to 4
-#' @param n_contact_common_staff number of contacts a staff/residents has with other staff in the common area; defaults to 4
+#' @param n_contact_common number of contacts a staff/residents has with other staff/residents in the common area; defaults to 6
 #' @param rel_trans_staff relative transmission in common area interactions (vs. resident room);
 #' defaults to 1/4
 #'
 #' @return infs id of infected individuals
 #'
 #' @export
-run_common = function(a, df, n_contact_common_res, n_contact_common_staff, rel_trans_common = 1/4){
+run_common = function(a, df, n_contact_common, rel_trans_common = 1/4){
   
-  if(n_contact_common_res+n_contact_common_staff>0){
+  if(n_contact_common>0){
     
     # pull random contacts from residents and staff present in nursing home common area
-    tot_res = length(df$id[!df$isolated & !df$quarantined & df$type==0 & df$id!=a])
-    contact_take_res = ifelse(n_contact_common_res<=tot_res, n_contact_common_res, tot_res)
-    contact_id_res = sample(df$id[!df$isolated & !df$quarantined & df$type==0 & df$id!=a], contact_take_res, replace=F)
-    contacts_res = df[df$id %in% contact_id_res,]
-    id.susp_res = contacts_res[contacts_res$present_susp & contacts_res$susp!=0,]$id
+    tot = length(df$id[!df$isolated & !df$quarantined & df$type==0 & df$id!=a])
+    contact_take = ifelse(n_contact_common<=tot, n_contact_common, tot)
+    contact_id = sample(df$id[!df$isolated & !df$quarantined & df$type==0 & df$id!=a], contact_take, replace=F)
+    contacts = df[df$id %in% contact_id,]
+    id.susp = contacts[contacts$present_susp & contacts$susp!=0,]$id
     #print(dim(contacts))
-    
-    tot_staff = length(df$id[!df$isolated & !df$quarantined & df$type==1 & df$id!=a])
-    contact_take_staff = ifelse(n_contact_common_staff<=tot_staff, n_contact_common_staff, tot_staff)
-    contact_id_staff = sample(df$id[!df$isolated & !df$quarantined & df$type==1 & df$id!=a], contact_take_staff, replace=F)
-    contacts_staff = df[df$id %in% contact_id_staff,]
-    id.susp_staff = contacts_staff[contacts_staff$present_susp & contacts_staff$susp!=0,]$id
-    
-    contacts = rbindlist(list(as.data.table(contacts_res), as.data.table(contacts_staff)))
-    id.susp = c(id.susp_res, id.susp_staff)
     
     # determine whether a contact becomes infected
     prob_common = rbinom(nrow(contacts), size = 1,
@@ -955,8 +945,7 @@ make_infected = function(df.u, days_inf = 5, set = NA, mult_asymp_res = 1, mult_
 #' @param test_days test frequency; "day", "week", "2x_week"; defaults to "week"
 #' @param test_type group tested; defaults to "all", also allows "residents" and "staff"
 #' @param test_start_day day tests are implemented for weekly testing; defaults to 1 = Monday
-#' @param n_contact_common_res number of contacts a staff/residents has with other residents in the common area; defaults to 4
-#' @param n_contact_common_staff number of contacts a staff/residents has with other staff in the common area; defaults to 4
+#' @param n_contact_common number of contacts a staff/residents has with other staff/residents in the common area; defaults to 6
 #' @param n_contact_staff number of contacts a staff member has with other staff members during a shift; defaults to 10
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param mult_asymp_res multiplier on asymptomatic infection for residents; default is 1 (used to be mult_asymp)
@@ -990,8 +979,7 @@ run_model = function(time = 30,
                      test_sens =  .7,
                      test_frac = .9,
                      test_start_day = 1,
-                     n_contact_common_res = 4,
-                     n_contact_common_staff = 4,
+                     n_contact_common = 6,
                      n_contact_staff = 10,
                      n_start = 1,
                      days_inf = 5,
@@ -1351,13 +1339,13 @@ run_model = function(time = 30,
         # COMMON AREA INTERACTIONS
         for(shift in 1:3){
           if(shift==1 & (df_time$shift[df_time$id==a]=="morning" | df_time$shift[df_time$id==a]=="all")){
-            infs = run_common(a, df_time[(df_time$shift=="morning" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common_res, n_contact_common_staff, rel_trans_common)
+            infs = run_common(a, df_time[(df_time$shift=="morning" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common, rel_trans_common)
             common_inf_vec.out = infs
             common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
             df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
           }
           if(shift==2 & (df_time$shift[df_time$id==a]=="evening" | df_time$shift[df_time$id==a]=="all")){
-            infs = run_common(a, df_time[(df_time$shift=="evening" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common_res, n_contact_common_staff, rel_trans_common)
+            infs = run_common(a, df_time[(df_time$shift=="evening" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common, rel_trans_common)
             if(df_time$type[df_time$id==a]!=0){
               common_inf_vec.out = infs
               common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
@@ -1372,7 +1360,7 @@ run_model = function(time = 30,
             }
           }
           if(shift==3 & (df_time$shift[df_time$id==a]=="night" | df_time$shift[df_time$id==a]=="all")){
-            infs = run_common(a, df_time[(df_time$shift=="night" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common_res, n_contact_common_staff, rel_trans_common)
+            infs = run_common(a, df_time[(df_time$shift=="night" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common, rel_trans_common)
             if(df_time$type[df_time$id==a]!=0){
               common_inf_vec.out = infs
               common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
@@ -1503,8 +1491,7 @@ run_model = function(time = 30,
 #' @param visit_susp_red Factor by which visitor susceptibility is reduced due to intervention; defaults to 1
 #' @param res_susp_red Factor by which resident susceptibility is reduced due to intervention; defaults to 1
 #' @param disperse_transmission Whether transmission is overdispersed (vs. all have equal attack rate); default to T
-#' @param n_contact_common_res number of contacts a staff/resident has with other residents in common area; defaults to 4
-#' @param n_contact_common_staff number of contacts a staff/resident has with other staff in common area; defaults to 4
+#' @param n_contact_common number of contacts a staff/resident has with other staff/residents in common area; defaults to 6
 #' @param n_contact_staff number of contacts a staff member has with other staff members; defaults to 10
 #' @param n_start number of infections to seed model; defaults to 1
 #' @param time_seed_inf time(s) at which to introduce new infectious individuals; defaults to NA and randomly selects one time
@@ -1537,8 +1524,7 @@ mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel
                      rel_trans_room_symp_res = 1, p_asymp_nonres = 0, p_asymp_res = 0, 
                      p_subclin_nonres = 0, p_subclin_res = 0, daily_attack = 0.18, staff_vax_req = F, 
                      res_vax = 0, staff_vax = 0, visit_vax = 0, staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
-                     staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, disperse_transmission = T, n_contact_common_res = 4,
-                     n_contact_common_staff = 4,
+                     staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, disperse_transmission = T, n_contact_common = 6,
                      n_contact_staff = 10, n_start = 1, time_seed_inf = NA, days_inf = 5, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, 
                      isolate = T, time = 30, test = T, test_sens = 0.7, test_frac = 0.9, test_days = 'week', 
                      test_type = 'all', test_start_day = 1, start_mult = 1, start_type = 'cont', nonres_prob = 0.001, 
@@ -1563,8 +1549,7 @@ mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel
     
     ## run model
     df = run_model(time = time, test = test, test_days = test_days, test_sens = test_sens, 
-                   test_frac = test_frac, test_start_day = test_start_day, n_contact_common_res = n_contact_common_res, 
-                   n_contact_common_staff = n_contact_common_staff, 
+                   test_frac = test_frac, test_start_day = test_start_day, n_contact_common = n_contact_common, 
                    n_contact_staff = n_contact_staff,
                    n_start = n_start, days_inf = days_inf, mult_asymp_res = mult_asymp_res, mult_asymp_nonres = mult_asymp_nonres, 
                    seed_asymp = seed_asymp, time_seed_inf = time_seed_inf, start_type = start_type, start_mult = start_mult, 
@@ -1834,7 +1819,7 @@ s.mult_asymp_res = 1
 s.mult_asymp_nonres = 1
 # s.days_inf_mild = 5; s.days_inf_mod = 10; s.days_inf_severe = 20
 s.days_inf = 5; s.time = 30
-s.n_contact_common_res = 4; s.n_contact_common_staff = 4; s.n_contact_staff = 10
+s.n_contact_common = 6; s.n_contact_staff = 10
 s.p_asymp_nonres = 0; s.p_asymp_res = 0
 s.p_subclin_nonres = 0; s.p_subclin_res = 0
 s.test_sens = .7; s.test_frac = .9; s.test_days = "week"; s.test_type = "all"; s.test_start_day = 1
@@ -1855,7 +1840,7 @@ make_df = function(disperse = T, # how to distribute runs
                    start_type = s.start_type, start_mult = s.start_mult, n_start = s.n_start, 
                    mult_asymp_res = s.mult_asymp_res, mult_asymp_nonres = s.mult_asymp_nonres, 
                    days_inf = s.days_inf, 
-                   isolate = s.isolate, time = s.time, n_contact_common_res = s.n_contact_common_res, n_contact_common_staff = s.n_contact_common_staff,
+                   isolate = s.isolate, time = s.time, n_contact_common = s.n_contact_common,
                    n_contact_staff = s.n_contact_staff,
                    p_asymp_nonres = s.p_asymp_nonres, p_asymp_res = s.p_asymp_res, p_subclin_nonres = s.p_subclin_nonres,
                    p_subclin_res = s.p_subclin_res, test_sens = s.test_sens, 
@@ -1872,7 +1857,7 @@ make_df = function(disperse = T, # how to distribute runs
   
   # make a grid
   df = expand_grid(daily_attack, n_tot, disperse_transmission, start_type, start_mult, n_start, mult_asymp_res,
-                   mult_asymp_nonres, days_inf, isolate, time, n_contact_common_res, n_contact_common_staff, 
+                   mult_asymp_nonres, days_inf, isolate, time, n_contact_common, 
                    n_contact_staff, p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, 
                    test_sens, test_frac, test, test_type, test_days,
                    test_start_day, nonres_prob, vax_eff, rel_trans_staff, rel_trans_common, rel_trans_room_symp_res, 
@@ -1907,7 +1892,7 @@ sims = function(df, i, sched, cohorts){
                   start_type = df$start_type[i], start_mult = df$start_mult[i], 
                   n_start = df$n_start[i], mult_asymp_res = df$mult_asymp_res[i], mult_asymp_nonres = df$mult_asymp_nonres[i], 
                   days_inf = df$days_inf[i], isolate = df$isolate[i], time = df$time[i],
-                  n_contact_common_res = df$n_contact_common_res[i], n_contact_common_staff = df$n_contact_common_staff[i], 
+                  n_contact_common = df$n_contact_common[i], 
                   n_contact_staff = df$n_contact_staff[i], 
                   p_asymp_nonres = df$p_asymp_nonres[i], p_asymp_res = df$p_asymp_res[i],
                   p_subclin_nonres = df$p_subclin_nonres[i], p_subclin_res = df$p_subclin_res[i],

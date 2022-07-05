@@ -708,9 +708,9 @@ run_common = function(a, df, n_contact_common, rel_trans_common = 1/4){
   if(n_contact_common>0){
     
     # pull random contacts from residents and staff present in nursing home common area
-    tot = length(df$id[!df$isolated & !df$quarantined & df$type==0 & df$id!=a])
+    tot = length(df$id[!df$isolated & !df$quarantined & df$type!=2 & df$id!=a])
     contact_take = ifelse(n_contact_common<=tot, n_contact_common, tot)
-    contact_id = sample(df$id[!df$isolated & !df$quarantined & df$type==0 & df$id!=a], contact_take, replace=F)
+    contact_id = sample(df$id[!df$isolated & !df$quarantined & df$type!=2 & df$id!=a], contact_take, replace=F)
     contacts = df[df$id %in% contact_id,]
     id.susp = contacts[contacts$present_susp & contacts$susp!=0,]$id
     #print(dim(contacts))

@@ -512,51 +512,97 @@ make_schedule = function(time = 45, nh){
 }
 
 
-#' Create list of cohorts
+#' Create list of people in each room
 #'
-#' Store staff assigned to each resident each day
+#' Store info about people in each room per shift per day
 #'
 #' @param df data frame from make_schedule()
 #'
-#' @return cohorts list of assigned staff to each resident
+#' @return cohorts list of people in each staff/resident/visitor room
 #'
 #' @export
-make_cohort = function(df = df){
+make_room = function(df = df){
   
-  cohorts = vector(mode="list", length=length(unique(df$id[df$type==0])))
+  cohorts = vector(mode="list", length=length(unique(df$id)))
   
-  for(res in 1:length(unique(df$id[df$type==0]))){
+  # resident rooms
+  for(i in 1:length(unique(df$id[df$type==0]))){
     
-    staff_vec_morning = list(as.data.table(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res] & df$type==1,][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res] & df$type==1,])) 
-                                                                                                                    != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==res] & df$type==1,]),]),
-                             as.data.table(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res] & df$type==1,][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res] & df$type==1,])) 
-                                                                                                                      != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==res] & df$type==1,]),]),
-                             as.data.table(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res] & df$type==1,][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res] & df$type==1,])) 
-                                                                                                                      != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==res] & df$type==1,]),]),
-                             as.data.table(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res] & df$type==1,][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res] & df$type==1,])) 
-                                                                                                                    != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==res] & df$type==1,]),]))
+    staff_vec_morning = list(as.data.table(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==i] & df$type==1,][rowSums(is.na(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==i] & df$type==1,])) 
+                                                                                                                  != ncol(df[df$rn_cohort_morning==df$rn_cohort_morning[df$id==i] & df$type==1,]),]),
+                             as.data.table(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==i] & df$type==1,][rowSums(is.na(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==i] & df$type==1,])) 
+                                                                                                                    != ncol(df[df$lpn_cohort_morning==df$lpn_cohort_morning[df$id==i] & df$type==1,]),]),
+                             as.data.table(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==i] & df$type==1,][rowSums(is.na(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==i] & df$type==1,])) 
+                                                                                                                    != ncol(df[df$cna_cohort_morning==df$cna_cohort_morning[df$id==i] & df$type==1,]),]),
+                             as.data.table(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==i] & df$type==1,][rowSums(is.na(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==i] & df$type==1,])) 
+                                                                                                                  != ncol(df[df$ma_cohort_morning==df$ma_cohort_morning[df$id==i] & df$type==1,]),]))
     
-    staff_vec_evening = list(as.data.table(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==res] & df$type==1,][rowSums(is.na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==res] & df$type==1,])) 
-                                                                                                                    != ncol(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==res] & df$type==1,]),]),
-                             as.data.table(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==res] & df$type==1,][rowSums(is.na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==res] & df$type==1,])) 
-                                                                                                                      != ncol(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==res] & df$type==1,]),]),
-                             as.data.table(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==res] & df$type==1,][rowSums(is.na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==res] & df$type==1,])) 
-                                                                                                                      != ncol(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==res] & df$type==1,]),]),
-                             as.data.table(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==res] & df$type==1,][rowSums(is.na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==res] & df$type==1,])) 
-                                                                                                                    != ncol(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==res] & df$type==1,]),]))
+    staff_vec_evening = list(as.data.table(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==i] & df$type==1,][rowSums(is.na(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==i] & df$type==1,])) 
+                                                                                                                  != ncol(df[df$rn_cohort_evening==df$rn_cohort_evening[df$id==i] & df$type==1,]),]),
+                             as.data.table(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==i] & df$type==1,][rowSums(is.na(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==i] & df$type==1,])) 
+                                                                                                                    != ncol(df[df$lpn_cohort_evening==df$lpn_cohort_evening[df$id==i] & df$type==1,]),]),
+                             as.data.table(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==i] & df$type==1,][rowSums(is.na(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==i] & df$type==1,])) 
+                                                                                                                    != ncol(df[df$cna_cohort_evening==df$cna_cohort_evening[df$id==i] & df$type==1,]),]),
+                             as.data.table(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==i] & df$type==1,][rowSums(is.na(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==i] & df$type==1,])) 
+                                                                                                                  != ncol(df[df$ma_cohort_evening==df$ma_cohort_evening[df$id==i] & df$type==1,]),]))
     
-    staff_vec_night = list(as.data.table(df[df$rn_cohort_night==df$rn_cohort_night[df$id==res] & df$type==1,][rowSums(is.na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==res] & df$type==1,])) 
-                                                                                                              != ncol(df[df$rn_cohort_night==df$rn_cohort_night[df$id==res] & df$type==1,]),]),
-                           as.data.table(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==res] & df$type==1,][rowSums(is.na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==res] & df$type==1,])) 
-                                                                                                                != ncol(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==res] & df$type==1,]),]),
-                           as.data.table(df[df$cna_cohort_night==df$cna_cohort_night[df$id==res] & df$type==1,][rowSums(is.na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==res] & df$type==1,])) 
-                                                                                                                != ncol(df[df$cna_cohort_night==df$cna_cohort_night[df$id==res] & df$type==1,]),]))
+    staff_vec_night = list(as.data.table(df[df$rn_cohort_night==df$rn_cohort_night[df$id==i] & df$type==1,][rowSums(is.na(df[df$rn_cohort_night==df$rn_cohort_night[df$id==i] & df$type==1,])) 
+                                                                                                            != ncol(df[df$rn_cohort_night==df$rn_cohort_night[df$id==i] & df$type==1,]),]),
+                           as.data.table(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==i] & df$type==1,][rowSums(is.na(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==i] & df$type==1,])) 
+                                                                                                              != ncol(df[df$lpn_cohort_night==df$lpn_cohort_night[df$id==i] & df$type==1,]),]),
+                           as.data.table(df[df$cna_cohort_night==df$cna_cohort_night[df$id==i] & df$type==1,][rowSums(is.na(df[df$cna_cohort_night==df$cna_cohort_night[df$id==i] & df$type==1,])) 
+                                                                                                              != ncol(df[df$cna_cohort_night==df$cna_cohort_night[df$id==i] & df$type==1,]),]))
     
     staff_vec_morning = rbindlist(staff_vec_morning)
     staff_vec_evening = rbindlist(staff_vec_evening)
     staff_vec_night = rbindlist(staff_vec_night)
     
-    cohorts[[res]] = list(as.data.frame(staff_vec_morning), as.data.frame(staff_vec_evening), as.data.frame(staff_vec_night))
+    
+    if(df$room[df$id==i][1]<34 & sum(df$room[df$type==0]==df$room[df$id==i])>max(df$t)){
+      roommate_vec = df[df$room==df$room[df$id==i] & df$id!=i,][rowSums(is.na(df[df$room==df$room[df$id==i] & df$id!=i,])) != ncol(df[df$room==df$room[df$id==i] & df$id!=i,]),]
+    }else{roommate_vec = c()}
+    
+    
+    if('family' %in% colnames(df)){
+      visitor_id = df$id[df$family==df$family[df$id==i] & df$id!=i][!is.na(df$id[df$family==df$family[df$id==i] & df$id!=i])]
+      if(length(visitor_id)>0){
+        visit_vec = df[df$id==visitor_id,]
+      }
+    }else{visit_vec = c()}
+    
+    cohorts[[i]] = list(as.data.frame(staff_vec_morning), as.data.frame(staff_vec_evening), as.data.frame(staff_vec_night), as.data.frame(roommate_vec), as.data.frame(visit_vec))
+  }
+  
+  # staff rooms
+  for(i in (length(unique(df$id[df$type==0]))+1):(length(unique(df$id[df$type==0]))+length(unique(df$id[df$type==1 & df$role!=4])))){
+    staff_row = df[df$id==i,][, c("rn_cohort_morning", "rn_cohort_evening", "rn_cohort_night", 
+                                  "lpn_cohort_morning", "lpn_cohort_evening", "lpn_cohort_night",
+                                  "cna_cohort_morning", "cna_cohort_evening", "cna_cohort_night",
+                                  "ma_cohort_morning", "ma_cohort_evening", "admin_cohort_morning",
+                                  "admin_cohort_evening")]
+    for(role in 1:length(staff_row)){
+      if(!is.na(staff_row[role][1,])){
+        staff_role = colnames(staff_row)[role]
+      }
+    }
+    staff_role_id = staff_row[!is.na(staff_row)][[1]]
+    
+    # make vector of residents that staff treats
+    res_vec = df[df[staff_role]==staff_role_id & df$type==0,][rowSums(is.na(df[df[staff_role]==staff_role_id & df$type==0,])) != ncol(df[df[staff_role]==staff_role_id & df$type==0,]),]
+    
+    cohorts[[i]] = as.data.frame(res_vec)
+  }
+  
+  # visitor rooms
+  if('family' %in% colnames(df)){
+    for(i in (length(unique(df$id[df$type!=2]))+1):(length(unique(df$id[df$type!=2]))+(length(unique(df$id[df$type==2]))))){
+      res_vec = df[df$family==df$family[df$id==i] & df$id!=i,][rowSums(is.na(df[df$family==df$family[df$id==i] & df$id!=i,])) != ncol(df[df$family==df$family[df$id==i] & df$id!=i,]),]
+      res_id = res_vec$id
+      if(df$room[df$id==res_id][1]<34){
+        res_vec = rbindlist(list(as.data.table(res_vec), as.data.table(df[df$room==res_vec$room & df$id!=res_id,][rowSums(is.na(df[df$room==res_vec$room & df$id!=res_id,])) != ncol(df[df$room==res_vec$room & df$id!=res_id,]),])))
+      }
+      cohorts[[i]] = as.data.frame(res_vec)
+    }
   }
   
   return(cohorts)
@@ -585,9 +631,11 @@ run_room = function(a, df, t, quarantine, cohorts, shift){
   if(df$type[df$id==a]==0){
     
     # if resident has roommate
-    if(df$room[df$id==a]<34 & sum(df$room[df$type==0]==df$room[df$id==a])>1){
+    if(df$room[df$id==a]<34){
       # roommate
-      roommate_vec = df[df$room==df$room[df$id==a] & df$id!=a,][rowSums(is.na(df[df$room==df$room[df$id==a] & df$id!=a,])) != ncol(df[df$room==df$room[df$id==a] & df$id!=a,]),]
+      roommate_vec = cohorts[[a]][[4]][cohorts[[a]][[4]]$t==t & cohorts[[a]][[4]]$id%in%df$id,]
+      roommate_vec$susp = df[df$id%in%roommate_vec$id,]$susp
+      roommate_vec$present_susp = df[df$id%in%roommate_vec$id,]$present_susp
       
     }else{roommate_vec = c()}
     
@@ -604,11 +652,10 @@ run_room = function(a, df, t, quarantine, cohorts, shift){
     
     # make vector of resident's visitor present at NH
     if('family' %in% colnames(df) & df$flag_fam[df$id==a]!=1 & any(df$shift=="morning" & df$type==2)){
-      visitor_id = df$id[df$family==df$family[df$id==a] & df$id!=a][!is.na(df$id[df$family==df$family[df$id==a] & df$id!=a])]
-      
-      if(length(visitor_id)>0){
-        visitor = df[df$id==visitor_id,]
-        if(visitor$shift!="absent") {visit_vec = visitor}
+      visit_vec = cohorts[[a]][[5]][cohorts[[a]][[5]]$t==t & cohorts[[a]][[5]]$id%in%df$id,]
+      if(nrow(visit_vec)>0){
+        visit_vec$susp = df[df$id%in%visit_vec$id,]$susp
+        visit_vec$present_susp = df[df$id%in%visit_vec$id,]$present_susp
       }
       
     }else{visit_vec = c()}
@@ -630,22 +677,15 @@ run_room = function(a, df, t, quarantine, cohorts, shift){
     ## if infected is direct-care staff
   } else if(df$type[df$id==a]==1 & df$role[df$id==a]!=4 & df$shift[df$id==a]!="absent"){
     
-    # find out what role they are
-    staff_row = df[df$id==a,][, c("rn_cohort_morning", "rn_cohort_evening", "rn_cohort_night", 
-                                  "lpn_cohort_morning", "lpn_cohort_evening", "lpn_cohort_night",
-                                  "cna_cohort_morning", "cna_cohort_evening", "cna_cohort_night",
-                                  "ma_cohort_morning", "ma_cohort_evening", "admin_cohort_morning",
-                                  "admin_cohort_evening")]
-    for(role in 1:length(staff_row)){
-      if(!is.na(staff_row[role])){
-        staff_role = colnames(staff_row)[role]
-      }
-    }
-    staff_role_id = staff_row[!is.na(staff_row)][[1]]
-    
     # make vector of residents that staff treats
-    res_vec = df[df[staff_role]==staff_role_id & df$type==0,][rowSums(is.na(df[df[staff_role]==staff_role_id & df$type==0,])) != ncol(df[df[staff_role]==staff_role_id & df$type==0,]),]
-    res_vec$susp = ifelse(quarantine & (res_vec$quarantined | res_vec$flag_room==1), res_vec$susp*0.5, res_vec$susp)
+    res_vec = cohorts[[a]][cohorts[[a]]$t==t & cohorts[[a]]$id%in%df$id,]
+    res_vec$quarantined = df[df$id%in%res_vec$id,]$quarantined
+    res_vec$flag_room = df[df$id%in%res_vec$id,]$flag_room
+    res_vec$susp = df[df$id%in%res_vec$id,]$susp
+    res_vec$present_susp = df[df$id%in%res_vec$id,]$present_susp
+    if(quarantine){
+      res_vec$susp = ifelse(res_vec$quarantined | res_vec$flag_room==1, res_vec$susp*0.5, res_vec$susp)
+    }
     
     # determine who in room gets infected
     prob_room = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp < 1,
@@ -663,11 +703,9 @@ run_room = function(a, df, t, quarantine, cohorts, shift){
   } else if(df$type[df$id==a]==2 & df$shift[df$id==a]!="absent"){
     
     # make vector of residents that visitor sees, including roommates
-    res_vec = df[df$family==df$family[df$id==a] & df$id!=a,][rowSums(is.na(df[df$family==df$family[df$id==a] & df$id!=a,])) != ncol(df[df$family==df$family[df$id==a] & df$id!=a,]),]
-    res_id = res_vec$id
-    if(df$room[df$id==res_id]<34){
-      res_vec[nrow(res_vec) + 1,] = df[df$room==res_vec$room & df$id!=res_id,][rowSums(is.na(df[df$room==res_vec$room & df$id!=res_id,])) != ncol(df[df$room==res_vec$room & df$id!=res_id,]),]
-    }
+    res_vec = cohorts[[a]][cohorts[[a]]$t==t & cohorts[[a]]$id%in%df$id,]
+    res_vec$susp = df[df$id%in%res_vec$id,]$susp
+    res_vec$present_susp = df[df$id%in%res_vec$id,]$present_susp
     
     # determine who in room gets infected
     prob_room = rbinom(nrow(res_vec), size = 1, prob = ifelse(df$room_trans_prob[df$id==a]*res_vec$susp*res_vec$present_susp < 1,
@@ -843,9 +881,6 @@ make_infected_start = function(df.u, time = 30, days_inf = 5, set = NA, mult_asy
   df.u$t_end_inf = ifelse(df.u$symp==1 & !df.u$sub_clin & df.u$isolate & df.u$t_symp<df.u$t_end_inf_home, df.u$t_symp, df.u$t_end_inf_home)
   
   df.u$t_notify = ifelse(df.u$symp==1 & !df.u$sub_clin & df.u$isolate, df.u$t_symp, -17)
-  
-  # make unsusceptible
-  df.u$susp = 0
   
   return(df.u)
 }
@@ -1431,7 +1466,7 @@ run_model = function(time = 30,
     # need to put in probability distributions
     if(sum(df_time$now)>0){
       
-      df_time$start[df_time$now] = 0      # remove seed if infected earlier
+      df_time$start[df_time$now] = F     # remove seed if infected earlier
       df_time$t_exposed[df_time$now] = t
       df_time[df_time$now,] = make_infected(df_time[df_time$now,], days_inf = days_inf, mult_asymp_res = mult_asymp_res, 
                                             mult_asymp_nonres = mult_asymp_nonres, overdisp_off = overdisp_off)
@@ -1516,8 +1551,8 @@ run_model = function(time = 30,
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 5
 #' @param vax_eff Vaccine efficacy, defaults to 0.9
 #' @param overdisp_off all overdispersion off; defaults to F
-#' @param nh nursing home population; from initialize_NH()
-#' @param sched nursing home schedule; from make_schedule()
+#' @param df nursing home population schedule; from make_schedule()
+#' @param cohorts list from make_room()
 #'
 #' @export
 mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel_trans_staff = 1/4, 
@@ -1829,7 +1864,7 @@ s.rel_trans_common = 1/4; s.rel_trans_room_symp_res = 1; s.rel_trans_staff = 1/4
 s.res_vax = 0; s.staff_vax_req = F; s.staff_vax = 0; s.visit_vax = 0
 s.staff_trans_red = 1; s.visit_trans_red = 1; s.res_trans_red = 1
 s.staff_susp_red = 1; s.visit_susp_red = 1; s.res_susp_red = 1
-s.vax_eff = 0; s.isolate = T
+s.vax_eff = 0; s.isolate = F
 s.quarantine.length = 5; s.quarantine = F
 s.time_seed_inf = NA; s.seed_asymp = F
 

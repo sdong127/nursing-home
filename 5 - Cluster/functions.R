@@ -619,7 +619,7 @@ make_room = function(df = df){
 #' @param df data frame in run_model()
 #' @param t current day
 #' @param quarantine whether quarantine occurs
-#' @param cohorts list of dataframes with staff vectors for each resident
+#' @param cohorts list of dataframes of people in the same room as each person
 #' @param shift current shift
 #'
 #' @return infs id of infected individuals
@@ -999,8 +999,8 @@ make_infected = function(df.u, days_inf = 5, set = NA, mult_asymp_res = 1, mult_
 #' @param quarantine whether or not people quarantine upon exposure; defaults to F
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 5
 #' @param overdisp_off all overdispersion off; defaults to F
-#' @param df data frame from initialize_NH()
-#' @param sched schedule data frame from make_schedule()
+#' @param df data frame from make_schedule()
+#' @param cohorts list from make_room()
 #'
 #' @return df updated df with transmission results
 #' @return time_seed_inf when the first individual was dropped in
@@ -1380,12 +1380,13 @@ run_model = function(time = 30,
             df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
           }
           if(shift==2 & (df_time$shift[df_time$id==a]=="evening" | df_time$shift[df_time$id==a]=="all")){
-            infs = run_common(a, df_time[(df_time$shift=="evening" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common, rel_trans_common)
             if(df_time$type[df_time$id==a]!=0){
+              infs = run_common(a, df_time[(df_time$shift=="evening" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common, rel_trans_common)
               common_inf_vec.out = infs
               common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
               df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
             }else{
+              infs = run_common(a, df_time[(df_time$shift=="evening" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2 & !df_time$id%in%common_inf_vec.out[[2]],], n_contact_common, rel_trans_common)
               infs[[1]] = infs[[1]][!infs[[1]]==0]
               if(length(infs[[1]])>0){
                 common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]
@@ -1395,12 +1396,13 @@ run_model = function(time = 30,
             }
           }
           if(shift==3 & (df_time$shift[df_time$id==a]=="night" | df_time$shift[df_time$id==a]=="all")){
-            infs = run_common(a, df_time[(df_time$shift=="night" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common, rel_trans_common)
             if(df_time$type[df_time$id==a]!=0){
+              infs = run_common(a, df_time[(df_time$shift=="night" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2,], n_contact_common, rel_trans_common)
               common_inf_vec.out = infs
               common_inf_vec.out[[1]] = common_inf_vec.out[[1]][!common_inf_vec.out[[1]]==0]
               df_time$susp[df_time$id%in%common_inf_vec.out[[1]]] = 0
             }else{
+              infs = run_common(a, df_time[(df_time$shift=="night" | df_time$shift=="all") & !df_time$isolated & !df_time$quarantined & df_time$type!=2 & !df_time$id%in%common_inf_vec.out[[2]],], n_contact_common, rel_trans_common)
               infs[[1]] = infs[[1]][!infs[[1]]==0]
               if(length(infs[[1]])>0){
                 common_inf_vec.out[[1]][(length(common_inf_vec.out[[1]])+1):(length(common_inf_vec.out[[1]])+length(infs[[1]]))] = infs[[1]]
@@ -1432,9 +1434,9 @@ run_model = function(time = 30,
         
         #Track risk set for unit testing
         df_time$person.days.at.risk.common.res[df_time$id == a] = df_time$person.days.at.risk.common.res[df_time$id == a] + (df_time$t_inf[df_time$id == a] <= t & 
-                                                                                                                               df_time$t_end_inf[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$id %in% unique(common_inf_vec.out[[2]]) & df_time$type==0 & (df_time$susp!=0 | df_time$id %in% common_inf_vec) & !(df_time$id %in% c(unique(room_inf_vec_total), unique(staff_inf_vec_total)))])
+                                                                                                                               df_time$t_end_inf[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$id %in% unique(common_inf_vec.out[[2]]) & df_time$type==0 & (df_time$susp!=0 | df_time$id %in% common_inf_vec) & !(df_time$id %in% unique(c(room_inf_vec_total, staff_inf_vec_total)))])
         df_time$person.days.at.risk.common.staff[df_time$id == a] = df_time$person.days.at.risk.common.staff[df_time$id == a] + (df_time$t_inf[df_time$id == a] <= t & 
-                                                                                                                                   df_time$t_end_inf[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$id %in% unique(common_inf_vec.out[[2]]) & df_time$type==1 & (df_time$susp!=0 | df_time$id %in% common_inf_vec) & !(df_time$id %in% c(unique(room_inf_vec_total), unique(staff_inf_vec_total)))])
+                                                                                                                                   df_time$t_end_inf[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$id %in% unique(common_inf_vec.out[[2]]) & df_time$type==1 & (df_time$susp!=0 | df_time$id %in% common_inf_vec) & !(df_time$id %in% unique(c(room_inf_vec_total, staff_inf_vec_total)))])
         
         # add to total # of infections from this person
         df_time$tot_inf[df_time$id==a] = df_time$tot_inf[df_time$id==a] + sum(unique(common_inf_vec[!common_inf_vec==0])>0, na.rm=T)

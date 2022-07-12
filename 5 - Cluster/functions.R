@@ -1491,9 +1491,12 @@ run_model = function(time = 30,
       #print(df %>% filter(now) %>% arrange(source) %>% select(id, HH_id, class, group, adult, family, source, location, symp))
     }
     
+    # clear up memory space
+    rm(df_time)
+    gc(reset=TRUE)
+    
     # round values
     df$t_notify = ceiling(df$t_notify)
-    
     #print(t); print(class_quarantine)
     #print(df %>% #filter(!adult) %>%
     #        group_by(class) %>% summarize(mean(quarantined), sum(quarantined)))
@@ -1860,13 +1863,13 @@ s.n_contact_common = 6; s.n_contact_staff = 10
 s.p_asymp_nonres = 0; s.p_asymp_res = 0
 s.p_subclin_nonres = 0; s.p_subclin_res = 0
 s.test_sens = .7; s.test_frac = .9; s.test_days = "week"; s.test_type = "all"; s.test_start_day = 1
-s.test = F
+s.test = T
 s.nonres_prob = .001
 s.rel_trans_common = 1/4; s.rel_trans_room_symp_res = 1; s.rel_trans_staff = 1/4
 s.res_vax = 0; s.staff_vax_req = F; s.staff_vax = 0; s.visit_vax = 0
 s.staff_trans_red = 1; s.visit_trans_red = 1; s.res_trans_red = 1
 s.staff_susp_red = 1; s.visit_susp_red = 1; s.res_susp_red = 1
-s.vax_eff = 0; s.isolate = F
+s.vax_eff = 0; s.isolate = T
 s.quarantine.length = 5; s.quarantine = F
 s.time_seed_inf = NA; s.seed_asymp = F
 

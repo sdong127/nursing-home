@@ -10,8 +10,8 @@ output <- rbindlist(lapply(1:length(filelist), function(a){load(filelist[a]); ou
 
 output <- data.table(output)
 output$daily_attack = 0.18
-output$test = T
-visitors = F
+output$test = F
+visitors = T
 quarantine = F
 symptomatic = T
 
@@ -50,8 +50,8 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
 
 #Create table to compare observed SAR with predicted SAR
 ##NB: This does not really work with testing yet, since it is difficult to determine a closed-form formula for the predicted SAR
-sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), isolate = T, group = output$group) %>% left_join(output, by = "group") %>%
-  mutate(expected.sar = ifelse(source=="staff" | source=="visitor" | susp=="staff" | susp=="visitor" | location=="Common area", 1-(1-daily_attack)^(1/3), daily_attack)*
+sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), isolate = F, group = output$group) %>% left_join(output, by = "group") %>%
+  mutate(expected.sar = ifelse(source=="staff" | source=="visit" | susp=="staff" | susp=="visit" | location=="Common area", 1-(1-daily_attack)^(1/3), daily_attack)*
            ifelse(source=="res", res_trans_red, 1)*
            ifelse(source=="res" & !symptomatic, mult_asymp_res, 1)*
            ifelse(source!="res" & !symptomatic, mult_asymp_nonres, 1)*
@@ -61,7 +61,7 @@ sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactio
            ifelse(susp=="staff", staff_susp_red, 1)*
            ifelse(susp=="visit", visit_susp_red, 1)*
            ifelse(location == "Room" & source=="res" & symptomatic, rel_trans_room_symp_res, 1)*
-           ifelse(location=="Room" & ((source=="res" & susp=="staff") | (source=="staff" & susp=="res") | (source=="visitor" & susp=="staff")) & quarantine, 0.5, 1)*
+           ifelse(location=="Room" & ((source=="res" & susp=="staff") | (source=="staff" & susp=="res") | (source=="visit" & susp=="staff")) & quarantine, 0.5, 1)*
            ifelse(location == "Common area", rel_trans_common, 1)*
            ifelse(location=="Common area" & source=="res" & symptomatic & !isolate.x, rel_trans_room_symp_res, 1)*
            ifelse(location == "Staff interactions", rel_trans_staff, 1)
@@ -73,54 +73,54 @@ sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactio
   mutate(observed.sar = NA)
 if(visitors==T){
   sar.compare = sar.compare %>% mutate(observed.sar = ifelse(location=="Room",
-                                               ifelse(source=="res",
-                                                      ifelse(susp=="res", 
-                                                             ifelse(symptomatic, 
-                                                                    inf_ct_sympR_R_room.sum/risk_ct_sympR_R_room.sum, 
-                                                                    inf_ct_asympR_R_room.sum/risk_ct_asympR_R_room.sum),
-                                                             ifelse(susp=="staff", 
-                                                                    ifelse(symptomatic, 
-                                                                           inf_ct_sympR_S_room.sum/risk_ct_sympR_S_room.sum,
-                                                                           inf_ct_asympR_S_room.sum/risk_ct_asympR_S_room.sum),
-                                                                    ifelse(susp=="visit",
-                                                                           ifelse(symptomatic,
-                                                                                  inf_ct_sympR_V_room.sum/risk_ct_sympR_V_room.sum,
-                                                                                  inf_ct_asympR_V_room.sum/risk_ct_asympR_V_room.sum),
-                                                                           observed.sar))),
-                                                      ifelse(source=="staff",
-                                                             ifelse(susp=="res", 
-                                                                    ifelse(symptomatic, 
-                                                                           inf_ct_sympS_R_room.sum/risk_ct_sympS_R_room.sum, 
-                                                                           inf_ct_asympS_R_room.sum/risk_ct_asympS_R_room.sum),
-                                                                    observed.sar),
-                                                             ifelse(source=="visit",
-                                                                    ifelse(susp=="res",
-                                                                           ifelse(symptomatic,
-                                                                                  inf_ct_sympV_R_room.sum/risk_ct_sympV_R_room.sum,
-                                                                                  inf_ct_asympV_R_room.sum/risk_ct_asympV_R_room.sum),
-                                                                           observed.sar),
-                                                                    observed.sar))),
-                                               observed.sar))
+                                                             ifelse(source=="res",
+                                                                    ifelse(susp=="res", 
+                                                                           ifelse(symptomatic, 
+                                                                                  inf_ct_sympR_R_room.sum/risk_ct_sympR_R_room.sum, 
+                                                                                  inf_ct_asympR_R_room.sum/risk_ct_asympR_R_room.sum),
+                                                                           ifelse(susp=="staff", 
+                                                                                  ifelse(symptomatic, 
+                                                                                         inf_ct_sympR_S_room.sum/risk_ct_sympR_S_room.sum,
+                                                                                         inf_ct_asympR_S_room.sum/risk_ct_asympR_S_room.sum),
+                                                                                  ifelse(susp=="visit",
+                                                                                         ifelse(symptomatic,
+                                                                                                inf_ct_sympR_V_room.sum/risk_ct_sympR_V_room.sum,
+                                                                                                inf_ct_asympR_V_room.sum/risk_ct_asympR_V_room.sum),
+                                                                                         observed.sar))),
+                                                                    ifelse(source=="staff",
+                                                                           ifelse(susp=="res", 
+                                                                                  ifelse(symptomatic, 
+                                                                                         inf_ct_sympS_R_room.sum/risk_ct_sympS_R_room.sum, 
+                                                                                         inf_ct_asympS_R_room.sum/risk_ct_asympS_R_room.sum),
+                                                                                  observed.sar),
+                                                                           ifelse(source=="visit",
+                                                                                  ifelse(susp=="res",
+                                                                                         ifelse(symptomatic,
+                                                                                                inf_ct_sympV_R_room.sum/risk_ct_sympV_R_room.sum,
+                                                                                                inf_ct_asympV_R_room.sum/risk_ct_asympV_R_room.sum),
+                                                                                         observed.sar),
+                                                                                  observed.sar))),
+                                                             observed.sar))
 }else{
   sar.compare = sar.compare %>% mutate(observed.sar = ifelse(location == "Room",
-                                               ifelse(source=="res",
-                                                      ifelse(susp=="res",
-                                                             ifelse(symptomatic,
-                                                                    inf_ct_sympR_R_room.sum/risk_ct_sympR_R_room.sum,
-                                                                    inf_ct_asympR_R_room.sum/risk_ct_asympR_R_room.sum),
-                                                             ifelse(susp=="staff",
-                                                                    ifelse(symptomatic,
-                                                                           inf_ct_sympR_S_room.sum/risk_ct_sympR_S_room.sum,
-                                                                           inf_ct_asympR_S_room.sum/risk_ct_asympR_S_room.sum),
-                                                                    observed.sar)),
-                                                      ifelse(source=="staff",
-                                                             ifelse(susp=="res",
-                                                                    ifelse(symptomatic,
-                                                                           inf_ct_sympS_R_room.sum/risk_ct_sympS_R_room.sum,
-                                                                           inf_ct_asympS_R_room.sum/risk_ct_asympS_R_room.sum),
-                                                                    observed.sar),
-                                                             observed.sar)),
-                                               observed.sar))
+                                                             ifelse(source=="res",
+                                                                    ifelse(susp=="res",
+                                                                           ifelse(symptomatic,
+                                                                                  inf_ct_sympR_R_room.sum/risk_ct_sympR_R_room.sum,
+                                                                                  inf_ct_asympR_R_room.sum/risk_ct_asympR_R_room.sum),
+                                                                           ifelse(susp=="staff",
+                                                                                  ifelse(symptomatic,
+                                                                                         inf_ct_sympR_S_room.sum/risk_ct_sympR_S_room.sum,
+                                                                                         inf_ct_asympR_S_room.sum/risk_ct_asympR_S_room.sum),
+                                                                                  observed.sar)),
+                                                                    ifelse(source=="staff",
+                                                                           ifelse(susp=="res",
+                                                                                  ifelse(symptomatic,
+                                                                                         inf_ct_sympS_R_room.sum/risk_ct_sympS_R_room.sum,
+                                                                                         inf_ct_asympS_R_room.sum/risk_ct_asympS_R_room.sum),
+                                                                                  observed.sar),
+                                                                           observed.sar)),
+                                                             observed.sar))
 }
                                                                 
 sar.compare = sar.compare %>% mutate(observed.sar = ifelse(location == "Common area",

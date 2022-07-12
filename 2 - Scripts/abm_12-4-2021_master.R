@@ -1461,9 +1461,12 @@ run_model = function(time = 30,
       #print(df %>% filter(now) %>% arrange(source) %>% select(id, HH_id, class, group, adult, family, source, location, symp))
     }
     
+    # clear up memory space
+    rm(df_time)
+    gc(reset=TRUE)
+    
     # round values
     df$t_notify = ceiling(df$t_notify)
-    
     #print(t); print(class_quarantine)
     #print(df %>% #filter(!adult) %>%
     #        group_by(class) %>% summarize(mean(quarantined), sum(quarantined)))
@@ -1473,7 +1476,7 @@ run_model = function(time = 30,
 }
 
 
-start = make_NH(synthpop = synthpop, cohorting = T, visitors = F)
+start = make_NH(synthpop = synthpop, cohorting = T, visitors = T)
 nh = initialize_NH(rel_trans_room_symp_res = 1, 
                    p_asymp_nonres = 0, p_asymp_res = 0, p_subclin_nonres = 0, p_subclin_res = 0,
                    daily_attack = .18, staff_vax_req = F, res_vax = 0, staff_vax = 0, visit_vax = 0, 

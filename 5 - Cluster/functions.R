@@ -281,12 +281,16 @@ initialize_NH = function(rel_trans_room_symp_res = 1,
            t_notify = -17, # time at which infected finds out they are positive
            t_quarantine = -13,
            t_end_quarantine = -13,
+           inf_quarantine = F, # whether someone got infected while quarantining in room
            tot_inf = 0,
            detected = 0,
            quarantined = F,
            test = 0,
            test_ct = 0,
            test_type = F,
+           test_tp_count = 0,
+           test_fn_count = 0,
+           test_eligible = 0,
            relative_trans_room_symp_res = ifelse(type != 0, 0, rel_trans_room_symp_res),
            daily_attack_rate = daily_attack,
            source = 0,
@@ -297,7 +301,9 @@ initialize_NH = function(rel_trans_room_symp_res = 1,
            
            # trackers for unit testing
            person.days.at.risk.room.res = 0,
+           person.days.at.risk.room.res.quarantine = 0,
            person.days.at.risk.room.staff = 0,
+           person.days.at.risk.room.staff.quarantine = 0,
            person.days.at.risk.room.visit = 0,
            person.days.at.risk.common.res = 0,
            person.days.at.risk.common.staff = 0,
@@ -307,7 +313,7 @@ initialize_NH = function(rel_trans_room_symp_res = 1,
            # symp_and_inf_days = 0,
            # last = 0,
            
-           days_inf = NA,
+           days_inf = 5,
            inf = F,
            isolate_home = F,
            isolate_room = F,
@@ -648,15 +654,17 @@ run_room = function(a, df, t, quarantine, cohorts, shift){
         staff_vec$susp = df[df$id%in%staff_vec$id,]$susp
       }
       staff_vec$present_susp = df[df$id%in%staff_vec$id,]$present_susp
-    }
+    }else{staff_vec = c()}
     
     # make vector of resident's visitor present at NH
     if('family' %in% colnames(df) & df$flag_fam[df$id==a]!=1 & any(df$shift=="morning" & df$type==2)){
       visit_vec = cohorts[[a]][[5]][cohorts[[a]][[5]]$t==t & cohorts[[a]][[5]]$id%in%df$id,]
-      if(nrow(visit_vec)>0){
+      if(quarantine & df$quarantined[df$id==a]==1){
+        visit_vec = c()
+      }else if(nrow(visit_vec)>0){
         visit_vec$susp = df[df$id%in%visit_vec$id,]$susp
         visit_vec$present_susp = df[df$id%in%visit_vec$id,]$present_susp
-      }
+      }else{visit_vec = c()}
       
     }else{visit_vec = c()}
     
@@ -671,7 +679,7 @@ run_room = function(a, df, t, quarantine, cohorts, shift){
     # list infected 
     infs = room*prob_room
     
-    return(list(infs, staff_vec))
+    return(list(infs, staff_vec, visit_vec))
     
     
     ## if infected is direct-care staff
@@ -789,9 +797,9 @@ run_staff = function(a, df, n_contact_staff, rel_trans_staff = 1/4){
   
   if(n_contact_staff>0){
     # pull contacts from random graph of staff present in nursing home
-    tot = length(df$id[!df$isolated & df$type == 1 & df$id!=a])
+    tot = length(df$id[!df$isolated & !df$quarantined & df$type == 1 & df$id!=a])
     contact_take = ifelse(n_contact_staff<=tot, n_contact_staff, tot)
-    contact_id = sample(df$id[!df$isolated & df$type == 1 & df$id!=a], contact_take, replace=F)
+    contact_id = sample(df$id[!df$isolated & !df$quarantined & df$type == 1 & df$id!=a], contact_take, replace=F)
     contacts = df[df$id %in% contact_id,]
     id.susp = contacts[contacts$present_susp & contacts$susp != 0,]$id
     #print(dim(contacts))
@@ -1009,7 +1017,7 @@ make_infected = function(df.u, days_inf = 5, set = NA, mult_asymp_res = 1, mult_
 #### NOTE: I found this to be slower when coded w/tidyverse.
 #### Therefore for the most part, this is coded in base.
 run_model = function(time = 30,
-                     test = F,
+                     test = T,
                      test_days = "week",
                      test_sens =  .7,
                      test_frac = .9,
@@ -1028,7 +1036,7 @@ run_model = function(time = 30,
                      start_type = "cont",
                      start_mult = 1,
                      nonres_prob = 0.001,
-                     quarantine = F,
+                     quarantine = T,
                      quarantine.length = 5,
                      rel_trans_common = 1/4,
                      rel_trans_staff = 1/4,
@@ -1135,12 +1143,19 @@ run_model = function(time = 30,
     # df$symp_and_inf_days = df$symp_and_inf_days + df$symp_now*df$inf
     # df$last = ifelse(df$inf, t, df$last)
     
-    # infectious and meant to be at nursing home
-    df_time$trans_now = df_time$shift!="absent" & df_time$inf
+    # quarantine
+    if(quarantine){
+      df_time$quarantined = ifelse((df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_end_quarantine>=t & df_time$t_end_quarantine!=-13) | 
+                                     (df_time$flag_room==1 & df_time$type==0 & !df_time$trans_now), T, F)
+      # df$t_end_quarantine = ifelse(df$t_quarantine<=t & df$t_quarantine!=-13 & df$t_notify!=-17, df$t_notify, df$t_end_quarantine)
+    }
     
     # flag infected residents and their roommates
     df_time$flag_room = 0
     df_time$flag_room[df_time$trans_now & df_time$type==0] = ifelse(df_time$t_notify[df_time$trans_now & df_time$type==0]<=t, 1, df_time$flag_room[df_time$trans_now & df_time$type==0])
+    # if(quarantine){
+    #   df_time$flag_room[df_time$quarantined & df_time$type==0] = ifelse(df_time$t_quarantine[df_time$quarantined & df_time$type==0]<=t, 1, df_time$flag_room[df_time$quarantined & df_time$type==0])
+    # }
     if(sum(df_time$flag_room)>0){
       flagged_rooms = unique(df_time$room[df_time$flag_room==1])
     } else{flagged_rooms = 0}
@@ -1150,17 +1165,13 @@ run_model = function(time = 30,
     df_time$flag_fam = 0
     if("family"%in% colnames(df_time)){
       df_time$flag_fam[df_time$trans_now & df_time$type==0] = ifelse(df_time$t_notify[df_time$trans_now & df_time$type==0]<=t, 1, df_time$flag_fam[df_time$trans_now & df_time$type==0])
+      # if(quarantine){
+      #   df_time$flag_fam[df_time$quarantined & df_time$type==0] = ifelse(df_time$t_quarantine[df_time$quarantined & df_time$type==0]<=t, 1, df_time$flag_fam[df_time$quarantined & df_time$type==0])
+      # }
       if(sum(df_time$flag_fam)>0){
         flagged_families = unique(df_time$family[df_time$flag_fam==1])
       } else{flagged_families = 0}
       df_time$flag_fam[df_time$type==2 & df_time$family%in%flagged_families] = 1
-    }
-    
-    # quarantine
-    if(quarantine){
-      df_time$quarantined = df_time$flag_room==1 & df_time$type==0 & !df_time$trans_now
-      df_time$quarantined = ifelse(df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_end_quarantine>=t, T, df_time$quarantined)
-      # df$t_end_quarantine = ifelse(df$t_quarantine<=t & df$t_quarantine!=-13 & df$t_notify!=-17, df$t_notify, df$t_end_quarantine)
     }
     
     # re-estimate who is present (among staff and visitors) 
@@ -1168,7 +1179,6 @@ run_model = function(time = 30,
     if("family"%in%colnames(df_time)){
       df_time$shift[df_time$type==2] = ifelse(df_time$shift[df_time$type==2]!="absent" & df_time$flag_fam[df_time$type==2]!=1 & !df_time$isolate_home[df_time$type==2] & !df_time$quarantined[df_time$type==2], df_time$shift[df_time$type==2], "absent")
     }
-    df_time$inf = df_time$t_inf > -1 & df_time$t_inf <= t & df_time$t_end_inf_home >= t
     
     df_time$not_inf = df_time$t_exposed==-99 | df_time$t_exposed>t # if exposed from community, can be exposed earlier
     if(t==15) df_time$not_inf_keep = df_time$not_inf
@@ -1198,7 +1208,14 @@ run_model = function(time = 30,
       df_time$t_notify = ifelse(df_time$test & df_time$trans_now, t, df_time$t_notify)
       df_time$detected = ifelse(df_time$test & df_time$trans_now, 1, df_time$detected)
       df_time$t_end_quarantine = ifelse(df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_notify!=-17, df_time$t_notify, df_time$t_end_quarantine)
+      df_time$isolate_home = df_time$isolate & df_time$inf & df_time$t_notify <= t & df_time$t_notify!=-17 & df_time$t_end_inf_home>=t & df_time$type!=0
+      df_time$isolate_room = df_time$isolate & df_time$inf & df_time$t_notify <= t & df_time$t_notify!=-17 & df_time$t_end_inf_home>=t & df_time$type==0
+      df_time$isolated = df_time$isolate_home | df_time$isolate_room
       # room_test_ind = room_test_ind + length(unique(df$room[df$test_type & df$present & !df$isolated & !df$q_room]))
+      
+      df_time$test_tp_count = df_time$test_tp_count + ifelse(df_time$test_type & df_time$shift!="absent", df_time$inf*df_time$test, 0)
+      df_time$test_fn_count = df_time$test_fn_count + ifelse(df_time$test_type & df_time$shift!="absent", df_time$inf*(1-df_time$test), 0)
+      df_time$test_eligible = df_time$test_eligible + (df_time$shift!="absent")*df_time$test_type
       
       #print(paste("Time:", t))
       #print(sum(df$test))
@@ -1221,26 +1238,37 @@ run_model = function(time = 30,
       for(a in room_infs){
         room_inf_vec = c()
         staff_vec_id = c()
+        visit_present = F
+        visit_vec_id = 0
         
         # ROOM CONTACTS
         for(shift in 1:3){
           if(shift==1 & (df_time$shift[df_time$id==a]=="morning" | df_time$shift[df_time$id==a]=="all")){
             infs = run_room(a, df_time[df_time$shift=="morning" | df_time$shift=="all",], t, quarantine, cohorts, shift)
             if(length(infs[[1]])>0){room_inf_vec[(length(room_inf_vec)+1):(length(room_inf_vec)+length(infs[[1]]))] = infs[[1]]}
-            # store staff id for residents
-            if(df_time$type[df_time$id==a]==0 & nrow(infs[[2]])>0){staff_vec_id[(length(staff_vec_id)+1):(length(staff_vec_id)+length(infs[[2]]$id))] = infs[[2]]$id}
+            if(df_time$type[df_time$id==a]==0){
+              if(!is.null(infs[[2]])){
+                # store staff id for residents
+                staff_vec_id[(length(staff_vec_id)+1):(length(staff_vec_id)+length(infs[[2]]$id))] = infs[[2]]$id
+              }
+              if(!is.null(infs[[3]])){
+                # check for visitors
+                visit_vec_id = infs[[3]]$id
+                visit_present = T
+              }
+            }
           }
           if(shift==2 & (df_time$shift[df_time$id==a]=="evening" | df_time$shift[df_time$id==a]=="all")){
             infs = run_room(a, df_time[df_time$shift=="evening" | df_time$shift=="all",], t, quarantine, cohorts, shift)
             if(length(infs[[1]])>0){room_inf_vec[(length(room_inf_vec)+1):(length(room_inf_vec)+length(infs[[1]]))] = infs[[1]]}
             # store staff id for residents
-            if(df_time$type[df_time$id==a]==0 & nrow(infs[[2]])>0){staff_vec_id[(length(staff_vec_id)+1):(length(staff_vec_id)+length(infs[[2]]$id))] = infs[[2]]$id}
+            if(df_time$type[df_time$id==a]==0 & !is.null(infs[[2]])){staff_vec_id[(length(staff_vec_id)+1):(length(staff_vec_id)+length(infs[[2]]$id))] = infs[[2]]$id}
           }
           if(shift==3 & (df_time$shift[df_time$id==a]=="night" | df_time$shift[df_time$id==a]=="all")){
             infs = run_room(a, df_time[df_time$shift=="night" | df_time$shift=="all",], t, quarantine, cohorts, shift)
             if(length(infs[[1]])>0){room_inf_vec[(length(room_inf_vec)+1):(length(room_inf_vec)+length(infs[[1]]))] = infs[[1]]}
             # store staff id for residents
-            if(df_time$type[df_time$id==a]==0 & nrow(infs[[2]])>0){staff_vec_id[(length(staff_vec_id)+1):(length(staff_vec_id)+length(infs[[2]]$id))] = infs[[2]]$id}
+            if(df_time$type[df_time$id==a]==0 & !is.null(infs[[2]])){staff_vec_id[(length(staff_vec_id)+1):(length(staff_vec_id)+length(infs[[2]]$id))] = infs[[2]]$id}
           }
           room_inf_vec = room_inf_vec[!room_inf_vec==0]
           df_time$susp[df_time$id%in%room_inf_vec] = 0
@@ -1252,18 +1280,46 @@ run_model = function(time = 30,
         # if infected is resident
         if(df_time$type[df_time$id==a]==0){
           
+          if(test & quarantine & visit_present){
+            # get next day of testing
+            future_days = c()
+            for(day in testing_days){
+              future_days[length(future_days)+1] = ifelse(day-t>0, day, 0)
+            }
+            next_day = t+min(abs(future_days-t))
+            
+            if(t%in%testing_days){
+              df_time$t_quarantine[df_time$id==visit_vec_id & !df_time$id%in%room_inf_vec] = t
+              
+              df_time$t_end_quarantine[df_time$id==visit_vec_id & !df_time$id%in%room_inf_vec] = t+quarantine.length
+            }else{
+              df_time$t_quarantine[df_time$id==visit_vec_id & !df_time$id%in%room_inf_vec] = ifelse(df_time$symp[df_time$id==a]==1 & floor(df_time$t_symp[df_time$id==a])>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                    df_time$t_symp[df_time$id==a], 
+                                                                                                    ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id==visit_vec_id & !df_time$id%in%room_inf_vec]))
+              
+              df_time$t_end_quarantine[df_time$id==visit_vec_id & !df_time$id%in%room_inf_vec] = ifelse(df_time$t_quarantine[df_time$id==visit_vec_id & !df_time$id%in%room_inf_vec]!=-13, 
+                                                                                                        df_time$t_quarantine[df_time$id==visit_vec_id & !df_time$id%in%room_inf_vec]+quarantine.length, df_time$t_end_quarantine[df_time$id==visit_vec_id & !df_time$id%in%room_inf_vec])
+            }
+          }
+          
           #Track risk set for unit testing
+          if(quarantine & ((df_time$t_notify[df_time$id==a]<=t & df_time$t_notify[df_time$id==a]!=-17) | (df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]<=t & df_time$t_symp[df_time$id==a]!=-1))){
+            df_time$inf_quarantine[df_time$id%in%room_inf_vec & df_time$type==1] = T
+            df_time$person.days.at.risk.room.staff.quarantine[df_time$id == a] = df_time$person.days.at.risk.room.staff.quarantine[df_time$id == a] +
+              (df_time$t_inf[df_time$id == a] <= t & df_time$t_end_inf_home[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$id%in%staff_vec_id & df_time$type==1 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
+          }else{
+            df_time$person.days.at.risk.room.staff[df_time$id == a] = df_time$person.days.at.risk.room.staff[df_time$id == a] +
+              (df_time$t_inf[df_time$id == a] <= t & df_time$t_end_inf_home[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$id%in%staff_vec_id & df_time$type==1 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
+            
+            if(visit_present){
+              df_time$person.days.at.risk.room.visit[df_time$id == a] = df_time$person.days.at.risk.room.visit[df_time$id == a] +
+                (df_time$t_inf[df_time$id == a] <= t & df_time$t_end_inf_home[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$family==df_time$family[df_time$id==a] &
+                                                                                                                                df_time$type==2 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
+            }
+          }
           df_time$person.days.at.risk.room.res[df_time$id == a] = df_time$person.days.at.risk.room.res[df_time$id == a] + 
             (df_time$t_inf[df_time$id == a] <= t & df_time$t_end_inf_home[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$room==df_time$room[df_time$id==a] &
                                                                                                                             df_time$type==0 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
-          df_time$person.days.at.risk.room.staff[df_time$id == a] = df_time$person.days.at.risk.room.staff[df_time$id == a] +
-            (df_time$t_inf[df_time$id == a] <= t & df_time$t_end_inf_home[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$id%in%staff_vec_id & df_time$type==1 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
-          
-          if("family" %in% colnames(df_time)){
-            df_time$person.days.at.risk.room.visit[df_time$id == a] = df_time$person.days.at.risk.room.visit[df_time$id == a] +
-              (df_time$t_inf[df_time$id == a] <= t & df_time$t_end_inf_home[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$family==df_time$family[df_time$id==a] &
-                                                                                                                              df_time$type==2 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
-          }
         }
         
         # if infected is direct-care staff
@@ -1281,28 +1337,39 @@ run_model = function(time = 30,
             
             res_vec_id = infs[[2]]$id
             
-            df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]!=-1, 
-                                                                                                  df_time$t_symp[df_time$id==a], 
-                                                                                                  ifelse(test, ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]), df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]))
-            
-            df_time$t_end_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = ifelse(df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]!=-13, 
-                                                                                                      df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]+quarantine.length, df_time$t_end_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec])
+            if(t%in%testing_days){
+              df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = t
+              
+              df_time$t_end_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = t+quarantine.length
+            }else{
+              df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = ifelse(df_time$symp[df_time$id==a]==1 & floor(df_time$t_symp[df_time$id==a])>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                    df_time$t_symp[df_time$id==a], 
+                                                                                                    ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]))
+              
+              df_time$t_end_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = ifelse(df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]!=-13, 
+                                                                                                        df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]+quarantine.length, df_time$t_end_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec])
+            }
           }
           
           #Track risk set for unit testing
+          if(quarantine){
+            df_time$inf_quarantine[df_time$id%in%room_inf_vec & df_time$quarantined & df_time$type==0] = T
+            df_time$person.days.at.risk.room.res.quarantine[df_time$id == a] = df_time$person.days.at.risk.room.res.quarantine[df_time$id == a] +
+              (df_time$t_inf[df_time$id == a]<=t & df_time$t_end_inf_home[df_time$id == a]>=t)*sum(df_time$present_susp[df_time$id%in%infs[[2]]$id & df_time$quarantined & df_time$type==0 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
+          }
           df_time$person.days.at.risk.room.res[df_time$id == a] = df_time$person.days.at.risk.room.res[df_time$id == a] +
-            (df_time$t_inf[df_time$id == a]<=t & df_time$t_end_inf_home[df_time$id == a]>=t)*sum(df_time$present_susp[df_time$id%in%infs[[2]]$id & df_time$type==0 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
+            (df_time$t_inf[df_time$id == a]<=t & df_time$t_end_inf_home[df_time$id == a]>=t)*sum(df_time$present_susp[df_time$id%in%infs[[2]]$id & !df_time$quarantined & df_time$type==0 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
         }
         
         # if infected is visitor
         if(df_time$type[df_time$id==a]==2){
           
           # quarantine
-          # if pre/asymptomatic, find when symptoms show
+          # if pre/asymptomatic, find when symptoms show (FIX QUARANTINE)
           if(quarantine){
             res_vec_id = infs[[2]]$id
             
-            df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]!=-1, df_time$t_symp[df_time$id==a], df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec])
+            df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = ifelse(df_time$symp[df_time$id==a]==1 & floor(df_time$t_symp[df_time$id==a])>=t & df_time$t_symp[df_time$id==a]!=-1, df_time$t_symp[df_time$id==a], df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec])
             
             df_time$t_end_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec] = 
               ifelse(df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]!=-13, df_time$t_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec]+quarantine.length, df_time$t_end_quarantine[df_time$id%in%res_vec_id & !df_time$id%in%room_inf_vec])
@@ -1349,6 +1416,31 @@ run_model = function(time = 30,
         if(length(staff_inf_vec)>0){staff_inf_vec_total[(length(staff_inf_vec_total)+1):(length(staff_inf_vec_total)+length(staff_inf_vec))] = staff_inf_vec}
         #rand_trans = 0
         df_time$location[df_time$id%in%staff_inf_vec] = "Staff interactions"
+        
+        
+        staff_vec_id = staff_inf_vec.out[[2]][staff_inf_vec.out[[2]] >= 154]
+        
+        if(test & quarantine & length(staff_vec_id)>0){
+          # get next day of testing
+          future_days = c()
+          for(day in testing_days){
+            future_days[length(future_days)+1] = ifelse(day-t>0, day, 0)
+          }
+          next_day = t+min(abs(future_days-t))
+          
+          if(t%in%testing_days){
+            df_time$t_quarantine[df_time$id%in%staff_vec_id & !df_time$id%in%staff_inf_vec] = t
+            
+            df_time$t_end_quarantine[df_time$id%in%staff_vec_id & !df_time$id%in%staff_inf_vec] = t+quarantine.length
+          }else{
+            df_time$t_quarantine[df_time$id%in%staff_vec_id & !df_time$id%in%staff_inf_vec] = ifelse(df_time$symp[df_time$id==a]==1 & floor(df_time$t_symp[df_time$id==a])>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                     df_time$t_symp[df_time$id==a], 
+                                                                                                     ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id%in%staff_vec_id & !df_time$id%in%staff_inf_vec]))
+            
+            df_time$t_end_quarantine[df_time$id%in%staff_vec_id & !df_time$id%in%staff_inf_vec] = ifelse(df_time$t_quarantine[df_time$id%in%staff_vec_id & !df_time$id%in%staff_inf_vec]!=-13, 
+                                                                                                         df_time$t_quarantine[df_time$id%in%staff_vec_id & !df_time$id%in%staff_inf_vec]+quarantine.length, df_time$t_end_quarantine[df_time$id%in%staff_vec_id & !df_time$id%in%staff_inf_vec])
+          }
+        }
         
         #Track risk set for unit testing
         df_time$person.days.at.risk.staff.staff[df_time$id == a] = df_time$person.days.at.risk.staff.staff[df_time$id == a] + (df_time$t_inf[df_time$id == a] <= t & 
@@ -1423,13 +1515,19 @@ run_model = function(time = 30,
             future_days[length(future_days)+1] = ifelse(day-t>0, day, 0)
           }
           next_day = t+min(abs(future_days-t))
-          df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]!=-1, 
-                                                                                                                                                     df_time$t_symp[df_time$id==a], ifelse(test, 
-                                                                                                                                                                                           ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, 
-                                                                                                                                                                                                  df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)]), df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)]))
-          df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)] = ifelse(df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)]!=-13, 
-                                                                                                                                                         df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)]+quarantine.length, 
-                                                                                                                                                         df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)])
+          
+          if(t%in%testing_days){
+            df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec] = t
+            
+            df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec] = t+quarantine.length
+          }else{
+            df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)] = ifelse(df_time$symp[df_time$id==a]==1 & floor(df_time$t_symp[df_time$id==a])>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                                                                       df_time$t_symp[df_time$id==a], ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, 
+                                                                                                                                                                                             df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)]))
+            df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)] = ifelse(df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)]!=-13, 
+                                                                                                                                                           df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)]+quarantine.length, 
+                                                                                                                                                           df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & !df_time$id%in%common_inf_vec & (df_time$type!=1 | df_time$role==4)])
+          }
         }
         
         #Track risk set for unit testing
@@ -1447,20 +1545,6 @@ run_model = function(time = 30,
         df_time$source_symp = ifelse(df_time$id%in%common_inf_vec, df_time$symp[df_time$id==a], df_time$source_symp)
         df_time$not_inf = ifelse(df_time$id%in%common_inf_vec, F, df_time$not_inf)
       }
-      
-      # update infectious in df
-      for(id in unique(c(room_infs, staff_infs, common_infs))){
-        df[df$t>=t & df$id==id, !(colnames(df) %in% c("rn_cohort_morning", "rn_cohort_evening", "rn_cohort_night",
-                                                      "lpn_cohort_morning", "lpn_cohort_evening", "lpn_cohort_night",
-                                                      "cna_cohort_morning", "cna_cohort_evening", "cna_cohort_night",
-                                                      "ma_cohort_morning", "ma_cohort_evening", "admin_cohort_morning",
-                                                      "admin_cohort_evening", "t", "shift"))] = 
-          df_time[df_time$id==id, !(colnames(df_time) %in% c("rn_cohort_morning", "rn_cohort_evening", "rn_cohort_night",
-                                                             "lpn_cohort_morning", "lpn_cohort_evening", "lpn_cohort_night",
-                                                             "cna_cohort_morning", "cna_cohort_evening", "cna_cohort_night",
-                                                             "ma_cohort_morning", "ma_cohort_evening", "admin_cohort_morning",
-                                                             "admin_cohort_evening", "t", "shift"))]
-      }
     }
     
     #### SET UP NEXT GENERATION INFECTEDS ####
@@ -1472,31 +1556,30 @@ run_model = function(time = 30,
       df_time$t_exposed[df_time$now] = t
       df_time[df_time$now,] = make_infected(df_time[df_time$now,], days_inf = days_inf, mult_asymp_res = mult_asymp_res, 
                                             mult_asymp_nonres = mult_asymp_nonres, overdisp_off = overdisp_off)
-      
-      now_id = df_time[df_time$now,]$id
-      
-      for(i in 1:length(now_id)){
-        df[df$t>=t & df$id==now_id[i], !(colnames(df) %in% c("rn_cohort_morning", "rn_cohort_evening", "rn_cohort_night",
-                                                             "lpn_cohort_morning", "lpn_cohort_evening", "lpn_cohort_night",
-                                                             "cna_cohort_morning", "cna_cohort_evening", "cna_cohort_night",
-                                                             "ma_cohort_morning", "ma_cohort_evening", "admin_cohort_morning",
-                                                             "admin_cohort_evening", "t", "shift"))] = 
-          df_time[df_time$now & df_time$id==now_id[i], !(colnames(df_time) %in% c("rn_cohort_morning", "rn_cohort_evening", "rn_cohort_night",
-                                                                                  "lpn_cohort_morning", "lpn_cohort_evening", "lpn_cohort_night",
-                                                                                  "cna_cohort_morning", "cna_cohort_evening", "cna_cohort_night",
-                                                                                  "ma_cohort_morning", "ma_cohort_evening", "admin_cohort_morning",
-                                                                                  "admin_cohort_evening", "t", "shift"))]
-      }
       #print("New exposures:")
       #print(df %>% filter(now) %>% arrange(source) %>% select(id, HH_id, class, group, adult, family, source, location, symp))
     }
     
+    for(id in df_time$id){
+      df[df$t>=t & df$id==id, !(colnames(df) %in% c("rn_cohort_morning", "rn_cohort_evening", "rn_cohort_night",
+                                                    "lpn_cohort_morning", "lpn_cohort_evening", "lpn_cohort_night",
+                                                    "cna_cohort_morning", "cna_cohort_evening", "cna_cohort_night",
+                                                    "ma_cohort_morning", "ma_cohort_evening", "admin_cohort_morning",
+                                                    "admin_cohort_evening", "t", "shift"))] = 
+        df_time[df_time$id==id, !(colnames(df_time) %in% c("rn_cohort_morning", "rn_cohort_evening", "rn_cohort_night",
+                                                           "lpn_cohort_morning", "lpn_cohort_evening", "lpn_cohort_night",
+                                                           "cna_cohort_morning", "cna_cohort_evening", "cna_cohort_night",
+                                                           "ma_cohort_morning", "ma_cohort_evening", "admin_cohort_morning",
+                                                           "admin_cohort_evening", "t", "shift"))]
+    }
     # clear up memory space
     rm(df_time)
     gc(reset=TRUE)
     
     # round values
     df$t_notify = ceiling(df$t_notify)
+    df$t_quarantine = ceiling(df$t_quarantine)
+    df$t_end_quarantine = ceiling(df$t_end_quarantine)
     #print(t); print(class_quarantine)
     #print(df %>% #filter(!adult) %>%
     #        group_by(class) %>% summarize(mean(quarantined), sum(quarantined)))
@@ -1560,7 +1643,7 @@ run_model = function(time = 30,
 #' @param cohorts list from make_room()
 #'
 #' @export
-mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel_trans_staff = 1/4, 
+mult_runs = function(N, cohorting = F, visitors = T, rel_trans_common = 1/4, rel_trans_staff = 1/4, 
                      rel_trans_room_symp_res = 1, p_asymp_nonres = 0, p_asymp_res = 0, 
                      p_subclin_nonres = 0, p_subclin_res = 0, daily_attack = 0.18, staff_vax_req = F, 
                      res_vax = 0, staff_vax = 0, visit_vax = 0, staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
@@ -1568,7 +1651,7 @@ mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel
                      n_contact_staff = 10, n_start = 1, time_seed_inf = NA, days_inf = 5, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, 
                      isolate = T, time = 30, test = T, test_sens = 0.7, test_frac = 0.9, test_days = 'week', 
                      test_type = 'all', test_start_day = 1, start_mult = 1, start_type = 'cont', nonres_prob = 0.001, 
-                     quarantine = F, quarantine.length = 5, vax_eff = 0, overdisp_off = T, df, cohorts){
+                     quarantine = T, quarantine.length = 5, vax_eff = 0, overdisp_off = T, df, cohorts){
   
   keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N),
                     start_visit = numeric(N), start_res = numeric(N), start_symp = numeric(N), source_asymp = numeric(N), source_asymp_visit = numeric(N),
@@ -1674,6 +1757,10 @@ mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel
     # keep$room_test_ind_q[i] = df[df$t==(time+15),]$room_test_ind_q[1]
     # keep$test_qs[i] = sum(df[df$t==(time+15),]$test_ct_q)
     keep$test[i] = sum(df[df$t==(time+15),]$test_ct)
+    keep$test_count[i] = sum(df$test_ct)
+    keep$test_tp_count[i] <- sum(df$test_tp_count)
+    keep$test_fn_count[i] <- sum(df$test_fn_count)
+    keep$test_eligible[i] <- sum(df$test_eligible)
     keep$detected[i] = sum(df[df$t==(time+15),]$detected)
     keep$detected_staff[i] = sum(df[df$t==(time+15),]$detected[df[df$t==(time+15),]$type==1])
     keep$detected_res[i] = sum(df[df$t==(time+15),]$detected[df[df$t==(time+15),]$type==0])
@@ -1726,10 +1813,16 @@ mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel
     #John's new checks
     keep$inf_ct_sympR_R_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==0 & df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
     keep$inf_ct_asympR_R_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==0 & !df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
-    keep$inf_ct_sympR_S_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==1 & df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
-    keep$inf_ct_asympR_S_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==1 & !df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
-    keep$inf_ct_sympS_R_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==0 & df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==1], na.rm = TRUE)
-    keep$inf_ct_asympS_R_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==0 & !df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==1], na.rm = TRUE)
+    if(quarantine){
+      keep$inf_ct_sympR_S_room_quarantine[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==1 & df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$inf_quarantine & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
+      keep$inf_ct_asympR_S_room_quarantine[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==1 & !df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$inf_quarantine & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
+      keep$inf_ct_sympS_R_room_quarantine[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==0 & df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$inf_quarantine & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==1], na.rm = TRUE)
+      keep$inf_ct_asympS_R_room_quarantine[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==0 & !df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$inf_quarantine & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==1], na.rm = TRUE)
+    }
+    keep$inf_ct_sympR_S_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==1 & df[df$t==(time+15),]$source_symp & !df[df$t==(time+15),]$inf_quarantine & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
+    keep$inf_ct_asympR_S_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==1 & !df[df$t==(time+15),]$source_symp & !df[df$t==(time+15),]$inf_quarantine & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
+    keep$inf_ct_sympS_R_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==0 & df[df$t==(time+15),]$source_symp & !df[df$t==(time+15),]$inf_quarantine & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==1], na.rm = TRUE)
+    keep$inf_ct_asympS_R_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==0 & !df[df$t==(time+15),]$source_symp & !df[df$t==(time+15),]$inf_quarantine & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==1], na.rm = TRUE)
     
     keep$inf_ct_sympR_V_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==2 & df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
     keep$inf_ct_asympR_V_room[i] = sum(df[df$t==(time+15),]$location == "Room" & df[df$t==(time+15),]$type==2 & !df[df$t==(time+15),]$source_symp & df[df$t==(time+15),]$source %in% df[df$t==(time+15),]$id[df[df$t==(time+15),]$type==0], na.rm = TRUE)
@@ -1750,6 +1843,13 @@ mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel
     
     keep$risk_ct_sympR_R_room[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.res[df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==0], na.rm = TRUE)
     keep$risk_ct_asympR_R_room[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.res[!df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==0], na.rm = TRUE)
+    
+    if(quarantine){
+      keep$risk_ct_sympR_S_room_quarantine[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.staff.quarantine[df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==0], na.rm = TRUE)
+      keep$risk_ct_asympR_S_room_quarantine[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.staff.quarantine[!df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==0], na.rm = TRUE)
+      keep$risk_ct_sympS_R_room_quarantine[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.res.quarantine[df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==1], na.rm = TRUE)
+      keep$risk_ct_asympS_R_room_quarantine[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.res.quarantine[!df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==1], na.rm = TRUE)
+    }
     keep$risk_ct_sympR_S_room[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.staff[df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==0], na.rm = TRUE)
     keep$risk_ct_asympR_S_room[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.staff[!df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==0], na.rm = TRUE)
     keep$risk_ct_sympS_R_room[i] = sum(df[df$t==(time+15),]$person.days.at.risk.room.res[df[df$t==(time+15),]$symp & df[df$t==(time+15),]$type==1], na.rm = TRUE)
@@ -1798,6 +1898,7 @@ mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel
     
     keep$length.incubation_obs[i] = mean(floor(df[df$t==(time+15),]$t_inf[df[df$t==(time+15),]$t_inf > 0 & !df[df$t==(time+15),]$start]) - ceiling(df[df$t==(time+15),]$t_exposed[df[df$t==(time+15),]$t_inf > 0 & !df[df$t==(time+15),]$start] + runif(length(df[df$t==(time+15),]$t_exposed[df[df$t==(time+15),]$t_inf > 0 & !df[df$t==(time+15),]$start]), min = -0.5, max = 0.5)) + 1)
     keep$length.symp.gap_obs[i] = mean(floor(df[df$t==(time+15),]$t_symp[df[df$t==(time+15),]$t_inf > 0 & !df[df$t==(time+15),]$start]) - ceiling(df[df$t==(time+15),]$t_exposed[df[df$t==(time+15),]$t_inf > 0 & !df[df$t==(time+15),]$start] + runif(length(df[df$t==(time+15),]$t_exposed[df[df$t==(time+15),]$t_inf > 0 & !df[df$t==(time+15),]$start]), min = -0.5, max = 0.5)) + 1)
+    keep$length.quarantine_obs[i] = mean(floor(df[df$t==(time+15),]$t_end_quarantine[df[df$t==(time+15),]$t_quarantine > 0 & df[df$t==(time+15),]$t_quarantine!=-13 & df[df$t==(time+15),]$t_end_quarantine > 0 & df[df$t==(time+15),]$t_end_quarantine!=-13]) - ceiling(df[df$t==(time+15),]$t_quarantine[df[df$t==(time+15),]$t_quarantine > 0 & df[df$t==(time+15),]$t_quarantine!=-13 & df[df$t==(time+15),]$t_end_quarantine > 0 & df[df$t==(time+15),]$t_end_quarantine!=-13]))
     
     keep$res.vax.rate_obs[i] = mean(df[df$t==(time+15),]$vacc[df[df$t==(time+15),]$type==0])
     keep$staff.vax.rate_obs[i] = mean(df[df$t==(time+15),]$vacc[df[df$t==(time+15),]$type==1])
@@ -1826,7 +1927,8 @@ mult_runs = function(N, cohorting = T, visitors = F, rel_trans_common = 1/4, rel
     
     
     keep$res.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df[df$t==(time+15),]$start.time[1]:(time + df[df$t==(time+15),]$start.time[1] - 1), function(t){sum(ceiling(df[df$t==(time+15),]$t_inf[df[df$t==(time+15),]$start & df[df$t==(time+15),]$type==0]) == t)/sum(df[df$t==(time+15),]$type==0)})), NA)
-    keep$nonres.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df[df$t==(time+15),]$start.time[1]:(time + df[df$t==(time+15),]$start.time[1] - 1), function(t){sum(ceiling(df[df$t==(time+15),]$t_inf[df[df$t==(time+15),]$start & df[df$t==(time+15),]$type!=0]) == t)/sum(df[df$t==(time+15),]$type!=0)})), NA)
+    keep$staff.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df[df$t==(time+15),]$start.time[1]:(time + df[df$t==(time+15),]$start.time[1] - 1), function(t){sum(ceiling(df[df$t==(time+15),]$t_inf[df[df$t==(time+15),]$start & df[df$t==(time+15),]$type==1]) == t)/sum(df[df$t==(time+15),]$type==1)})), NA)
+    keep$visit.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df[df$t==(time+15),]$start.time[1]:(time + df[df$t==(time+15),]$start.time[1] - 1), function(t){sum(ceiling(df[df$t==(time+15),]$t_inf[df[df$t==(time+15),]$start & df[df$t==(time+15),]$type==2]) == t)/sum(df[df$t==(time+15),]$type==2)})), NA)
     
     
     # Alyssa's new checks
@@ -1870,7 +1972,7 @@ s.res_vax = 0; s.staff_vax_req = F; s.staff_vax = 0; s.visit_vax = 0
 s.staff_trans_red = 1; s.visit_trans_red = 1; s.res_trans_red = 1
 s.staff_susp_red = 1; s.visit_susp_red = 1; s.res_susp_red = 1
 s.vax_eff = 0; s.isolate = T
-s.quarantine.length = 5; s.quarantine = F
+s.quarantine.length = 5; s.quarantine = T
 s.time_seed_inf = NA; s.seed_asymp = F
 
 

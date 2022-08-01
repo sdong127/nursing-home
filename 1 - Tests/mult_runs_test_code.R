@@ -16,7 +16,7 @@ symptomatic = T
 
 #Create summary measures of model output, grouped by model input parameters
 output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = TRUE), inf_ct_asympR_R_room.sum = sum(inf_ct_asympR_R_room, na.rm = TRUE), inf_ct_sympR_S_room.sum = sum(inf_ct_sympR_S_room, na.rm = TRUE), inf_ct_asympR_S_room.sum = sum(inf_ct_asympR_S_room, na.rm = TRUE), inf_ct_sympS_R_room.sum = sum(inf_ct_sympS_R_room, na.rm = TRUE), inf_ct_asympS_R_room.sum = sum(inf_ct_asympS_R_room, na.rm = TRUE),
-                    # inf_ct_sympR_S_room_quarantine.sum = sum(inf_ct_sympR_S_room_quarantine, na.rm = TRUE), inf_ct_asympR_S_room_quarantine.sum = sum(inf_ct_asympR_S_room_quarantine, na.rm = TRUE), inf_ct_sympS_R_room_quarantine.sum = sum(inf_ct_sympS_R_room_quarantine, na.rm = TRUE), inf_ct_asympS_R_room_quarantine.sum = sum(inf_ct_asympS_R_room_quarantine, na.rm = TRUE),
+                    inf_ct_sympR_S_room_quarantine.sum = sum(inf_ct_sympR_S_room_quarantine, na.rm = TRUE), inf_ct_asympR_S_room_quarantine.sum = sum(inf_ct_asympR_S_room_quarantine, na.rm = TRUE), inf_ct_sympS_R_room_quarantine.sum = sum(inf_ct_sympS_R_room_quarantine, na.rm = TRUE), inf_ct_asympS_R_room_quarantine.sum = sum(inf_ct_asympS_R_room_quarantine, na.rm = TRUE),
                     inf_ct_sympR_V_room.sum = sum(inf_ct_sympR_V_room, na.rm = TRUE), inf_ct_asympR_V_room.sum = sum(inf_ct_asympR_V_room, na.rm = TRUE), inf_ct_sympV_R_room.sum = sum(inf_ct_sympV_R_room, na.rm = TRUE), inf_ct_asympV_R_room.sum = sum(inf_ct_asympV_R_room, na.rm = TRUE), 
                     
                     inf_ct_sympR_R_common.sum = sum(inf_ct_sympR_R_common, na.rm = TRUE), inf_ct_asympR_R_common.sum = sum(inf_ct_asympR_R_common, na.rm = TRUE), inf_ct_sympR_S_common.sum = sum(inf_ct_sympR_S_common, na.rm = TRUE), inf_ct_asympR_S_common.sum = sum(inf_ct_asympR_S_common, na.rm = TRUE), inf_ct_sympS_S_common.sum = sum(inf_ct_sympS_S_common, na.rm = TRUE), inf_ct_asympS_S_common.sum = sum(inf_ct_asympS_S_common, na.rm = TRUE), inf_ct_sympS_R_common.sum = sum(inf_ct_sympS_R_common, na.rm = TRUE), inf_ct_asympS_R_common.sum = sum(inf_ct_asympS_R_common, na.rm = TRUE),
@@ -24,7 +24,7 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
                     inf_ct_sympS_S_staff.sum = sum(inf_ct_sympS_S_staff, na.rm = TRUE), inf_ct_asympS_S_staff.sum = sum(inf_ct_asympS_S_staff, na.rm = TRUE), 
                     
                     risk_ct_sympR_R_room.sum = sum(risk_ct_sympR_R_room, na.rm = TRUE), risk_ct_asympR_R_room.sum = sum(risk_ct_asympR_R_room, na.rm = TRUE), risk_ct_sympR_S_room.sum = sum(risk_ct_sympR_S_room, na.rm = TRUE), risk_ct_asympR_S_room.sum = sum(risk_ct_asympR_S_room, na.rm = TRUE), risk_ct_sympS_R_room.sum = sum(risk_ct_sympS_R_room, na.rm = TRUE), risk_ct_asympS_R_room.sum = sum(risk_ct_asympS_R_room, na.rm = TRUE), 
-                    # risk_ct_sympR_S_room_quarantine.sum = sum(risk_ct_sympR_S_room_quarantine, na.rm = TRUE), risk_ct_asympR_S_room_quarantine.sum = sum(risk_ct_asympR_S_room_quarantine, na.rm = TRUE), risk_ct_sympS_R_room_quarantine.sum = sum(risk_ct_sympS_R_room_quarantine, na.rm = TRUE), risk_ct_asympS_R_room_quarantine.sum = sum(risk_ct_asympS_R_room_quarantine, na.rm = TRUE),
+                    risk_ct_sympR_S_room_quarantine.sum = sum(risk_ct_sympR_S_room_quarantine, na.rm = TRUE), risk_ct_asympR_S_room_quarantine.sum = sum(risk_ct_asympR_S_room_quarantine, na.rm = TRUE), risk_ct_sympS_R_room_quarantine.sum = sum(risk_ct_sympS_R_room_quarantine, na.rm = TRUE), risk_ct_asympS_R_room_quarantine.sum = sum(risk_ct_asympS_R_room_quarantine, na.rm = TRUE),
                     risk_ct_sympR_V_room.sum = sum(risk_ct_sympR_V_room, na.rm = TRUE), risk_ct_asympR_V_room.sum = sum(risk_ct_asympR_V_room, na.rm = TRUE), risk_ct_sympV_R_room.sum = sum(risk_ct_sympV_R_room, na.rm = TRUE), risk_ct_asympV_R_room.sum = sum(risk_ct_asympV_R_room, na.rm = TRUE),
                     
                     risk_ct_sympR_R_common.sum = sum(risk_ct_sympR_R_common, na.rm = TRUE), risk_ct_asympR_R_common.sum = sum(risk_ct_asympR_R_common, na.rm = TRUE), risk_ct_sympR_S_common.sum = sum(risk_ct_sympR_S_common, na.rm = TRUE), risk_ct_asympR_S_common.sum = sum(risk_ct_asympR_S_common, na.rm = TRUE), risk_ct_sympS_S_common.sum = sum(risk_ct_sympS_S_common, na.rm = TRUE), risk_ct_asympS_S_common.sum = sum(risk_ct_asympS_S_common, na.rm = TRUE), risk_ct_sympS_R_common.sum = sum(risk_ct_sympS_R_common, na.rm = TRUE), risk_ct_asympS_R_common.sum = sum(risk_ct_asympS_R_common, na.rm = TRUE),
@@ -54,7 +54,7 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
 
 #Create table to compare observed SAR with predicted SAR
 ##NB: This does not really work with testing yet, since it is difficult to determine a closed-form formula for the predicted SAR
-sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), symptomatic = T, quarantine = F, isolate = T, group = output$group) %>% left_join(output, by = "group") %>%
+sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), symptomatic = T, quarantine = c(T,F), isolate = T, group = output$group) %>% left_join(output, by = "group") %>%
   mutate(expected.sar = ifelse(source=="staff" | source=="visit" | susp=="staff" | susp=="visit" | location=="Common area", 1-(1-daily_attack)^(1/3), daily_attack)*
            ifelse(source=="res", res_trans_red, 1)*
            ifelse(source=="res" & !symptomatic, mult_asymp_res, 1)*
@@ -191,7 +191,6 @@ other.param.compare <- expand.grid(group = output$group, parameter = c("Length o
                                                                        "Length of Infectiousness (asymptomatic, high risk)",
                                                                        "Time from exposure to infectiousness",
                                                                        "Time from exposure to symptoms",
-                                                                       "Length of Quarantine",
                                                                        "Number of Residents",
                                                                        "Number of Direct-Care Staff",
                                                                        "Number of Administrative Staff",
@@ -217,9 +216,9 @@ if(visitors==T){
                                                                                       ifelse(parameter == "Length of Infectiousness (high risk)",
                                                                                              days_inf,
                                                                                              ifelse(parameter == "Time from exposure to infectiousness",
-                                                                                                    mean(sapply(rgamma(173, shape = 5.8, scale=.95) - rnorm(173, mean = 2, sd = 0.4), function(a){max(a,1)})),
+                                                                                                    mean(sapply(rgamma(263, shape = 5.8, scale=.95) - rnorm(263, mean = 2, sd = 0.4), function(a){max(a,1)})),
                                                                                                     ifelse(parameter == "Time from exposure to symptoms",
-                                                                                                           mean(rgamma(173, shape = 5.8, scale=.95)),
+                                                                                                           mean(rgamma(263, shape = 5.8, scale=.95)),
                                                                                                            ifelse(parameter == "Number of Residents",
                                                                                                                   90,
                                                                                                                   ifelse(parameter == "Number of Direct-Care Staff",
@@ -297,9 +296,7 @@ other.param.compare = other.param.compare %>% mutate(expected.param = ifelse(par
                                                                              test_sens,
                                                                              ifelse(parameter == "Test Coverage",
                                                                                     test_frac,
-                                                                                    ifelse(parameter == "Length of Quarantine" & quarantine,
-                                                                                           5,
-                                                                                           expected.param)))) %>%
+                                                                                    expected.param))) %>%
   relocate(expected.param) %>%
   mutate(obs.param = ifelse(parameter == "Length of Infectiousness (low risk)",
                             length.infectious.low_risk_obs.mean,
@@ -346,9 +343,7 @@ other.param.compare = other.param.compare %>% mutate(expected.param = ifelse(par
                             test_sens.obs/test_frac.obs,
                                    ifelse(parameter == "Test Coverage",
                                           test_frac.obs,
-                                          ifelse(parameter == "Length of Quarantine",
-                                                 length.quarantine_obs.mean,
-                                                 obs.param)))) %>%
+                                          obs.param))) %>%
   relocate(obs.param) %>%
   mutate(rel.diff = obs.param/expected.param) %>%
   relocate(rel.diff)

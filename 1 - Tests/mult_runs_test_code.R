@@ -9,14 +9,14 @@ filelist <- list.files()
 output <- rbindlist(lapply(1:length(filelist), function(a){load(filelist[a]); output = out; return(output)}), fill=T)
 
 output <- data.table(output)
-output$daily_attack = 0.18
+output$daily_attack_unvax = 0.18
 output$test = T
 visitors = T
 symptomatic = T
 
 #Create summary measures of model output, grouped by model input parameters
 output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = TRUE), inf_ct_asympR_R_room.sum = sum(inf_ct_asympR_R_room, na.rm = TRUE), inf_ct_sympR_S_room.sum = sum(inf_ct_sympR_S_room, na.rm = TRUE), inf_ct_asympR_S_room.sum = sum(inf_ct_asympR_S_room, na.rm = TRUE), inf_ct_sympS_R_room.sum = sum(inf_ct_sympS_R_room, na.rm = TRUE), inf_ct_asympS_R_room.sum = sum(inf_ct_asympS_R_room, na.rm = TRUE),
-                    inf_ct_sympR_S_room_quarantine.sum = sum(inf_ct_sympR_S_room_quarantine, na.rm = TRUE), inf_ct_asympR_S_room_quarantine.sum = sum(inf_ct_asympR_S_room_quarantine, na.rm = TRUE), inf_ct_sympS_R_room_quarantine.sum = sum(inf_ct_sympS_R_room_quarantine, na.rm = TRUE), inf_ct_asympS_R_room_quarantine.sum = sum(inf_ct_asympS_R_room_quarantine, na.rm = TRUE),
+                    # inf_ct_sympR_S_room_quarantine.sum = sum(inf_ct_sympR_S_room_quarantine, na.rm = TRUE), inf_ct_asympR_S_room_quarantine.sum = sum(inf_ct_asympR_S_room_quarantine, na.rm = TRUE), inf_ct_sympS_R_room_quarantine.sum = sum(inf_ct_sympS_R_room_quarantine, na.rm = TRUE), inf_ct_asympS_R_room_quarantine.sum = sum(inf_ct_asympS_R_room_quarantine, na.rm = TRUE),
                     inf_ct_sympR_V_room.sum = sum(inf_ct_sympR_V_room, na.rm = TRUE), inf_ct_asympR_V_room.sum = sum(inf_ct_asympR_V_room, na.rm = TRUE), inf_ct_sympV_R_room.sum = sum(inf_ct_sympV_R_room, na.rm = TRUE), inf_ct_asympV_R_room.sum = sum(inf_ct_asympV_R_room, na.rm = TRUE), 
                     
                     inf_ct_sympR_R_common.sum = sum(inf_ct_sympR_R_common, na.rm = TRUE), inf_ct_asympR_R_common.sum = sum(inf_ct_asympR_R_common, na.rm = TRUE), inf_ct_sympR_S_common.sum = sum(inf_ct_sympR_S_common, na.rm = TRUE), inf_ct_asympR_S_common.sum = sum(inf_ct_asympR_S_common, na.rm = TRUE), inf_ct_sympS_S_common.sum = sum(inf_ct_sympS_S_common, na.rm = TRUE), inf_ct_asympS_S_common.sum = sum(inf_ct_asympS_S_common, na.rm = TRUE), inf_ct_sympS_R_common.sum = sum(inf_ct_sympS_R_common, na.rm = TRUE), inf_ct_asympS_R_common.sum = sum(inf_ct_asympS_R_common, na.rm = TRUE),
@@ -24,7 +24,7 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
                     inf_ct_sympS_S_staff.sum = sum(inf_ct_sympS_S_staff, na.rm = TRUE), inf_ct_asympS_S_staff.sum = sum(inf_ct_asympS_S_staff, na.rm = TRUE), 
                     
                     risk_ct_sympR_R_room.sum = sum(risk_ct_sympR_R_room, na.rm = TRUE), risk_ct_asympR_R_room.sum = sum(risk_ct_asympR_R_room, na.rm = TRUE), risk_ct_sympR_S_room.sum = sum(risk_ct_sympR_S_room, na.rm = TRUE), risk_ct_asympR_S_room.sum = sum(risk_ct_asympR_S_room, na.rm = TRUE), risk_ct_sympS_R_room.sum = sum(risk_ct_sympS_R_room, na.rm = TRUE), risk_ct_asympS_R_room.sum = sum(risk_ct_asympS_R_room, na.rm = TRUE), 
-                    risk_ct_sympR_S_room_quarantine.sum = sum(risk_ct_sympR_S_room_quarantine, na.rm = TRUE), risk_ct_asympR_S_room_quarantine.sum = sum(risk_ct_asympR_S_room_quarantine, na.rm = TRUE), risk_ct_sympS_R_room_quarantine.sum = sum(risk_ct_sympS_R_room_quarantine, na.rm = TRUE), risk_ct_asympS_R_room_quarantine.sum = sum(risk_ct_asympS_R_room_quarantine, na.rm = TRUE),
+                    # risk_ct_sympR_S_room_quarantine.sum = sum(risk_ct_sympR_S_room_quarantine, na.rm = TRUE), risk_ct_asympR_S_room_quarantine.sum = sum(risk_ct_asympR_S_room_quarantine, na.rm = TRUE), risk_ct_sympS_R_room_quarantine.sum = sum(risk_ct_sympS_R_room_quarantine, na.rm = TRUE), risk_ct_asympS_R_room_quarantine.sum = sum(risk_ct_asympS_R_room_quarantine, na.rm = TRUE),
                     risk_ct_sympR_V_room.sum = sum(risk_ct_sympR_V_room, na.rm = TRUE), risk_ct_asympR_V_room.sum = sum(risk_ct_asympR_V_room, na.rm = TRUE), risk_ct_sympV_R_room.sum = sum(risk_ct_sympV_R_room, na.rm = TRUE), risk_ct_asympV_R_room.sum = sum(risk_ct_asympV_R_room, na.rm = TRUE),
                     
                     risk_ct_sympR_R_common.sum = sum(risk_ct_sympR_R_common, na.rm = TRUE), risk_ct_asympR_R_common.sum = sum(risk_ct_asympR_R_common, na.rm = TRUE), risk_ct_sympR_S_common.sum = sum(risk_ct_sympR_S_common, na.rm = TRUE), risk_ct_asympR_S_common.sum = sum(risk_ct_asympR_S_common, na.rm = TRUE), risk_ct_sympS_S_common.sum = sum(risk_ct_sympS_S_common, na.rm = TRUE), risk_ct_asympS_S_common.sum = sum(risk_ct_asympS_S_common, na.rm = TRUE), risk_ct_sympS_R_common.sum = sum(risk_ct_sympS_R_common, na.rm = TRUE), risk_ct_asympS_R_common.sum = sum(risk_ct_asympS_R_common, na.rm = TRUE),
@@ -48,14 +48,14 @@ output <- output[,.(inf_ct_sympR_R_room.sum = sum(inf_ct_sympR_R_room, na.rm = T
                     start_res_time.mean = mean(start_res_time, na.rm = TRUE), start_nonres_time.mean = mean(start_nonres_time, na.rm = TRUE),
                     not_inf_start.mean = mean(not_inf_start, na.rm = TRUE), test_type.check.mean = mean(test_type.check, na.rm = TRUE), vaxxed.mean = mean(vaxxed, na.rm = TRUE),
                     
-                    group = paste(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, daily_attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)),
+                    group = paste(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, daily_attack_unvax, daily_attack_vax, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, staff_prob, visit_prob, test, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)),
                  
-                 by = .(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, daily_attack, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, nonres_prob, test, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)]
+                 by = .(p_asymp_nonres, p_asymp_res, p_subclin_nonres, p_subclin_res, mult_asymp_res, mult_asymp_nonres, days_inf, rel_trans_common, vax_eff, daily_attack_unvax, daily_attack_vax, res_vax, staff_vax_req, staff_vax, visit_vax, res_susp_red, res_trans_red, staff_susp_red, staff_trans_red, visit_susp_red, visit_trans_red, staff_prob, visit_prob, test, isolate, rel_trans_room_symp_res, rel_trans_staff, test_sens, test_frac, quarantine)]
 
 #Create table to compare observed SAR with predicted SAR
 ##NB: This does not really work with testing yet, since it is difficult to determine a closed-form formula for the predicted SAR
-sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), symptomatic = T, quarantine = c(T,F), isolate = T, group = output$group) %>% left_join(output, by = "group") %>%
-  mutate(expected.sar = ifelse(source=="staff" | source=="visit" | susp=="staff" | susp=="visit" | location=="Common area", 1-(1-daily_attack)^(1/3), daily_attack)*
+sar.compare <- expand.grid(location = c("Room", "Common area", "Staff interactions"), source = c("res", "staff", "visit"), susp = c("res", "staff", "visit"), symptomatic = T, quarantine = F, isolate = T, group = output$group) %>% left_join(output, by = "group") %>%
+  mutate(expected.sar = ifelse(source=="staff" | source=="visit" | susp=="staff" | susp=="visit" | location=="Common area", 1-(1-daily_attack_unvax)^(1/3), daily_attack_unvax)*
            ifelse(source=="res", res_trans_red, 1)*
            ifelse(source=="res" & !symptomatic, mult_asymp_res, 1)*
            ifelse(source!="res" & !symptomatic, mult_asymp_nonres, 1)*
@@ -242,9 +242,9 @@ if(visitors==T){
                                                                                                                                                                                  ifelse(parameter == "Visitor Vaccination Rate",
                                                                                                                                                                                         visit_vax,
                                                                                                                                                                                         ifelse(parameter == "Community Incidence Rate (staff)",
-                                                                                                                                                                                               nonres_prob*((1 - staff_vax)+staff_vax*(1-vax_eff)),
+                                                                                                                                                                                               staff_prob*((1 - staff_vax)+staff_vax*(1-vax_eff)),
                                                                                                                                                                                                ifelse(parameter == "Community Incidence Rate (visitor)",
-                                                                                                                                                                                                      nonres_prob*((1-visit_vax)+visit_vax*(1-vax_eff)),
+                                                                                                                                                                                                      visit_prob*((1-visit_vax)+visit_vax*(1-vax_eff)),
                                                                                                                                                                                                       -99)))))))))))))))))))
                                                                                                                                           # ifelse(parameter == "Length of Infectiousness in Staff Interactions (symptomatic, staff)",
                                                                                                                                           #        mean(rnorm(83, mean = 2, sd = 0.4)),
@@ -284,7 +284,7 @@ if(visitors==T){
                                                                                                                                                                                    ifelse(parameter == "Visitor Vaccination Rate",
                                                                                                                                                                                           0,
                                                                                                                                                                                           ifelse(parameter == "Community Incidence Rate (staff)",
-                                                                                                                                                                                                 nonres_prob*((1 - staff_vax)+staff_vax*(1-vax_eff)),
+                                                                                                                                                                                                 staff_prob*((1 - staff_vax)+staff_vax*(1-vax_eff)),
                                                                                                                                                                                                  ifelse(parameter == "Community Incidence Rate (visitor)",
                                                                                                                                                                                                         NA, -99)))))))))))))))))))
                                                                                                                                             # ifelse(parameter == "Length of Infectiousness in Staff Interactions (symptomatic, staff)",

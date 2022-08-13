@@ -1057,7 +1057,7 @@ run_model = function(time = 30,
                      n_contact_common_staff = 3,
                      n_contact_staff = 10,
                      n_start = 1,
-                     days_inf = 5,
+                     days_inf = 7,
                      # days_inf_mild = 5,
                      # days_inf_mod = 10, 
                      # days_inf_severe = 20,
@@ -1069,11 +1069,11 @@ run_model = function(time = 30,
                      start_mult = 1,
                      staff_prob = 0.0015,
                      visit_prob = 0.0015,
-                     quarantine = F,
-                     quarantine.length = 5,
+                     quarantine = T,
+                     quarantine.length = 7,
                      rel_trans_common = 1/4,
                      rel_trans_staff = 1/4,
-                     test_type = "residents",
+                     test_type = "all",
                      overdisp_off = T,
                      df, cohorts){
   
@@ -1181,6 +1181,9 @@ run_model = function(time = 30,
     df_time$isolate_home = df_time$isolate & df_time$inf & df_time$t_notify <= t & df_time$t_notify!=-17 & df_time$t_end_inf_home>=t & df_time$type!=0
     df_time$isolate_room = df_time$isolate & df_time$inf & df_time$t_notify <= t & df_time$t_notify!=-17 & df_time$t_end_inf_home>=t & df_time$type==0
     
+    # update end of infectious period in NH
+    df_time$t_end_inf = ifelse(df_time$t_end_inf!=-1 & df_time$t_quarantine!=-13 & df_time$t_end_quarantine!=-13 & df_time$t_notify!=-17 & df_time$t_end_inf>=df_time$t_notify, df_time$t_notify, df_time$t_end_inf)
+    
     # checks
     # df$inf_days = df$inf_days + df$inf
     # df$symp_days = df$symp_days + ifelse(df$symp_now==1 & !is.na(df$symp_now), 1, 0)
@@ -1189,8 +1192,8 @@ run_model = function(time = 30,
     
     # quarantine
     if(quarantine){
-      df_time$quarantined = ifelse(df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_end_quarantine>=t & df_time$t_end_quarantine!=-13, T, F)
-      df_time$t_end_quarantine = ifelse(df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_end_quarantine>t & df_time$t_notify!=-17 & df_time$t_notify>=t & df_time$t_notify-df_time$t_quarantine<df_time$t_end_quarantine-df_time$t_quarantine & (df_time$t_end_inf>t | df_time$t_end_inf==-1), 
+      df_time$quarantined = ifelse(df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_end_quarantine>=t & df_time$t_end_quarantine!=-13 & df_time$vacc==0, T, F)
+      df_time$t_end_quarantine = ifelse(df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_end_quarantine>t & df_time$t_notify!=-17 & df_time$t_notify>=t & df_time$t_notify-df_time$t_quarantine<df_time$t_end_quarantine-df_time$t_quarantine & (df_time$t_end_inf>t | df_time$t_end_inf==-1) & df_time$vacc==0, 
                                         df_time$t_notify, df_time$t_end_quarantine)
     }
     
@@ -1201,7 +1204,7 @@ run_model = function(time = 30,
     if("family"%in% colnames(df_time)){
       df_time$flag_fam[df_time$trans_now & df_time$type==0] = ifelse(df_time$t_notify[df_time$trans_now & df_time$type==0]<=t, 1, 0)
       if(quarantine){
-        df_time$flag_fam[df_time$type==0] = ifelse(df_time$quarantined[df_time$type==0], 1, 0)
+        df_time$flag_fam[df_time$type==0 & df_time$vacc==0] = ifelse(df_time$quarantined[df_time$type==0 & df_time$vacc==0], 1, 0)
       }
       if(sum(df_time$flag_fam)>0){
         flagged_families = unique(df_time$family[df_time$flag_fam==1])
@@ -1246,7 +1249,7 @@ run_model = function(time = 30,
         df_time$t_end_inf = ifelse(df_time$test & df_time$trans_now, t, df_time$t_end_inf)
         df_time$t_notify = ifelse(df_time$test & df_time$trans_now & df_time$t_symp>=t, t, df_time$t_notify)
         df_time$detected = ifelse(df_time$test & df_time$trans_now, 1, df_time$detected)
-        df_time$t_end_quarantine = ifelse(df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_end_quarantine>t & df_time$t_notify!=-17 & df_time$t_notify>=t & df_time$t_notify-df_time$t_quarantine<df_time$t_end_quarantine-df_time$t_quarantine & (df_time$t_end_inf>t | df_time$t_end_inf==-1), 
+        df_time$t_end_quarantine = ifelse(df_time$t_quarantine<=t & df_time$t_quarantine!=-13 & df_time$t_end_quarantine>t & df_time$t_notify!=-17 & df_time$t_notify>=t & df_time$t_notify-df_time$t_quarantine<df_time$t_end_quarantine-df_time$t_quarantine & (df_time$t_end_inf>t | df_time$t_end_inf==-1) & df_time$vacc==0, 
                                           df_time$t_notify, df_time$t_end_quarantine)
         df_time$isolate_home = df_time$isolate & df_time$inf & df_time$t_notify <= t & df_time$t_notify!=-17 & df_time$t_end_inf_home>=t & df_time$type!=0
         df_time$isolate_room = df_time$isolate & df_time$inf & df_time$t_notify <= t & df_time$t_notify!=-17 & df_time$t_end_inf_home>=t & df_time$type==0
@@ -1267,7 +1270,7 @@ run_model = function(time = 30,
         df_time$t_end_inf[df_time$type==2] = ifelse(df_time$test[df_time$type==2] & df_time$trans_now[df_time$type==2], t, df_time$t_end_inf[df_time$type==2])
         df_time$t_notify[df_time$type==2] = ifelse(df_time$test[df_time$type==2] & df_time$trans_now[df_time$type==2] & df_time$t_symp[df_time$type==2]>=t, t, df_time$t_notify[df_time$type==2])
         df_time$detected[df_time$type==2] = ifelse(df_time$test[df_time$type==2] & df_time$trans_now[df_time$type==2], 1, df_time$detected[df_time$type==2])
-        df_time$t_end_quarantine[df_time$type==2] = ifelse(df_time$t_quarantine[df_time$type==2]<=t & df_time$t_quarantine[df_time$type==2]!=-13 & df_time$t_end_quarantine[df_time$type==2]>t & df_time$t_notify[df_time$type==2]!=-17 & df_time$t_notify[df_time$type==2]>=t & df_time$t_notify[df_time$type==2]-df_time$t_quarantine[df_time$type==2]<df_time$t_end_quarantine[df_time$type==2]-df_time$t_quarantine[df_time$type==2] & (df_time$t_end_inf[df_time$type==2]>t | df_time$t_end_inf[df_time$type==2]==-1), 
+        df_time$t_end_quarantine[df_time$type==2] = ifelse(df_time$t_quarantine[df_time$type==2]<=t & df_time$t_quarantine[df_time$type==2]!=-13 & df_time$t_end_quarantine[df_time$type==2]>t & df_time$t_notify[df_time$type==2]!=-17 & df_time$t_notify[df_time$type==2]>=t & df_time$t_notify[df_time$type==2]-df_time$t_quarantine[df_time$type==2]<df_time$t_end_quarantine[df_time$type==2]-df_time$t_quarantine[df_time$type==2] & (df_time$t_end_inf[df_time$type==2]>t | df_time$t_end_inf[df_time$type==2]==-1) & df_time$vacc[df_time$type==2]==0, 
                                                            df_time$t_notify[df_time$type==2], df_time$t_end_quarantine[df_time$type==2])
         df_time$isolate_home[df_time$type==2] = df_time$isolate[df_time$type==2] & df_time$inf[df_time$type==2] & df_time$t_notify[df_time$type==2] <= t & df_time$t_notify[df_time$type==2]!=-17 & df_time$t_end_inf_home[df_time$type==2]>=t
         df_time$isolated[df_time$type==2] = df_time$isolate_home[df_time$type==2]
@@ -1275,16 +1278,19 @@ run_model = function(time = 30,
         df_time$test_tp_count[df_time$type==2] = df_time$test_tp_count[df_time$type==2] + ifelse(df_time$test_type[df_time$type==2] & df_time$shift[df_time$type==2]!="absent", df_time$inf[df_time$type==2]*df_time$test[df_time$type==2], 0)
         df_time$test_fn_count[df_time$type==2] = df_time$test_fn_count[df_time$type==2] + ifelse(df_time$test_type[df_time$type==2] & df_time$shift[df_time$type==2]!="absent", df_time$inf[df_time$type==2]*(1-df_time$test[df_time$type==2]), 0)
         df_time$test_eligible[df_time$type==2] = df_time$test_eligible[df_time$type==2] + (df_time$shift[df_time$type==2]!="absent")*df_time$test_type[df_time$type==2]
-        
-        
-        # re-estimate who is present (among visitors) 
-        df_time$shift[df_time$type==2] = ifelse(df_time$shift[df_time$type==2]!="absent" & !df_time$isolate_home[df_time$type==2] & !df_time$quarantined[df_time$type==2], df_time$shift[df_time$type==2], "absent")
-        
-        df_time$present_susp = df_time$shift!="absent" & df_time$not_inf
-        
-        # update infectious and at nursing home
-        df_time$trans_now = df_time$shift!="absent" & df_time$inf
       }
+      
+      # re-estimate who is present (among staff and visitors) 
+      df_time$shift[df_time$type!=0] = ifelse(df_time$shift[df_time$type!=0]!="absent" & !df_time$isolate_home[df_time$type!=0] & !df_time$quarantined[df_time$type!=0], df_time$shift[df_time$type!=0], "absent")
+      if("family"%in%colnames(df_time)){
+        df_time$shift[df_time$type==2] = ifelse(df_time$shift[df_time$type==2]!="absent" & !df_time$isolate_home[df_time$type==2] & !df_time$quarantined[df_time$type==2], df_time$shift[df_time$type==2], "absent")
+        df_time$shift[df_time$type==2] = ifelse(df_time$flag_fam[df_time$type==2]==1, "absent", df_time$shift[df_time$type==2])
+      }
+      
+      df_time$present_susp = df_time$shift!="absent" & df_time$not_inf
+      
+      # update infectious and at nursing home
+      df_time$trans_now = df_time$shift!="absent" & df_time$inf
       
       #print(paste("Time:", t))
       #print(sum(df$test))
@@ -1367,33 +1373,36 @@ run_model = function(time = 30,
             
             if(t%in%testing_days){
               if(visit_present){
-                df_time$t_quarantine[df_time$id==visit_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)] = t
-                df_time$t_end_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)] = t+quarantine.length
+                df_time$t_quarantine[df_time$id==visit_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t
+                df_time$t_end_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t+quarantine.length
               }
               if(has_roommate){
-                df_time$t_quarantine[df_time$id==roommate_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)] = t
-                df_time$t_end_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)] = t+quarantine.length
+                df_time$t_quarantine[df_time$id==roommate_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t
+                df_time$t_end_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t+quarantine.length
               }
             }else{
               if(visit_present){
-                df_time$t_quarantine[df_time$id==visit_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
-                                                                                                                                                                              df_time$t_symp[df_time$id==a], 
-                                                                                                                                                                              ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id==visit_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)]))
-                df_time$t_end_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$t_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)]>=t, 
-                                                                                                                                                                                                                df_time$t_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)]+quarantine.length, df_time$t_end_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)])
+                df_time$t_quarantine[df_time$id==visit_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                                                                                                                df_time$t_symp[df_time$id==a], 
+                                                                                                                                                                                                ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id==visit_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]))
+                df_time$t_end_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$t_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]>=t, 
+                                                                                                                                                                                                                                  df_time$t_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]+quarantine.length, 
+                                                                                                                                                                                                                                  df_time$t_end_quarantine[df_time$id==visit_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0])
               }
               if(has_roommate){
-                df_time$t_quarantine[df_time$id==roommate_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
-                                                                                                                                                                                 df_time$t_symp[df_time$id==a], 
-                                                                                                                                                                                 ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id==roommate_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)]))
-                df_time$t_end_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$t_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)]>=t, 
-                                                                                                                                                                                                                   df_time$t_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)]+quarantine.length, df_time$t_end_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1)])
+                df_time$t_quarantine[df_time$id==roommate_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                                                                                                                   df_time$t_symp[df_time$id==a], 
+                                                                                                                                                                                                   ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id==roommate_vec_id & (df_time$t_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]))
+                df_time$t_end_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$t_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]>=t, 
+                                                                                                                                                                                                                                     df_time$t_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]+quarantine.length, 
+                                                                                                                                                                                                                                     df_time$t_end_quarantine[df_time$id==roommate_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | df_time$t_end_quarantine<t) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0])
               }
             }
           }
           
           #Track risk set for unit testing
           if(quarantine & df_time$isolated[df_time$id==a]){
+            # indicate whether staff are infected while treating infected residents
             df_time$inf_quarantine[df_time$id%in%room_inf_vec & df_time$type==1] = T
             df_time$person.days.at.risk.room.staff.quarantine[df_time$id == a] = df_time$person.days.at.risk.room.staff.quarantine[df_time$id == a] +
               (df_time$t_inf[df_time$id == a] <= t & df_time$t_end_inf_home[df_time$id == a] >= t)*sum(df_time$present_susp[df_time$id%in%staff_vec_id & df_time$type==1 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
@@ -1428,22 +1437,23 @@ run_model = function(time = 30,
             res_vec_id = infs[[2]]$id
             
             if(t%in%testing_days){
-              df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = t
+              df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t
               
-              df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = t+quarantine.length
+              df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t+quarantine.length
             }else{
-              df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
-                                                                                                                                                                                                              df_time$t_symp[df_time$id==a], 
-                                                                                                                                                                                                              ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]))
+              df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                                                                                                                                                df_time$t_symp[df_time$id==a], 
+                                                                                                                                                                                                                                ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]))
               
-              df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$t_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]>=t, 
-                                                                                                                                                                                                                                                df_time$t_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]+quarantine.length, 
-                                                                                                                                                                                                                                                df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)])
+              df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$t_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]>=t, 
+                                                                                                                                                                                                                                                                  df_time$t_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]+quarantine.length, 
+                                                                                                                                                                                                                                                                  df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0])
             }
           }
           
           #Track risk set for unit testing
           if(quarantine){
+            # check if residents got infected by staff while quarantined
             df_time$inf_quarantine[df_time$id%in%room_inf_vec & df_time$quarantined & df_time$type==0] = T
             df_time$person.days.at.risk.room.res.quarantine[df_time$id == a] = df_time$person.days.at.risk.room.res.quarantine[df_time$id == a] +
               (df_time$t_inf[df_time$id == a]<=t & df_time$t_end_inf_home[df_time$id == a]>=t)*sum(df_time$present_susp[df_time$id%in%infs[[2]]$id & df_time$quarantined & df_time$type==0 & (df_time$susp!=0 | df_time$id %in% room_inf_vec)])
@@ -1460,13 +1470,13 @@ run_model = function(time = 30,
           if(quarantine){
             res_vec_id = infs[[2]]$id
             
-            df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1, 
-                                                                                                                                                                                                            df_time$t_symp[df_time$id==a], 
-                                                                                                                                                                                                            df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)])
+            df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1, 
+                                                                                                                                                                                                                              df_time$t_symp[df_time$id==a], 
+                                                                                                                                                                                                                              df_time$t_quarantine[df_time$id%in%res_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0])
             
-            df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = 
-              ifelse(df_time$t_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]>=t, df_time$t_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]+quarantine.length, 
-                     df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)])
+            df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$t_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]>=t, 
+                                                                                                                                                                                                                                                                df_time$t_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]+quarantine.length, 
+                                                                                                                                                                                                                                                                df_time$t_end_quarantine[df_time$id%in%res_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0])
           }
           
           #Track risk set for unit testing
@@ -1511,8 +1521,7 @@ run_model = function(time = 30,
         #rand_trans = 0
         df_time$location[df_time$id%in%staff_inf_vec] = "Staff interactions"
         
-        
-        staff_vec_id = staff_inf_vec.out[[2]][staff_inf_vec.out[[2]] >= 154]
+        staff_vec_id = staff_inf_vec.out[[2]]
         
         if(test & quarantine & length(staff_vec_id)>0){
           # get next day of testing
@@ -1523,17 +1532,17 @@ run_model = function(time = 30,
           next_day = t+min(abs(future_days-t))
           
           if(t%in%testing_days){
-            df_time$t_quarantine[df_time$id%in%staff_vec_id & (df_time$type!=1 | df_time$role==4) & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = t
+            df_time$t_quarantine[df_time$id%in%staff_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t
             
-            df_time$t_end_quarantine[df_time$id%in%staff_vec_id & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = t+quarantine.length
+            df_time$t_end_quarantine[df_time$id%in%staff_vec_id & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t+quarantine.length
           }else{
-            df_time$t_quarantine[df_time$id%in%staff_vec_id & (df_time$type!=1 | df_time$role==4) & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
-                                                                                                                                                                                                                                                    df_time$t_symp[df_time$id==a], 
-                                                                                                                                                                                                                                                    ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id%in%staff_vec_id & (df_time$type!=1 | df_time$role==4) & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]))
+            df_time$t_quarantine[df_time$id%in%staff_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                                                                                                                                                df_time$t_symp[df_time$id==a], 
+                                                                                                                                                                                                                                ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, df_time$t_quarantine[df_time$id%in%staff_vec_id & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]))
             
-            df_time$t_end_quarantine[df_time$id%in%staff_vec_id & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$t_quarantine[df_time$id%in%staff_vec_id & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]>=t, 
-                                                                                                                                                                                                                                                                                      df_time$t_quarantine[df_time$id%in%staff_vec_id & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]+quarantine.length, 
-                                                                                                                                                                                                                                                                                      df_time$t_end_quarantine[df_time$id%in%staff_vec_id & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)])
+            df_time$t_end_quarantine[df_time$id%in%staff_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$t_quarantine[df_time$id%in%staff_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]>=t, 
+                                                                                                                                                                                                                                                                  df_time$t_quarantine[df_time$id%in%staff_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]+quarantine.length, 
+                                                                                                                                                                                                                                                                  df_time$t_end_quarantine[df_time$id%in%staff_vec_id & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0])
           }
         }
         
@@ -1604,7 +1613,7 @@ run_model = function(time = 30,
         
         # quarantine
         # if pre/asymptomatic, find when infected tests positive/symptoms show
-        if(test & quarantine & length(df_time[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4),])>0){
+        if(test & quarantine & length(df_time[df_time$id%in%common_inf_vec.out[[2]],])>0){
           future_days = c()
           for(day in testing_days){
             future_days[length(future_days)+1] = ifelse(day-t>0, day, 0)
@@ -1612,16 +1621,16 @@ run_model = function(time = 30,
           next_day = t+min(abs(future_days-t))
           
           if(t%in%testing_days){
-            df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4) & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = t
+            df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t
             
-            df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = t+quarantine.length
+            df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & df_time$t_quarantine==t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = t+quarantine.length
           }else{
-            df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4) & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
-                                                                                                                                                                                                                                                               df_time$t_symp[df_time$id==a], ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, 
-                                                                                                                                                                                                                                                                                                     df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4) & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]))
-            df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)] = ifelse(df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]>=t, 
-                                                                                                                                                                                                                                                                                                 df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)]+quarantine.length, 
-                                                                                                                                                                                                                                                                                                 df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$type!=1 | df_time$role==4) & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1)])
+            df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$symp[df_time$id==a]==1 & df_time$t_symp[df_time$id==a]>=t & df_time$t_symp[df_time$id==a]!=-1 & df_time$t_symp[df_time$id==a]<next_day, 
+                                                                                                                                                                                                                                           df_time$t_symp[df_time$id==a], ifelse(next_day-df_time$t_inf[df_time$id==a] < df_time$days_inf[df_time$id==a], next_day, 
+                                                                                                                                                                                                                                                                                 df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & (df_time$t_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]))
+            df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0] = ifelse(df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]>=t, 
+                                                                                                                                                                                                                                                                             df_time$t_quarantine[df_time$id%in%common_inf_vec.out[[2]] & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0]+quarantine.length, 
+                                                                                                                                                                                                                                                                             df_time$t_end_quarantine[df_time$id%in%common_inf_vec.out[[2]] & df_time$t_quarantine>=t & (df_time$t_end_quarantine==-13 | (df_time$t_end_quarantine<t & df_time$t_end_quarantine!=-13)) & (df_time$t_notify>t | df_time$t_inf==-1) & df_time$vacc==0])
           }
         }
         
@@ -1662,7 +1671,7 @@ run_model = function(time = 30,
     
     # check quarantine
     if(quarantine){
-      df_time$t_end_quarantine = ifelse(df_time$t_notify==df_time$t_quarantine | (df_time$t_notify<df_time$t_end_quarantine & df_time$t_notify!=-17 & df_time$t_end_quarantine!=-13), df_time$t_notify, df_time$t_end_quarantine)
+      df_time$t_end_quarantine = ifelse(df_time$t_notify==df_time$t_quarantine | (df_time$t_notify<df_time$t_end_quarantine & df_time$t_notify!=-17 & df_time$t_end_quarantine!=-13) & df_time$vacc==0, df_time$t_notify, df_time$t_end_quarantine)
     }
     
     # update next day
@@ -1687,6 +1696,7 @@ run_model = function(time = 30,
   }
   return(df[df$t==(time+14),])
 }
+
 
 
 #' Run model multiple times and summarize results
@@ -1752,7 +1762,7 @@ mult_runs = function(N, cohorting = T, visitors = T, rel_trans_common = 1/4, rel
                      staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, disperse_transmission = T, n_contact_common_res = 3, n_contact_common_staff = 3,
                      n_contact_staff = 10, n_start = 1, time_seed_inf = NA, days_inf = 5, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, 
                      isolate = T, time = 30, test = T, test_sens = 0.7, test_frac = 0.9, test_days = '2x_week', 
-                     test_type = 'residents', test_start_day = 1, visit_test = T, start_mult = 1, start_type = 'cont', staff_prob = 0.0015, visit_prob = 0.0015,
+                     test_type = 'all', test_start_day = 1, visit_test = T, start_mult = 1, start_type = 'cont', staff_prob = 0.0015, visit_prob = 0.0015,
                      quarantine = F, quarantine.length = 5, vax_eff = 0.5, overdisp_off = T, df, cohorts){
   
   keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N),
@@ -1789,6 +1799,88 @@ mult_runs = function(N, cohorting = T, visitors = T, rel_trans_common = 1/4, rel
     # store output
     keep$all[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1)
     keep$tot[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]))
+    
+    keep$all_15[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & df[df$t==(time+14),]$t_end_inf_home >= 15)
+    keep$tot_15[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
+    keep$detected_15[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==15)
+    
+    keep$com_15_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
+    keep$nh_15_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
+    keep$detected_15_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==15)
+    
+    keep$com_15_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
+    keep$nh_15_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
+    keep$detected_15_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==15)
+    
+    keep$all_22[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & df[df$t==(time+14),]$t_end_inf_home >= 22)
+    keep$tot_22[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
+    keep$detected_22[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==22)
+    
+    keep$com_22_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
+    keep$nh_22_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
+    keep$detected_22_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==22)
+    
+    keep$com_22_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
+    keep$nh_22_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
+    keep$detected_22_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==22)
+    
+    keep$all_29[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & df[df$t==(time+14),]$t_end_inf_home >= 29)
+    keep$tot_29[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
+    keep$detected_29[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==29)
+    
+    keep$com_29_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
+    keep$nh_29_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
+    keep$detected_29_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==29)
+    
+    keep$com_29_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
+    keep$nh_29_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
+    keep$detected_29_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==29)
+    
+    keep$all_36[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & df[df$t==(time+14),]$t_end_inf_home >= 36)
+    keep$tot_36[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
+    keep$detected_36[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==36)
+    
+    keep$com_36_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
+    keep$nh_36_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
+    keep$detected_36_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==36)
+    
+    keep$com_36_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
+    keep$nh_36_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
+    keep$detected_36_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==36)
+    
+    keep$all_43[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & df[df$t==(time+14),]$t_end_inf_home >= 43)
+    keep$tot_43[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
+    keep$detected_43[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==43)
+    
+    keep$com_43_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
+    keep$nh_43_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
+    keep$detected_43_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==43)
+    
+    keep$com_43_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
+    keep$nh_43_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
+    keep$detected_43_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==43)
+    
+    if("family"%in%colnames(df[df$t==(time+14),])){
+      keep$com_15_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
+      keep$nh_15_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
+      keep$detected_15_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==15)
+      
+      keep$com_22_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
+      keep$nh_22_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
+      keep$detected_22_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==22)
+      
+      keep$com_29_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
+      keep$nh_29_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
+      keep$detected_29_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==29)
+      
+      keep$com_36_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
+      keep$nh_36_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
+      keep$detected_36_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==36)
+      
+      keep$com_43_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
+      keep$nh_43_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
+      keep$detected_43_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==43)
+    }
     
     # keep$from_staff[i] = 0 #sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & !df$HH_id%in%c(df$HH_id[df$start]) & !df$adult[df$source])
     keep$R0[i] = sum(df[df$t==(time+14),]$tot_inf[df[df$t==(time+14),]$start==T])
@@ -2008,14 +2100,14 @@ s.days_inf = 5; s.time = 30
 s.n_contact_common_res = 3; s.n_contact_common_staff = 3; s.n_contact_staff = 10
 s.p_asymp_nonres = 0; s.p_asymp_res = 0
 s.p_subclin_nonres = 0; s.p_subclin_res = 0
-s.test_sens = .7; s.test_frac = .9; s.test_days = "week"; s.test_type = "all"; s.test_start_day = 1
-s.test = T; s.visit_test = T
+s.test_sens = 1; s.test_frac = 1; s.test_days = "2x_week"; s.test_type = "staff"; s.test_start_day = 1
+s.test = F; s.visit_test = F
 s.staff_prob = 0.0015; s.visit_prob = 0.0015
 s.rel_trans_common = 1/4; s.rel_trans_room_symp_res = 1; s.rel_trans_staff = 1/4
-s.res_vax = 0; s.staff_vax_req = F; s.staff_vax = 0; s.visit_vax = 0
+s.res_vax = 1; s.staff_vax_req = F; s.staff_vax = 1; s.visit_vax = 1
 s.staff_trans_red = 1; s.visit_trans_red = 1; s.res_trans_red = 1
 s.staff_susp_red = 1; s.visit_susp_red = 1; s.res_susp_red = 1
-s.vax_eff = 0; s.isolate = T
+s.vax_eff = 0.5; s.isolate = T
 s.quarantine.length = 5; s.quarantine = F
 s.time_seed_inf = NA; s.seed_asymp = F
 
@@ -2059,7 +2151,7 @@ make_df = function(disperse = T, # how to distribute runs
     
     # remove duplicated scenarios
     # don't vary testing params if you're not testing
-    filter((test_days=="2x_week" & test_sens == .7 & test_frac == .9 & test_type == "all") | test)
+    filter((test_days=="2x_week" & test_sens == 1 & test_frac == 1 & test_type == "staff") | test)
     # adjust incidence for vaccination
     # mutate(prob_orig = nonres_prob,
     #        nonres_prob=nonres_prob/(1-staff_vax*vax_eff))

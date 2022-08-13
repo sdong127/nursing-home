@@ -2,7 +2,7 @@ library(data.table)
 
 #Set working directory where model output is stored
 ##Use the model code in "/2 - Tests/abm_12-4-2021_master.R" to generate the model output -- this code collects additional results used to unit test the model output
-setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output/Test Output")
+setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output")
 
 #Bind model output into single data table
 filelist <- list.files()

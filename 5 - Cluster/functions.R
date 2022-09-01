@@ -1128,7 +1128,8 @@ run_model = function(time = 30,
     df.temp = data.frame(time_seed_inf, id.samp) # backward compatibility
   }
   
-  df$start.time = time_seed_inf
+  # df$start.time = time_seed_inf
+  df$start.time = 1
   
   # setup
   if(nrow(df.temp)>0){
@@ -1169,6 +1170,7 @@ run_model = function(time = 30,
   
   #print(paste("start notification:", df$t_notify[df$start]))
   # run over time steps
+  # BIG CHANGE 
   for(t in time_seed_inf:(time_seed_inf+time-1)){
     #print(paste("Time:", t, sched$day[sched$t==t][1], sched$group_two[sched$t==t][1]))
     
@@ -1301,7 +1303,6 @@ run_model = function(time = 30,
     }
     #print(testing_days)
     #print(test_frac)
-    
     
     #### SELECT NEXT GENERATION INFECTIONS ####
     # run model for infectious individuals in resident room
@@ -1792,289 +1793,292 @@ mult_runs = function(N, cohorting = T, visitors = T, rel_trans_common = 1/4, rel
                    rel_trans_common = rel_trans_common, rel_trans_staff = rel_trans_staff, test_type = test_type, 
                    overdisp_off = overdisp_off, df = df, cohorts = cohorts)
     
-    time_keep = df[df$t==(time+14),]$start.time[1]
+    time_keep = df$start.time[1]
     #print(time_keep)
     #print(length(time_keep:(time_keep+time-1)))
     
     # store output
-    keep$all[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1)
-    keep$tot[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]))
+    keep$all[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1)
+    keep$tot[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & !df$id%in%c(df$id[df$start==T]))
     
-    keep$all_15[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & df[df$t==(time+14),]$t_end_inf_home >= 15)
-    keep$tot_15[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
-    keep$detected_15[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==15)
+    keep$all_15[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & df$t_end_inf_home >= 15)
+    keep$tot_15[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 15 & !df$id%in%c(df$id[df$start==T]) & df$t_end_inf_home >= 15)
+    keep$detected_15[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==15)
     
-    keep$com_15_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
-    keep$nh_15_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
-    keep$detected_15_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==15)
+    keep$com_1_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 1 & df$t_inf>=-6 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_1_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 1 & df$t_inf>=-6 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$com_15_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
-    keep$nh_15_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
-    keep$detected_15_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==15)
+    keep$com_1_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 1 & df$t_inf>=-6 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_1_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 1 & df$t_inf>=-6 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$all_22[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & df[df$t==(time+14),]$t_end_inf_home >= 22)
-    keep$tot_22[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
-    keep$detected_22[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==22)
+    keep$com_8_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 8 & df$t_inf>=1 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_8_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 8 & df$t_inf>=1 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$com_22_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
-    keep$nh_22_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
-    keep$detected_22_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==22)
+    keep$com_8_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 8 & df$t_inf>=1 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_8_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 8 & df$t_inf>=1 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$com_22_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
-    keep$nh_22_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
-    keep$detected_22_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==22)
+    keep$com_15_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 15 & df$t_inf>=8 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_15_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 15 & df$t_inf>=8 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$all_29[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & df[df$t==(time+14),]$t_end_inf_home >= 29)
-    keep$tot_29[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
-    keep$detected_29[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==29)
+    keep$com_15_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 15 & df$t_inf>=8 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_15_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 15 & df$t_inf>=8 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$com_29_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
-    keep$nh_29_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
-    keep$detected_29_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==29)
+    keep$all_22[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & df$t_end_inf_home >= 22)
+    keep$tot_22[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 22 & !df$id%in%c(df$id[df$start.init==T]) & df$t_end_inf_home >= 22)
+    keep$detected_22[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==22)
     
-    keep$com_29_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
-    keep$nh_29_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
-    keep$detected_29_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==29)
+    keep$com_22_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 22 & df$t_inf >= 15 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_22_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 22 & df$t_inf >= 15 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$all_36[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & df[df$t==(time+14),]$t_end_inf_home >= 36)
-    keep$tot_36[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
-    keep$detected_36[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==36)
+    keep$com_22_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 22 & df$t_inf >= 15 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_22_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 22 & df$t_inf >= 15 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$com_36_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
-    keep$nh_36_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
-    keep$detected_36_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==36)
+    keep$all_29[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & df$t_end_inf_home >= 29)
+    keep$tot_29[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 29 & !df$id%in%c(df$id[df$start.init==T]) & df$t_end_inf_home >= 29)
+    keep$detected_29[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==29)
     
-    keep$com_36_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
-    keep$nh_36_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
-    keep$detected_36_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==36)
+    keep$com_29_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 29 & df$t_inf >= 22 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_29_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 29 & df$t_inf >= 22 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$all_43[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & df[df$t==(time+14),]$t_end_inf_home >= 43)
-    keep$tot_43[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
-    keep$detected_43[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==43)
+    keep$com_29_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 29 & df$t_inf >= 22 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_29_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 29 & df$t_inf >= 22 & !df$id%in%c(df$id[df$start.init==T]))
     
-    keep$com_43_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
-    keep$nh_43_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
-    keep$detected_43_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==43)
+    keep$all_36[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & df$t_end_inf_home >= 36)
+    keep$tot_36[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 36 & !df$id%in%c(df$id[df$start.init==T]) & df$t_end_inf_home >= 36)
+    keep$detected_36[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==36)
     
-    keep$com_43_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
-    keep$nh_43_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
-    keep$detected_43_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==43)
+    keep$com_36_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 36 & df$t_inf >= 29 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_36_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 36 & df$t_inf >= 29 & !df$id%in%c(df$id[df$start.init==T]))
     
-    if("family"%in%colnames(df[df$t==(time+14),])){
-      keep$com_15_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
-      keep$nh_15_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 15 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 15)
-      keep$detected_15_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==15)
+    keep$com_36_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 36 & df$t_inf >= 29 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_36_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 36 & df$t_inf >= 29 & !df$id%in%c(df$id[df$start.init==T]))
+    
+    keep$all_43[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & df$t_end_inf_home >= 43)
+    keep$tot_43[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf <= 43 & !df$id%in%c(df$id[df$start.init==T]) & df$t_end_inf_home >= 43)
+    keep$detected_43[i] = sum(df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$detected & df$t_end_inf==43)
+    
+    keep$com_43_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 43 & df$t_inf >= 36 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_43_res[i] = sum(df$type==0 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 43 & df$t_inf >= 36 & !df$id%in%c(df$id[df$start.init==T]))
+    
+    keep$com_43_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 43 & df$t_inf >= 36 & df$id%in%c(df$id[df$start.init==T]))
+    keep$nh_43_staff[i] = sum(df$type==1 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 43 & df$t_inf >= 36 & !df$id%in%c(df$id[df$start.init==T]))
+    
+    if("family"%in%colnames(df)){
+      keep$com_1_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 1 & df$t_inf>=-6 & df$id%in%c(df$id[df$start.init==T]))
+      keep$nh_1_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 1 & df$t_inf>=-6 & !df$id%in%c(df$id[df$start.init==T]))
       
-      keep$com_22_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
-      keep$nh_22_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 22 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 22)
-      keep$detected_22_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==22)
+      keep$com_8_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 8 & df$t_inf>=1 & df$id%in%c(df$id[df$start.init==T]))
+      keep$nh_8_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 8 & df$t_inf>=1 & !df$id%in%c(df$id[df$start.init==T]))
       
-      keep$com_29_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
-      keep$nh_29_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 29 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 29)
-      keep$detected_29_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==29)
+      keep$com_15_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 15 & df$t_inf>=8 & df$id%in%c(df$id[df$start.init==T]))
+      keep$nh_15_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 15 & df$t_inf>=8 & !df$id%in%c(df$id[df$start.init==T]))
       
-      keep$com_36_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
-      keep$nh_36_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 36 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 36)
-      keep$detected_36_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==36)
+      keep$com_22_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 22 & df$t_inf >= 15 & df$id%in%c(df$id[df$start.init==T]))
+      keep$nh_22_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 22 & df$t_inf >= 15 & !df$id%in%c(df$id[df$start.init==T]))
       
-      keep$com_43_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
-      keep$nh_43_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= 43 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]) & df[df$t==(time+14),]$t_end_inf_home >= 43)
-      keep$detected_43_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$detected & df[df$t==(time+14),]$t_end_inf==43)
+      keep$com_29_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 29 & df$t_inf >= 22 & df$id%in%c(df$id[df$start.init==T]))
+      keep$nh_29_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 29 & df$t_inf >= 22 & !df$id%in%c(df$id[df$start.init==T]))
+      
+      keep$com_36_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 36 & df$t_inf >= 29 & df$id%in%c(df$id[df$start.init==T]))
+      keep$nh_36_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 36 & df$t_inf >= 29 & !df$id%in%c(df$id[df$start.init==T]))
+      
+      keep$com_43_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 43 & df$t_inf >= 36 & df$id%in%c(df$id[df$start.init==T]))
+      keep$nh_43_visit[i] = sum(df$type==2 & df$t_inf!=-1 & df$t_end_inf_home>=time_keep & df$t_inf < 43 & df$t_inf >= 36 & !df$id%in%c(df$id[df$start.init==T]))
     }
     
     # keep$from_staff[i] = 0 #sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & !df$HH_id%in%c(df$HH_id[df$start]) & !df$adult[df$source])
-    keep$R0[i] = sum(df[df$t==(time+14),]$tot_inf[df[df$t==(time+14),]$start==T])
-    keep$Rt[i] =  mean(df[df$t==(time+14),]$tot_inf[df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep], na.rm = T)
-    keep$avg_infs[i] = mean(df[df$t==(time+14),]$tot_inf[df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & !df[df$t==(time+14),]$start==T])
-    keep$start[i] = sum(df[df$t==(time+14),]$start==T & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf < time_keep+time - 1)
-    # keep$room_test_ind[i] = df[df$t==(time+14),]$room_test_ind[1]
-    # keep$room_test_ind_q[i] = df[df$t==(time+14),]$room_test_ind_q[1]
-    # keep$test_qs[i] = sum(df[df$t==(time+14),]$test_ct_q)
-    keep$test[i] = sum(df[df$t==(time+14),]$test_ct)
+    keep$R0[i] = sum(df$tot_inf[df$start==T])
+    keep$Rt[i] =  mean(df$tot_inf[df$t_inf!=0 & df$t_end_inf_home>=time_keep], na.rm = T)
+    keep$avg_infs[i] = mean(df$tot_inf[df$t_inf!=0 & df$t_end_inf_home>=time_keep & !df$start==T])
+    keep$start[i] = sum(df$start==T & df$t_end_inf_home>=time_keep & df$t_inf < time_keep+time - 1)
+    # keep$room_test_ind[i] = df$room_test_ind[1]
+    # keep$room_test_ind_q[i] = df$room_test_ind_q[1]
+    # keep$test_qs[i] = sum(df$test_ct_q)
+    keep$test[i] = sum(df$test_ct)
     keep$test_count[i] = sum(df$test_ct)
     keep$test_tp_count[i] <- sum(df$test_tp_count)
     keep$test_fn_count[i] <- sum(df$test_fn_count)
     keep$test_eligible[i] <- sum(df$test_eligible)
-    keep$detected[i] = sum(df[df$t==(time+14),]$detected)
-    keep$detected_staff[i] = sum(df[df$t==(time+14),]$detected[df[df$t==(time+14),]$type==1])
-    keep$detected_res[i] = sum(df[df$t==(time+14),]$detected[df[df$t==(time+14),]$type==0])
-    keep$detected_staff_subclin[i] = sum(df[df$t==(time+14),]$detected[df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$sub_clin], na.rm = T)
-    keep$detected_res_subclin[i] = sum(df[df$t==(time+14),]$detected[df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$sub_clin], na.rm = T)
-    keep$quarantine_check[i] = max(df[df$t==(time+14),]$t_end_inf-df[df$t==(time+14),]$t_end_inf_home, na.rm = T)#(df[df$t==(time+14),]$uh.oh[1])
-    # keep$avg_class[i] = unlist(df[df$t==(time+14),] %>% filter(t_exposed!=-99 & t_exposed <= time_keep + time - 1 & class!=99) %>% group_by(class) %>%
+    keep$detected[i] = sum(df$detected)
+    keep$detected_staff[i] = sum(df$detected[df$type==1])
+    keep$detected_res[i] = sum(df$detected[df$type==0])
+    keep$detected_staff_subclin[i] = sum(df$detected[df$type==1 & df$sub_clin], na.rm = T)
+    keep$detected_res_subclin[i] = sum(df$detected[df$type==0 & df$sub_clin], na.rm = T)
+    keep$quarantine_check[i] = max(df$t_end_inf-df$t_end_inf_home, na.rm = T)#(df$uh.oh[1])
+    # keep$avg_class[i] = unlist(df %>% filter(t_exposed!=-99 & t_exposed <= time_keep + time - 1 & class!=99) %>% group_by(class) %>%
     # summarize(num = length(class)) %>% ungroup() %>% summarize(mean(num, na.rm = T)))
-    keep$isolated[i] = sum(df[df$t==(time+14),]$isolated)
-    keep$quarantined[i] = sum(df[df$t==(time+14),]$quarantined)
-    keep$quarantined_res[i] = sum(df[df$t==(time+14),]$quarantined[df[df$t==(time+14),]$type==0])
-    keep$quarantined_staff[i] = sum(df[df$t==(time+14),]$quarantined[df[df$t==(time+14),]$type==1])
-    keep$quarantined_visit[i] = sum(df[df$t==(time+14),]$quarantined[df[df$t==(time+14),]$type==2])
-    keep$start_staff[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$start==T & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf < time_keep+time - 1)
-    keep$start_visit[i] = sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$start==T & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf < time_keep+time - 1)
-    keep$start_res[i] = sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$start==T & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf < time_keep+time - 1)
-    keep$start_symp[i] = sum(df[df$t==(time+14),]$symp[df[df$t==(time+14),]$start==T], na.rm = T)
-    keep$source_asymp[i] = sum(!df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]), na.rm = T)
-    keep$source_asymp_visit[i] = sum(df[df$t==(time+14),]$type==2 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]), na.rm = T)
-    keep$staff_all[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1)
-    keep$res_all[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1)
-    keep$visit_all[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1)
-    keep$staff_tot[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]))
-    keep$res_tot[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]))
-    keep$visit_tot[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & !df[df$t==(time+14),]$id%in%c(df[df$t==(time+14),]$id[df[df$t==(time+14),]$start==T]))
-    keep$symp[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$symp==1 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1, na.rm = T)
-    keep$symp_res[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$symp==1 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$type==0, na.rm = T)
-    keep$asymp_res[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$symp==0 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$type==0, na.rm = T)
-    keep$symp_staff[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$symp==1 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$type==1, na.rm = T)
-    keep$asymp_staff[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$symp==0 & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$type==1, na.rm = T)
-    keep$sick_at_end[i] = sum(df[df$t==(time+14),]$t_inf<=time_keep + time - 1 & df[df$t==(time+14),]$t_end_inf > time_keep + time - 1)
-    keep$room[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$location == "Room")
-    keep$common[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$location == "Common area")
-    keep$staff_interactions[i] = sum(df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$location == "Staff interactions")
-    keep$num_room[i] = length(unique(df[df$t==(time+14),]$room[df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1]))
-    keep$clin_staff[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1, na.rm = T)
-    keep$clin_res[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1, na.rm = T)
-    keep$clin_visit[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1, na.rm = T)
-    keep$clin_staff2[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1, na.rm = T)
-    keep$clin_res2[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1, na.rm = T)
-    keep$clin_visit2[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1, na.rm = T)
-    keep$notify_staff[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1, na.rm = T)
-    keep$notify_res[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1, na.rm = T)
-    keep$notify_visit[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1, na.rm = T)
-    keep$notify_staff2[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1, na.rm = T)
-    keep$notify_res2[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1, na.rm = T)
-    keep$notify_visit2[i] = sum(df[df$t==(time+14),]$t_notify>=15 & df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$t_notify <= time_keep + time - 1 & df[df$t==(time+14),]$t_inf!=0 & df[df$t==(time+14),]$t_end_inf_home>=time_keep & df[df$t==(time+14),]$t_inf <= time_keep + time - 1, na.rm = T)
-    # keep$switch[i] = df[df$t==(time+14),]$switch[1]
-    # keep$temp_switch[i] = df[df$t==(time+14),]$temp_switch[1]
+    keep$isolated[i] = sum(df$isolated)
+    keep$quarantined[i] = sum(df$quarantined)
+    keep$quarantined_res[i] = sum(df$quarantined[df$type==0])
+    keep$quarantined_staff[i] = sum(df$quarantined[df$type==1])
+    keep$quarantined_visit[i] = sum(df$quarantined[df$type==2])
+    keep$start_staff[i] = sum(df$type==1 & df$start==T & df$t_end_inf_home>=time_keep & df$t_inf < time_keep+time - 1)
+    keep$start_visit[i] = sum(df$type==2 & df$start==T & df$t_end_inf_home>=time_keep & df$t_inf < time_keep+time - 1)
+    keep$start_res[i] = sum(df$type==0 & df$start==T & df$t_end_inf_home>=time_keep & df$t_inf < time_keep+time - 1)
+    keep$start_symp[i] = sum(df$symp[df$start==T], na.rm = T)
+    keep$source_asymp[i] = sum(!df$source_symp & df$t_inf <= time_keep + time - 1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & !df$id%in%c(df$id[df$start==T]), na.rm = T)
+    keep$source_asymp_visit[i] = sum(df$type==2 & !df$source_symp & df$t_inf <= time_keep + time - 1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & !df$id%in%c(df$id[df$start==T]), na.rm = T)
+    keep$staff_all[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$type==1 & df$t_inf <= time_keep + time - 1)
+    keep$res_all[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$type==0 & df$t_inf <= time_keep + time - 1)
+    keep$visit_all[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$type==2 & df$t_inf <= time_keep + time - 1)
+    keep$staff_tot[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$type==1 & df$t_inf <= time_keep + time - 1 & !df$id%in%c(df$id[df$start==T]))
+    keep$res_tot[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$type==0 & df$t_inf <= time_keep + time - 1 & !df$id%in%c(df$id[df$start==T]))
+    keep$visit_tot[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$type==2 & df$t_inf <= time_keep + time - 1 & !df$id%in%c(df$id[df$start==T]))
+    keep$symp[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==1 & df$t_inf <= time_keep + time - 1, na.rm = T)
+    keep$symp_res[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==1 & df$t_inf <= time_keep + time - 1 & df$type==0, na.rm = T)
+    keep$asymp_res[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==0 & df$t_inf <= time_keep + time - 1 & df$type==0, na.rm = T)
+    keep$symp_staff[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==1 & df$t_inf <= time_keep + time - 1 & df$type==1, na.rm = T)
+    keep$asymp_staff[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$symp==0 & df$t_inf <= time_keep + time - 1 & df$type==1, na.rm = T)
+    keep$sick_at_end[i] = sum(df$t_inf<=time_keep + time - 1 & df$t_end_inf > time_keep + time - 1)
+    keep$room[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & df$location == "Room")
+    keep$common[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & df$location == "Common area")
+    keep$staff_interactions[i] = sum(df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & df$location == "Staff interactions")
+    keep$num_room[i] = length(unique(df$room[df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1]))
+    keep$clin_staff[i] = sum(df$t_notify>=15 & df$symp & !df$sub_clin & df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1, na.rm = T)
+    keep$clin_res[i] = sum(df$t_notify>=15 & df$symp & !df$sub_clin & df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1, na.rm = T)
+    keep$clin_visit[i] = sum(df$t_notify>=15 & df$symp & !df$sub_clin & df$type==2 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1, na.rm = T)
+    keep$clin_staff2[i] = sum(df$t_notify>=15 & df$symp & !df$sub_clin & df$type==1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & df$t_notify <= time_keep + time - 1, na.rm = T)
+    keep$clin_res2[i] = sum(df$t_notify>=15 & df$symp & !df$sub_clin & df$type==0 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & df$t_notify <= time_keep + time - 1, na.rm = T)
+    keep$clin_visit2[i] = sum(df$t_notify>=15 & df$symp & !df$sub_clin & df$type==2 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1 & df$t_notify <= time_keep + time - 1, na.rm = T)
+    keep$notify_staff[i] = sum(df$t_notify>=15 & df$type==1 & df$t_notify <= time_keep + time - 1, na.rm = T)
+    keep$notify_res[i] = sum(df$t_notify>=15 & df$type==0 & df$t_notify <= time_keep + time - 1, na.rm = T)
+    keep$notify_visit[i] = sum(df$t_notify>=15 & df$type==2 & df$t_notify <= time_keep + time - 1, na.rm = T)
+    keep$notify_staff2[i] = sum(df$t_notify>=15 & df$type==1 & df$t_notify <= time_keep + time - 1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1, na.rm = T)
+    keep$notify_res2[i] = sum(df$t_notify>=15 & df$type==0 & df$t_notify <= time_keep + time - 1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1, na.rm = T)
+    keep$notify_visit2[i] = sum(df$t_notify>=15 & df$type==2 & df$t_notify <= time_keep + time - 1 & df$t_inf!=0 & df$t_end_inf_home>=time_keep & df$t_inf <= time_keep + time - 1, na.rm = T)
+    # keep$switch[i] = df$switch[1]
+    # keep$temp_switch[i] = df$temp_switch[1]
     
     
     #John's new checks
-    keep$inf_ct_sympR_R_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_asympR_R_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==0 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
+    keep$inf_ct_sympR_R_room[i] = sum(df$location == "Room" & df$type==0 & df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_asympR_R_room[i] = sum(df$location == "Room" & df$type==0 & !df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
     if(quarantine){
-      keep$inf_ct_sympR_S_room_quarantine[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$inf_quarantine & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-      keep$inf_ct_asympR_S_room_quarantine[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==1 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$inf_quarantine & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-      keep$inf_ct_sympS_R_room_quarantine[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$inf_quarantine & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
-      keep$inf_ct_asympS_R_room_quarantine[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==0 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$inf_quarantine & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
+      keep$inf_ct_sympR_S_room_quarantine[i] = sum(df$location == "Room" & df$type==1 & df$source_symp & df$inf_quarantine & df$source %in% df$id[df$type==0], na.rm = TRUE)
+      keep$inf_ct_asympR_S_room_quarantine[i] = sum(df$location == "Room" & df$type==1 & !df$source_symp & df$inf_quarantine & df$source %in% df$id[df$type==0], na.rm = TRUE)
+      keep$inf_ct_sympS_R_room_quarantine[i] = sum(df$location == "Room" & df$type==0 & df$source_symp & df$inf_quarantine & df$source %in% df$id[df$type==1], na.rm = TRUE)
+      keep$inf_ct_asympS_R_room_quarantine[i] = sum(df$location == "Room" & df$type==0 & !df$source_symp & df$inf_quarantine & df$source %in% df$id[df$type==1], na.rm = TRUE)
     }
-    keep$inf_ct_sympR_S_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$source_symp & !df[df$t==(time+14),]$inf_quarantine & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_asympR_S_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==1 & !df[df$t==(time+14),]$source_symp & !df[df$t==(time+14),]$inf_quarantine & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_sympS_R_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$source_symp & !df[df$t==(time+14),]$inf_quarantine & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$inf_ct_asympS_R_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==0 & !df[df$t==(time+14),]$source_symp & !df[df$t==(time+14),]$inf_quarantine & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
+    keep$inf_ct_sympR_S_room[i] = sum(df$location == "Room" & df$type==1 & df$source_symp & !df$inf_quarantine & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_asympR_S_room[i] = sum(df$location == "Room" & df$type==1 & !df$source_symp & !df$inf_quarantine & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_sympS_R_room[i] = sum(df$location == "Room" & df$type==0 & df$source_symp & !df$inf_quarantine & df$source %in% df$id[df$type==1], na.rm = TRUE)
+    keep$inf_ct_asympS_R_room[i] = sum(df$location == "Room" & df$type==0 & !df$source_symp & !df$inf_quarantine & df$source %in% df$id[df$type==1], na.rm = TRUE)
     
-    keep$inf_ct_sympR_V_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_asympR_V_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==2 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_sympV_R_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==2], na.rm = TRUE)
-    keep$inf_ct_asympV_R_room[i] = sum(df[df$t==(time+14),]$location == "Room" & df[df$t==(time+14),]$type==0 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==2], na.rm = TRUE)
+    keep$inf_ct_sympR_V_room[i] = sum(df$location == "Room" & df$type==2 & df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_asympR_V_room[i] = sum(df$location == "Room" & df$type==2 & !df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_sympV_R_room[i] = sum(df$location == "Room" & df$type==0 & df$source_symp & df$source %in% df$id[df$type==2], na.rm = TRUE)
+    keep$inf_ct_asympV_R_room[i] = sum(df$location == "Room" & df$type==0 & !df$source_symp & df$source %in% df$id[df$type==2], na.rm = TRUE)
     
-    keep$inf_ct_sympR_R_common[i] = sum(df[df$t==(time+14),]$location == "Common area" & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_asympR_R_common[i] = sum(df[df$t==(time+14),]$location == "Common area" & df[df$t==(time+14),]$type==0 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_sympR_S_common[i] = sum(df[df$t==(time+14),]$location == "Common area" & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_asympR_S_common[i] = sum(df[df$t==(time+14),]$location == "Common area" & df[df$t==(time+14),]$type==1 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$inf_ct_sympS_S_common[i] = sum(df[df$t==(time+14),]$location == "Common area" & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$inf_ct_asympS_S_common[i] = sum(df[df$t==(time+14),]$location == "Common area" & df[df$t==(time+14),]$type==1 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$inf_ct_sympS_R_common[i] = sum(df[df$t==(time+14),]$location == "Common area" & df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$inf_ct_asympS_R_common[i] = sum(df[df$t==(time+14),]$location == "Common area" & df[df$t==(time+14),]$type==0 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
+    keep$inf_ct_sympR_R_common[i] = sum(df$location == "Common area" & df$type==0 & df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_asympR_R_common[i] = sum(df$location == "Common area" & df$type==0 & !df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_sympR_S_common[i] = sum(df$location == "Common area" & df$type==1 & df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_asympR_S_common[i] = sum(df$location == "Common area" & df$type==1 & !df$source_symp & df$source %in% df$id[df$type==0], na.rm = TRUE)
+    keep$inf_ct_sympS_S_common[i] = sum(df$location == "Common area" & df$type==1 & df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
+    keep$inf_ct_asympS_S_common[i] = sum(df$location == "Common area" & df$type==1 & !df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
+    keep$inf_ct_sympS_R_common[i] = sum(df$location == "Common area" & df$type==0 & df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
+    keep$inf_ct_asympS_R_common[i] = sum(df$location == "Common area" & df$type==0 & !df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
     
-    keep$inf_ct_sympS_S_staff[i] = sum(df[df$t==(time+14),]$location == "Staff interactions" & df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$inf_ct_asympS_S_staff[i] = sum(df[df$t==(time+14),]$location == "Staff interactions" & df[df$t==(time+14),]$type==1 & !df[df$t==(time+14),]$source_symp & df[df$t==(time+14),]$source %in% df[df$t==(time+14),]$id[df[df$t==(time+14),]$type==1], na.rm = TRUE)
+    keep$inf_ct_sympS_S_staff[i] = sum(df$location == "Staff interactions" & df$type==1 & df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
+    keep$inf_ct_asympS_S_staff[i] = sum(df$location == "Staff interactions" & df$type==1 & !df$source_symp & df$source %in% df$id[df$type==1], na.rm = TRUE)
     
-    keep$risk_ct_sympR_R_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.res[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_asympR_R_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.res[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
+    keep$risk_ct_sympR_R_room[i] = sum(df$person.days.at.risk.room.res[df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_asympR_R_room[i] = sum(df$person.days.at.risk.room.res[!df$symp & df$type==0], na.rm = TRUE)
     
     if(quarantine){
-      keep$risk_ct_sympR_S_room_quarantine[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.staff.quarantine[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-      keep$risk_ct_asympR_S_room_quarantine[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.staff.quarantine[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-      keep$risk_ct_sympS_R_room_quarantine[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.res.quarantine[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
-      keep$risk_ct_asympS_R_room_quarantine[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.res.quarantine[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
+      keep$risk_ct_sympR_S_room_quarantine[i] = sum(df$person.days.at.risk.room.staff.quarantine[df$symp & df$type==0], na.rm = TRUE)
+      keep$risk_ct_asympR_S_room_quarantine[i] = sum(df$person.days.at.risk.room.staff.quarantine[!df$symp & df$type==0], na.rm = TRUE)
+      keep$risk_ct_sympS_R_room_quarantine[i] = sum(df$person.days.at.risk.room.res.quarantine[df$symp & df$type==1], na.rm = TRUE)
+      keep$risk_ct_asympS_R_room_quarantine[i] = sum(df$person.days.at.risk.room.res.quarantine[!df$symp & df$type==1], na.rm = TRUE)
     }
-    keep$risk_ct_sympR_S_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.staff[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_asympR_S_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.staff[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_sympS_R_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.res[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$risk_ct_asympS_R_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.res[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
+    keep$risk_ct_sympR_S_room[i] = sum(df$person.days.at.risk.room.staff[df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_asympR_S_room[i] = sum(df$person.days.at.risk.room.staff[!df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_sympS_R_room[i] = sum(df$person.days.at.risk.room.res[df$symp & df$type==1], na.rm = TRUE)
+    keep$risk_ct_asympS_R_room[i] = sum(df$person.days.at.risk.room.res[!df$symp & df$type==1], na.rm = TRUE)
     
-    keep$risk_ct_sympR_V_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.visit[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_asympR_V_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.visit[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_sympV_R_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.res[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==2], na.rm = TRUE)
-    keep$risk_ct_asympV_R_room[i] = sum(df[df$t==(time+14),]$person.days.at.risk.room.res[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==2], na.rm = TRUE)
+    keep$risk_ct_sympR_V_room[i] = sum(df$person.days.at.risk.room.visit[df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_asympR_V_room[i] = sum(df$person.days.at.risk.room.visit[!df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_sympV_R_room[i] = sum(df$person.days.at.risk.room.res[df$symp & df$type==2], na.rm = TRUE)
+    keep$risk_ct_asympV_R_room[i] = sum(df$person.days.at.risk.room.res[!df$symp & df$type==2], na.rm = TRUE)
     
-    keep$risk_ct_sympR_R_common[i] = sum(df[df$t==(time+14),]$person.days.at.risk.common.res[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_asympR_R_common[i] = sum(df[df$t==(time+14),]$person.days.at.risk.common.res[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_sympR_S_common[i] = sum(df[df$t==(time+14),]$person.days.at.risk.common.staff[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_asympR_S_common[i] = sum(df[df$t==(time+14),]$person.days.at.risk.common.staff[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==0], na.rm = TRUE)
-    keep$risk_ct_sympS_S_common[i] = sum(df[df$t==(time+14),]$person.days.at.risk.common.staff[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$risk_ct_asympS_S_common[i] = sum(df[df$t==(time+14),]$person.days.at.risk.common.staff[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$risk_ct_sympS_R_common[i] = sum(df[df$t==(time+14),]$person.days.at.risk.common.res[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$risk_ct_asympS_R_common[i] = sum(df[df$t==(time+14),]$person.days.at.risk.common.res[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
+    keep$risk_ct_sympR_R_common[i] = sum(df$person.days.at.risk.common.res[df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_asympR_R_common[i] = sum(df$person.days.at.risk.common.res[!df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_sympR_S_common[i] = sum(df$person.days.at.risk.common.staff[df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_asympR_S_common[i] = sum(df$person.days.at.risk.common.staff[!df$symp & df$type==0], na.rm = TRUE)
+    keep$risk_ct_sympS_S_common[i] = sum(df$person.days.at.risk.common.staff[df$symp & df$type==1], na.rm = TRUE)
+    keep$risk_ct_asympS_S_common[i] = sum(df$person.days.at.risk.common.staff[!df$symp & df$type==1], na.rm = TRUE)
+    keep$risk_ct_sympS_R_common[i] = sum(df$person.days.at.risk.common.res[df$symp & df$type==1], na.rm = TRUE)
+    keep$risk_ct_asympS_R_common[i] = sum(df$person.days.at.risk.common.res[!df$symp & df$type==1], na.rm = TRUE)
     
-    keep$risk_ct_sympS_S_staff[i] = sum(df[df$t==(time+14),]$person.days.at.risk.staff.staff[df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
-    keep$risk_ct_asympS_S_staff[i] = sum(df[df$t==(time+14),]$person.days.at.risk.staff.staff[!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$type==1], na.rm = TRUE)
+    keep$risk_ct_sympS_S_staff[i] = sum(df$person.days.at.risk.staff.staff[df$symp & df$type==1], na.rm = TRUE)
+    keep$risk_ct_asympS_S_staff[i] = sum(df$person.days.at.risk.staff.staff[!df$symp & df$type==1], na.rm = TRUE)
     
-    keep$length.infectious.low_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf_home[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==0]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==0]) + 1)
-    keep$length.infectious.low_risk_sd[i] = sd(floor(df[df$t==(time+14),]$t_end_inf_home[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==0]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==0]) + 1)
-    keep$length.infectious.mod_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf_home[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==1]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==1]) + 1)
-    keep$length.infectious.mod_risk_sd[i] = sd(floor(df[df$t==(time+14),]$t_end_inf_home[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==1]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==1]) + 1)
-    keep$length.infectious.high_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf_home[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==2]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==2]) + 1)
-    keep$length.infectious.high_risk_sd[i] = sd(floor(df[df$t==(time+14),]$t_end_inf_home[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==2]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==2]) + 1)
+    keep$length.infectious.low_risk_obs[i] = mean(floor(df$t_end_inf_home[df$t_inf > 0 & df$comorbid==0]) - ceiling(df$t_inf[df$t_inf > 0 & df$comorbid==0]) + 1)
+    keep$length.infectious.low_risk_sd[i] = sd(floor(df$t_end_inf_home[df$t_inf > 0 & df$comorbid==0]) - ceiling(df$t_inf[df$t_inf > 0 & df$comorbid==0]) + 1)
+    keep$length.infectious.mod_risk_obs[i] = mean(floor(df$t_end_inf_home[df$t_inf > 0 & df$comorbid==1]) - ceiling(df$t_inf[df$t_inf > 0 & df$comorbid==1]) + 1)
+    keep$length.infectious.mod_risk_sd[i] = sd(floor(df$t_end_inf_home[df$t_inf > 0 & df$comorbid==1]) - ceiling(df$t_inf[df$t_inf > 0 & df$comorbid==1]) + 1)
+    keep$length.infectious.high_risk_obs[i] = mean(floor(df$t_end_inf_home[df$t_inf > 0 & df$comorbid==2]) - ceiling(df$t_inf[df$t_inf > 0 & df$comorbid==2]) + 1)
+    keep$length.infectious.high_risk_sd[i] = sd(floor(df$t_end_inf_home[df$t_inf > 0 & df$comorbid==2]) - ceiling(df$t_inf[df$t_inf > 0 & df$comorbid==2]) + 1)
     
-    keep$length.infectious.symp.low_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf[df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==0]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==0]) + 1)
-    keep$length.infectious.asymp.low_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf[(!df[df$t==(time+14),]$symp | df[df$t==(time+14),]$sub_clin) & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==0]) - ceiling(df[df$t==(time+14),]$t_inf[(!df[df$t==(time+14),]$symp | df[df$t==(time+14),]$sub_clin) & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==0]) + 1)
-    keep$length.infectious.symp.mod_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf[df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==1]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==1]) + 1)
-    keep$length.infectious.asymp.mod_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf[(!df[df$t==(time+14),]$symp | df[df$t==(time+14),]$sub_clin) & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==1]) - ceiling(df[df$t==(time+14),]$t_inf[(!df[df$t==(time+14),]$symp | df[df$t==(time+14),]$sub_clin) & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==1]) + 1)
-    keep$length.infectious.symp.high_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf[df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==2]) - ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$symp & !df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==2]) + 1)
-    keep$length.infectious.asymp.high_risk_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_inf[(!df[df$t==(time+14),]$symp | df[df$t==(time+14),]$sub_clin) & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==2]) - ceiling(df[df$t==(time+14),]$t_inf[(!df[df$t==(time+14),]$symp | df[df$t==(time+14),]$sub_clin) & df[df$t==(time+14),]$t_inf > 0 & df[df$t==(time+14),]$comorbid==2]) + 1)
+    keep$length.infectious.symp.low_risk_obs[i] = mean(floor(df$t_end_inf[df$symp & !df$sub_clin & df$t_inf > 0 & df$comorbid==0]) - ceiling(df$t_inf[df$symp & !df$sub_clin & df$t_inf > 0 & df$comorbid==0]) + 1)
+    keep$length.infectious.asymp.low_risk_obs[i] = mean(floor(df$t_end_inf[(!df$symp | df$sub_clin) & df$t_inf > 0 & df$comorbid==0]) - ceiling(df$t_inf[(!df$symp | df$sub_clin) & df$t_inf > 0 & df$comorbid==0]) + 1)
+    keep$length.infectious.symp.mod_risk_obs[i] = mean(floor(df$t_end_inf[df$symp & !df$sub_clin & df$t_inf > 0 & df$comorbid==1]) - ceiling(df$t_inf[df$symp & !df$sub_clin & df$t_inf > 0 & df$comorbid==1]) + 1)
+    keep$length.infectious.asymp.mod_risk_obs[i] = mean(floor(df$t_end_inf[(!df$symp | df$sub_clin) & df$t_inf > 0 & df$comorbid==1]) - ceiling(df$t_inf[(!df$symp | df$sub_clin) & df$t_inf > 0 & df$comorbid==1]) + 1)
+    keep$length.infectious.symp.high_risk_obs[i] = mean(floor(df$t_end_inf[df$symp & !df$sub_clin & df$t_inf > 0 & df$comorbid==2]) - ceiling(df$t_inf[df$symp & !df$sub_clin & df$t_inf > 0 & df$comorbid==2]) + 1)
+    keep$length.infectious.asymp.high_risk_obs[i] = mean(floor(df$t_end_inf[(!df$symp | df$sub_clin) & df$t_inf > 0 & df$comorbid==2]) - ceiling(df$t_inf[(!df$symp | df$sub_clin) & df$t_inf > 0 & df$comorbid==2]) + 1)
     
-    keep$n_res_obs[i] = sum(df[df$t==(time+14),]$type==0)
-    keep$n_dc_staff_obs[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$role!=4 & !is.na(df[df$t==(time+14),]$role))
-    keep$n_admin_staff_obs[i] = sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$role==4 & !is.na(df[df$t==(time+14),]$role))
-    keep$n_visit_obs[i] = sum(df[df$t==(time+14),]$type==2)
+    keep$n_res_obs[i] = sum(df$type==0)
+    keep$n_dc_staff_obs[i] = sum(df$type==1 & df$role!=4 & !is.na(df$role))
+    keep$n_admin_staff_obs[i] = sum(df$type==1 & df$role==4 & !is.na(df$role))
+    keep$n_visit_obs[i] = sum(df$type==2)
     
-    keep$p_asymp_res_obs[i] = sum(!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$t_exposed > 0 & df[df$t==(time+14),]$type==0)/sum(df[df$t==(time+14),]$t_exposed > 0 & df[df$t==(time+14),]$type==0)
-    keep$p_asymp_nonres_obs[i] = sum(!df[df$t==(time+14),]$symp & df[df$t==(time+14),]$t_exposed > 0 & df[df$t==(time+14),]$type!=0)/sum(df[df$t==(time+14),]$t_exposed > 0 & df[df$t==(time+14),]$type!=0)
-    keep$p_subclin_res_obs[i] = sum(df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$t_exposed > 0 & df[df$t==(time+14),]$type==0)/sum(df[df$t==(time+14),]$t_exposed > 0 & df[df$t==(time+14),]$type==0)
-    keep$p_subclin_nonres_obs[i] = sum(df[df$t==(time+14),]$sub_clin & df[df$t==(time+14),]$t_exposed > 0 & df[df$t==(time+14),]$type!=0)/sum(df[df$t==(time+14),]$t_exposed > 0 & df[df$t==(time+14),]$type!=0)
+    keep$p_asymp_res_obs[i] = sum(!df$symp & df$t_exposed > 0 & df$type==0)/sum(df$t_exposed > 0 & df$type==0)
+    keep$p_asymp_nonres_obs[i] = sum(!df$symp & df$t_exposed > 0 & df$type!=0)/sum(df$t_exposed > 0 & df$type!=0)
+    keep$p_subclin_res_obs[i] = sum(df$sub_clin & df$t_exposed > 0 & df$type==0)/sum(df$t_exposed > 0 & df$type==0)
+    keep$p_subclin_nonres_obs[i] = sum(df$sub_clin & df$t_exposed > 0 & df$type!=0)/sum(df$t_exposed > 0 & df$type!=0)
     
-    keep$length.incubation_obs[i] = mean(floor(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$t_inf > 0 & !df[df$t==(time+14),]$start]) - ceiling(df[df$t==(time+14),]$t_exposed[df[df$t==(time+14),]$t_inf > 0 & !df[df$t==(time+14),]$start] + runif(length(df[df$t==(time+14),]$t_exposed[df[df$t==(time+14),]$t_inf > 0 & !df[df$t==(time+14),]$start]), min = -0.5, max = 0.5)) + 1)
-    keep$length.symp.gap_obs[i] = mean(floor(df[df$t==(time+14),]$t_symp[df[df$t==(time+14),]$t_inf > 0 & !df[df$t==(time+14),]$start]) - ceiling(df[df$t==(time+14),]$t_exposed[df[df$t==(time+14),]$t_inf > 0 & !df[df$t==(time+14),]$start] + runif(length(df[df$t==(time+14),]$t_exposed[df[df$t==(time+14),]$t_inf > 0 & !df[df$t==(time+14),]$start]), min = -0.5, max = 0.5)) + 1)
-    keep$length.quarantine_obs[i] = mean(floor(df[df$t==(time+14),]$t_end_quarantine[df[df$t==(time+14),]$t_quarantine > 0 & df[df$t==(time+14),]$t_quarantine!=-13 & df[df$t==(time+14),]$t_end_quarantine > 0 & df[df$t==(time+14),]$t_end_quarantine!=-13]) - ceiling(df[df$t==(time+14),]$t_quarantine[df[df$t==(time+14),]$t_quarantine > 0 & df[df$t==(time+14),]$t_quarantine!=-13 & df[df$t==(time+14),]$t_end_quarantine > 0 & df[df$t==(time+14),]$t_end_quarantine!=-13]))
+    keep$length.incubation_obs[i] = mean(floor(df$t_inf[df$t_inf > 0 & !df$start]) - ceiling(df$t_exposed[df$t_inf > 0 & !df$start] + runif(length(df$t_exposed[df$t_inf > 0 & !df$start]), min = -0.5, max = 0.5)) + 1)
+    keep$length.symp.gap_obs[i] = mean(floor(df$t_symp[df$t_inf > 0 & !df$start]) - ceiling(df$t_exposed[df$t_inf > 0 & !df$start] + runif(length(df$t_exposed[df$t_inf > 0 & !df$start]), min = -0.5, max = 0.5)) + 1)
+    keep$length.quarantine_obs[i] = mean(floor(df$t_end_quarantine[df$t_quarantine > 0 & df$t_quarantine!=-13 & df$t_end_quarantine > 0 & df$t_end_quarantine!=-13]) - ceiling(df$t_quarantine[df$t_quarantine > 0 & df$t_quarantine!=-13 & df$t_end_quarantine > 0 & df$t_end_quarantine!=-13]))
     
-    keep$res.vax.rate_obs[i] = mean(df[df$t==(time+14),]$vacc[df[df$t==(time+14),]$type==0])
-    keep$staff.vax.rate_obs[i] = mean(df[df$t==(time+14),]$vacc[df[df$t==(time+14),]$type==1])
-    keep$visit.vax.rate_obs[i] = mean(df[df$t==(time+14),]$vacc[df[df$t==(time+14),]$type==2])
+    keep$res.vax.rate_obs[i] = mean(df$vacc[df$type==0])
+    keep$staff.vax.rate_obs[i] = mean(df$vacc[df$type==1])
+    keep$visit.vax.rate_obs[i] = mean(df$vacc[df$type==2])
     
-    if("family"%in%colnames(df[df$t==(time+14),])){
-      keep$vax.eff_obs[i] = (ifelse(is.na(mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc] == 0)),
-                                    sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc),
-                                    mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc] == 0))*sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc) +
-                               ifelse(is.na(mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc] == 0)),
-                                      sum((df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc)),
-                                      mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc] == 0))*sum((df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc)) +
-                               ifelse(is.na(mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$vacc] == 0)),
-                                      sum((df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$vacc)),
-                                      mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$vacc] == 0))*sum((df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$vacc)))/
-        (sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc) + sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc) + sum(df[df$t==(time+14),]$type==2 & df[df$t==(time+14),]$vacc))
+    if("family"%in%colnames(df)){
+      keep$vax.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc] == 0)),
+                                    sum(df$type==0 & df$vacc),
+                                    mean(df$susp[df$type==0 & df$vacc] == 0))*sum(df$type==0 & df$vacc) +
+                               ifelse(is.na(mean(df$susp[df$type==1 & df$vacc] == 0)),
+                                      sum((df$type==1 & df$vacc)),
+                                      mean(df$susp[df$type==1 & df$vacc] == 0))*sum((df$type==1 & df$vacc)) +
+                               ifelse(is.na(mean(df$susp[df$type==2 & df$vacc] == 0)),
+                                      sum((df$type==2 & df$vacc)),
+                                      mean(df$susp[df$type==2 & df$vacc] == 0))*sum((df$type==2 & df$vacc)))/
+        (sum(df$type==0 & df$vacc) + sum(df$type==1 & df$vacc) + sum(df$type==2 & df$vacc))
     } else{
-      keep$vax.eff_obs[i] = (ifelse(is.na(mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc] == 0)),
-                                    sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc),
-                                    mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc] == 0))*sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc) +
-                               ifelse(is.na(mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc] == 0)),
-                                      sum((df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc)),
-                                      mean(df[df$t==(time+14),]$susp[df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc] == 0))*sum((df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc)))/
-        (sum(df[df$t==(time+14),]$type==0 & df[df$t==(time+14),]$vacc) + sum(df[df$t==(time+14),]$type==1 & df[df$t==(time+14),]$vacc))
+      keep$vax.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc] == 0)),
+                                    sum(df$type==0 & df$vacc),
+                                    mean(df$susp[df$type==0 & df$vacc] == 0))*sum(df$type==0 & df$vacc) +
+                               ifelse(is.na(mean(df$susp[df$type==1 & df$vacc] == 0)),
+                                      sum((df$type==1 & df$vacc)),
+                                      mean(df$susp[df$type==1 & df$vacc] == 0))*sum((df$type==1 & df$vacc)))/
+        (sum(df$type==0 & df$vacc) + sum(df$type==1 & df$vacc))
     }
     
     
-    keep$res.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df[df$t==(time+14),]$start.time[1]:(time + df[df$t==(time+14),]$start.time[1] - 1), function(t){sum(ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$start & df[df$t==(time+14),]$type==0]) == t)/sum(df[df$t==(time+14),]$type==0)})), NA)
-    keep$staff.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df[df$t==(time+14),]$start.time[1]:(time + df[df$t==(time+14),]$start.time[1] - 1), function(t){sum(ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$start & df[df$t==(time+14),]$type==1]) == t)/sum(df[df$t==(time+14),]$type==1)})), NA)
-    keep$visit.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df[df$t==(time+14),]$start.time[1]:(time + df[df$t==(time+14),]$start.time[1] - 1), function(t){sum(ceiling(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$start & df[df$t==(time+14),]$type==2]) == t)/sum(df[df$t==(time+14),]$type==2)})), NA)
+    keep$res.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df$start.time[1]:(time + df$start.time[1] - 1), function(t){sum(ceiling(df$t_inf[df$start & df$type==0]) == t)/sum(df$type==0)})), NA)
+    keep$staff.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df$start.time[1]:(time + df$start.time[1] - 1), function(t){sum(ceiling(df$t_inf[df$start & df$type==1]) == t)/sum(df$type==1)})), NA)
+    keep$visit.prob_obs[i] = ifelse(start_type == "cont", mean(sapply(df$start.time[1]:(time + df$start.time[1] - 1), function(t){sum(ceiling(df$t_inf[df$start & df$type==2]) == t)/sum(df$type==2)})), NA)
     
     
     # Alyssa's new checks
-    keep$seed_res[i] = sum(df[df$t==(time+14),]$start.init[df[df$t==(time+14),]$type==0])
-    keep$seed_nonres[i] = sum(df[df$t==(time+14),]$start.init[df[df$t==(time+14),]$type!=0])
-    keep$start_res_time[i] = mean(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$start.init & df[df$t==(time+14),]$type==0])
-    keep$start_nonres_time[i] = mean(df[df$t==(time+14),]$t_inf[df[df$t==(time+14),]$start.init & df[df$t==(time+14),]$type!=0])
-    keep$not_inf_start[i] = sum(df[df$t==(time+14),]$not_inf_keep)
-    keep$test_type.check[i] = sum(df[df$t==(time+14),]$test_type)
-    keep$vaxxed[i] = sum(df[df$t==(time+14),]$vacc)
+    keep$seed_res[i] = sum(df$start.init[df$type==0])
+    keep$seed_nonres[i] = sum(df$start.init[df$type!=0])
+    keep$start_res_time[i] = mean(df$t_inf[df$start.init & df$type==0])
+    keep$start_nonres_time[i] = mean(df$t_inf[df$start.init & df$type!=0])
+    keep$not_inf_start[i] = sum(df$not_inf_keep)
+    keep$test_type.check[i] = sum(df$test_type)
+    keep$vaxxed[i] = sum(df$vacc)
     #print(i)
     
   }

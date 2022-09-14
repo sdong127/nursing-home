@@ -1288,15 +1288,15 @@ make_infected = function(df.u, days_inf = 5, set = NA, mult_asymp_res = 1, mult_
 #### NOTE: I found this to be slower when coded w/tidyverse.
 #### Therefore for the most part, this is coded in base.
 run_model = function(time = 30,
-                     test = T,
-                     test_days = "2x_week",
-                     test_sens =  .7,
+                     test = F,
+                     test_days = "week",
+                     test_sens =  .8,
                      test_frac = .9,
                      test_start_day = 1,
-                     visit_test = T,
+                     visit_test = F,
                      n_contact_common_res = 3,
                      n_contact_common_staff = 3,
-                     n_contact_staff = 10,
+                     n_contact_staff = 6,
                      n_start = 1,
                      days_inf = 5,
                      # days_inf_mild = 5,
@@ -1966,8 +1966,8 @@ run_model = function(time = 30,
 
 start = make_NH(synthpop = synthpop, cohorting = T, visitors = T, temp_staff = T)
 nh = initialize_NH(rel_trans_room_symp_res = 1, 
-                   p_asymp_nonres = 0, p_asymp_res = 0, p_subclin_nonres = 0, p_subclin_res = 0,
-                   daily_attack_unvax = .18, daily_attack_vax = .11, staff_vax_req = F, res_vax = 1, staff_vax = 1, visit_vax = 1, 
+                   p_asymp_nonres = 0.6, p_asymp_res = 0.6, p_subclin_nonres = 0, p_subclin_res = 0,
+                   daily_attack_unvax = .18, daily_attack_vax = .11, staff_vax_req = F, res_vax = .65, staff_vax = .4, visit_vax = .4, 
                    staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
                    staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, 
                    disperse_transmission = T, isolate = T, vax_eff = 0.5, start = start)
@@ -2032,12 +2032,12 @@ cohorts = make_room(df = df)
 #'
 #' @export
 mult_runs = function(N, cohorting = T, visitors = T, temp_staff = T, rel_trans_common = 1/4, rel_trans_staff = 1/4, 
-                     rel_trans_room_symp_res = 1, p_asymp_nonres = 0, p_asymp_res = 0, 
+                     rel_trans_room_symp_res = 1, p_asymp_nonres = 0.6, p_asymp_res = 0.6, 
                      p_subclin_nonres = 0, p_subclin_res = 0, daily_attack_unvax = 0.18, daily_attack_vax = 0.11, staff_vax_req = F, 
-                     res_vax = 1, staff_vax = 1, visit_vax = 1, staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
+                     res_vax = .65, staff_vax = .4, visit_vax = .4, staff_trans_red = 1, visit_trans_red = 1, res_trans_red = 1, 
                      staff_susp_red = 1, visit_susp_red = 1, res_susp_red = 1, disperse_transmission = T, n_contact_common_res = 3, n_contact_common_staff = 3,
-                     n_contact_staff = 10, n_start = 1, days_inf = 5, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, 
-                     isolate = T, time = 30, test = F, test_sens = 0.7, test_frac = 0.9, test_days = '2x_week', 
+                     n_contact_staff = 6, n_start = 1, days_inf = 5, mult_asymp_res = 1, mult_asymp_nonres = 1, seed_asymp = F, 
+                     isolate = T, time = 30, test = F, test_sens = 0.8, test_frac = 0.9, test_days = 'week', 
                      test_type = 'all', test_start_day = 1, visit_test = F, start_mult = 1, staff_prob = 0.0015, visit_prob = 0.0015,
                      quarantine = F, quarantine.length = 5, vax_eff = 0.5, overdisp_off = T, df, cohorts){
   

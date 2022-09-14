@@ -1,6 +1,6 @@
 #!/bin/bash                                                                                                    
 #SBATCH -J TestCalib # A single job name for the array                                                         
-#SBATCH -n 16 # Number of cores                                                                                
+#SBATCH -n 30 # Number of cores                                                                                
 #SBATCH -N 1 # All cores on one machine 
                                                                        
 #SBATCH -p batch # Default                                                                          

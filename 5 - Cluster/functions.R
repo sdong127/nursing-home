@@ -2004,11 +2004,12 @@ run_model = function(time = 30,
 #' @param rel_trans_common Relative attack rate of common area contact (vs. room); defaults to 1/4
 #' @param rel_trans_staff Relative attack rate of staff-staff interactions (vs. room); defaults to 1/4
 #' @param rel_trans_room_symp_res Additional relative attack rate of a symptomatic infected resident in shared room; defaults to 1
-#' @param p_asymp_nonres Fraction of staff with asymptomatic (unsuspected) disease; defaults to 0.8
-#' @param p_asymp_res Fraction of residents with asymptomatic (unsuspected) disease; defaults to 0.4
+#' @param p_asymp_nonres Fraction of staff with asymptomatic (unsuspected) disease; defaults to 0.5
+#' @param p_asymp_res Fraction of residents with asymptomatic (unsuspected) disease; defaults to 0.5
 #' @param p_subclin_nonres Fraction of non-residents with subclinical but not techincally asymptomatic disease; defaults to 0
 #' @param p_subclin_res Fraction of residents with subclinical but not techincally asymptomatic disease; defaults to 0
-#' @param daily_attack Average daily attack rate in residents; defaults to 0.01
+#' @param daily_attack_unvax Average daily attack rate among unvaccinated; defaults to 0.18
+#' @param daily_attack_vax Average daily attach rate among boosted; defaults to 0.11
 #' @param res_vax Vaccination rate of residents; defaults to 0
 #' @param staff_vax_req Whether staff are required to get vaccine; defaults to F
 #' @param staff_vax Vaccination rate of staff; defaults to some amount
@@ -2033,7 +2034,7 @@ run_model = function(time = 30,
 #' @param isolate Whether symptomatic individuals isolate when symptoms emerge; defaults to T
 #' @param time length of time to run model; defaults to 30
 #' @param test whether there is weekly testing; defaults to F
-#' @param test_sens test sensitivity; defaults to 0.7
+#' @param test_sens test sensitivity; defaults to 0.84
 #' @param test_frac fraction of school tested; defaults to 0.9
 #' @param test_days test frequency; "day", "week", "2x_week"; defaults to "week"
 #' @param test_type group tested; defaults to "all", also allows "staff" and "residents"
@@ -2044,7 +2045,7 @@ run_model = function(time = 30,
 #' @param visit_prob set daily probability of infectious entry for visitors, defaults to .001
 #' @param quarantine whether people quarantine upon exposure; defaults to T
 #' @param quarantine.length length of quarantine when someone is infectious; defaults to 5
-#' @param vax_eff Vaccine efficacy, defaults to 0.9
+#' @param vax_eff Vaccine efficacy, defaults to 0.5
 #' @param overdisp_off all overdispersion off; defaults to F
 #' @param df nursing home population schedule; from make_schedule()
 #' @param cohorts list from make_room()

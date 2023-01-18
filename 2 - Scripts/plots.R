@@ -3,8 +3,8 @@ library(ggplot2)
 library(ggpattern)
 library(tidyverse)
 
-setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/2 - Scripts")
-load("noscreen_highvax_150.RData")
+setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output")
+load("noscreen_10_highvax.RData")
 
 ###################################INFECTIONS###################################
 
@@ -17,91 +17,135 @@ calc_infs = function(data = out){
   return(infs)
 }
 
-com_inc_vec = c("50","100","150")
+com_inc_vec = c("10","100","200")
 
 type_vec = rep(c("no screening", "weekly screening", "twice weekly screening"),times=3)
 
-inf_vec = c(infs_50_noscreen,infs_50_screenweek,infs_50_screen2xweek,
+inf_vec = c(infs_10_noscreen,infs_10_screenweek,infs_10_screen2xweek,
             infs_100_noscreen,infs_100_screenweek,infs_100_screen2xweek,
-            infs_150_noscreen,infs_150_screenweek,infs_150_screen2xweek)
+            infs_200_noscreen,infs_200_screenweek,infs_200_screen2xweek)
 
-create_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec){
+create_infs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec){
   df = data.frame(com_inc=rep(com_inc,each=3), type=type, infs=infs)
   
   return(df)
 }
 
-ggplot(df, aes(x=com_inc, y=infs, col=type)) + 
-  geom_point(size=2) + scale_color_manual(values=c("red","blue","green")) +
-  ggtitle("High booster coverage \n (90% residents boosted, 70% staff and visitors boosted)") + theme(plot.title = element_text(hjust = 0.5)) +
-  ylab("Mean no. of cumulative nursing home-acquired infections \n in residents, staff, and visitors over 1 month") +
-  scale_x_discrete(limits=c("50","100","150")) + xlab("Community incidence (cases per 100k per day)") + ylim(0,10.1) + 
+df=create_infs_df()
+df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening"))
+
+png("highboostinfs.png", width = 6, height = 5, units = 'in', res = 300)
+ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("High booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Mean no. of nursing home-acquired infections \n in residents, staff, and visitors over 1 month") +
+  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,15) + 
   guides(color = guide_legend(title = "Screening frequency"))
+dev.off()
 
 ggplot(df, aes(x=com_inc, y=infs, fill=type)) + 
-  geom_col(width=0.5, position='dodge') + scale_fill_manual(values=c("red","blue","green")) +
-  ggtitle("High booster coverage \n (90% residents boosted, 70% staff and visitors boosted)") + theme(plot.title = element_text(hjust = 0.5)) +
-  ylab("Mean no. of cumulative nursing home-acquired infections \n in residents, staff, and visitors over 1 month") +
-  scale_x_discrete(limits=c("50","100","150")) + xlab("Community incidence (cases per 100k per day)") + ylim(0,10.1) +
+  geom_bar(stat="identity",width=0.5, position='dodge') + scale_fill_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("High booster coverage") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Mean no. of nursing home-acquired infections \n in residents, staff, and visitors over 1 month") +
+  scale_x_discrete(limits=c("50","100","150")) + xlab("Community incidence") + ylim(0,20) +
+  guides(fill = guide_legend(title = "Screening frequency")) 
+
+
+############################INFECTIONS IN RESIDENTS#############################
+
+calc_resinfs = function(data = out){
+  infs = mean(data$res_tot)
+  return(infs)
+}
+
+com_inc_vec = c("10","100","200")
+
+type_vec = rep(c("no screening", "weekly screening", "twice weekly screening"),times=3)
+
+inf_vec = c(resinfs_10_noscreen,resinfs_10_screenweek,resinfs_10_screen2xweek,
+            resinfs_100_noscreen,resinfs_100_screenweek,resinfs_100_screen2xweek,
+            resinfs_200_noscreen,resinfs_200_screenweek,resinfs_200_screen2xweek)
+
+create_infs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec){
+  df = data.frame(com_inc=rep(com_inc,each=3), type=type, infs=infs)
+  
+  return(df)
+}
+
+df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening"))
+
+# png("highboostinfs.png", width = 7, height = 4, units = 'in', res = 300)
+ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("No protection, infections in residents only") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Mean no. of nursing home-acquired infections \n in residents over 1 month") +
+  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,160) + 
+  guides(color = guide_legend(title = "Screening frequency"))
+dev.off()
+
+ggplot(df, aes(x=com_inc, y=infs, fill=type)) + 
+  geom_bar(stat="identity",width=0.5, position='dodge') + scale_fill_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("High booster coverage") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Mean no. of nursing home-acquired infections \n in residents over 1 month") +
+  scale_x_discrete(limits=c("50","100","150")) + xlab("Community incidence") + ylim(0,20) +
   guides(fill = guide_legend(title = "Screening frequency")) 
 
 #################################DEATHS in RESIDENTS############################
 
-calc_deaths_res = function(data = out){
+calc_deaths_res = function(data = out, ifr = 0.029){
   res = mean(data$res_tot)
-  deaths = res*0.031
+  deaths = res*ifr
   
   return(deaths)
 }
 
-com_inc_vec = c("50","100","150")
+com_inc_vec = c("10","100","200")
 
 type_vec = rep(c("no screening", "weekly screening", "twice weekly screening"),times=3)
 
-death_vec = c(deaths_50_noscreen,deaths_50_screenweek,deaths_50_screen2xweek,
+death_vec = c(deaths_10_noscreen,deaths_10_screenweek,deaths_10_screen2xweek,
             deaths_100_noscreen,deaths_100_screenweek,deaths_100_screen2xweek,
-            deaths_150_noscreen,deaths_150_screenweek,deaths_150_screen2xweek)
+            deaths_200_noscreen,deaths_200_screenweek,deaths_200_screen2xweek)
 
-create_df = function(com_inc = com_inc_vec, type = type_vec, deaths = death_vec){
+create_deaths_df = function(com_inc = com_inc_vec, type = type_vec, deaths = death_vec){
   df = data.frame(com_inc=rep(com_inc,each=3), type=type, deaths=deaths)
   
   return(df)
 }
 
-ggplot(df, aes(x=com_inc, y=deaths, col=type)) + 
-  geom_point(size=2) + scale_color_manual(values=c("red","blue","green")) +
-  ggtitle("High booster coverage \n (90% residents boosted, 70% staff and visitors boosted)") + theme(plot.title = element_text(hjust = 0.5)) +
-  ylab("Mean no. of cumulative deaths in residents over 1 month") +
-  scale_x_discrete(limits=c("50","100","150")) + xlab("Community incidence (cases per 100k per day)") + ylim(0,.2) + 
-  guides(color = guide_legend(title = "Screening frequency"))
+df=create_deaths_df()
+df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening"))
 
-ggplot(df, aes(x=com_inc, y=deaths, fill=type)) + 
-  geom_col(width=0.5, position='dodge') + scale_fill_manual(values=c("red","blue","green")) +
-  ggtitle("High booster coverage \n (90% residents boosted, 70% staff and visitors boosted)") + theme(plot.title = element_text(hjust = 0.5)) +
-  ylab("Mean no. of cumulative deaths in residents over 1 month") +
-  scale_x_discrete(limits=c("50","100","150")) + xlab("Community incidence (cases per 100k per day)") + ylim(0,.2) +
-  guides(fill = guide_legend(title = "Screening frequency")) 
+png("highboostdeaths.png", width = 6, height = 5, units = 'in', res = 300)
+ggplot(df, aes(x=com_inc, y=deaths, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("High booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Mean no. of deaths in residents over 1 month") +
+  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,.3) + 
+  guides(color = guide_legend(title = "Screening frequency"))
+dev.off()
 
 
 ###############################DEATHS by PAXLOVID UPTAKE##########################
 
-calc_deaths_pax = function(data = out){
+calc_deaths_pax = function(data = out, 
+                           perc_5_uptake = 0.028, perc_21_uptake = 0.025, perc_49_uptake = 0.019){
   res = mean(data$res_tot)
-  deaths_4 = res*0.031
-  deaths_15 = res*0.028
-  deaths_30 = res*0.024
+  deaths_5 = res*perc_5_uptake
+  deaths_21 = res*perc_21_uptake
+  deaths_49 = res*perc_49_uptake
   
-  return(c(deaths_4,deaths_15,deaths_30))
+  return(c(deaths_5,deaths_21,deaths_49))
 }
 
-com_inc_vec = c("50","100","150")
-pax_prop_vec = c("4%","15%","30%")
+com_inc_vec = c(10,100,200)
+pax_prop_vec = c("5%","21%","49%")
 boost_vec = c("low","high")
 
-death_vec = c(deaths_50_lowboost,deaths_100_lowboost,deaths_150_lowboost,
-              deaths_50_highboost,deaths_100_highboost,deaths_150_highboost)
+death_vec = c(deaths_10_lowboost,deaths_100_lowboost,deaths_200_lowboost,
+              deaths_10_highboost,deaths_100_highboost,deaths_200_highboost)
 
-create_df = function(com_inc = com_inc_vec, pax_uptake = pax_prop_vec, boost_uptake = boost_vec, deaths = death_vec){
+create_pax_df = function(com_inc = com_inc_vec, pax_uptake = pax_prop_vec, boost_uptake = boost_vec, deaths = death_vec){
   df = data.frame(com_inc=rep(rep(com_inc,each=3),times=2), pax_uptake=rep(pax_uptake,times=6), 
                   boost_uptake = rep(boost_vec,each=9), deaths=deaths)
   
@@ -109,53 +153,68 @@ create_df = function(com_inc = com_inc_vec, pax_uptake = pax_prop_vec, boost_upt
 }
 
 
-# bar graph by community incidence and Pax uptake
-ggplot(data = df, aes(x = factor(com_inc, levels=c("50","100","150")), y = deaths, fill = factor(pax_uptake,levels=c("4%","15%","30%")), pattern = boost_uptake)) +
-  geom_bar_pattern(stat="identity", position = position_dodge(preserve = "single"), width=0.75,
-                   color = "black", 
-                   pattern_fill = "black",
-                   pattern_angle = 45,
-                   pattern_density = 0.05,
-                   pattern_spacing = 0.01,
-                   pattern_key_scale_factor = 0.6) +
-  scale_fill_manual("Paxlovid uptake", values = c("orange","springgreen2","royalblue")) +
-  scale_pattern_manual(values = c(low = "stripe", high = "none")) +
-  labs(x = "Community incidence (cases per 100k per day)", 
-       y = "Mean no. of cumulative deaths in residents over 1 month", pattern = "Booster uptake") + 
-  guides(pattern = guide_legend(override.aes = list(fill = "white")),
-         fill = guide_legend(override.aes = list(pattern = "none"))) + 
-  ggtitle("No screening") + theme(plot.title = element_text(hjust = 0.5)) + ylim(0,.2)
-
-
-# bar graph by size
-ggplot(data = df, aes(x = factor(com_inc, levels=c("50","100","150")), y = deaths, fill = factor(pax_uptake,levels=c("30%","15%","4%")), pattern = boost_uptake)) +
-  geom_bar_pattern(stat="identity", position = position_dodge(preserve = "single"), width=0.75,
-                   color = "black", 
-                   pattern_fill = "black",
-                   pattern_angle = 45,
-                   pattern_density = 0.05,
-                   pattern_spacing = 0.01,
-                   pattern_key_scale_factor = 0.6) +
-  scale_fill_manual("Paxlovid uptake", values = c("orange","springgreen2","royalblue")) +
-  scale_pattern_manual(values = c(low = "stripe", high = "none")) +
-  labs(x = "Community incidence (cases per 100k per day)", 
-       y = "Mean no. of cumulative deaths in residents over 1 month", pattern = "Booster uptake") + 
-  guides(pattern = guide_legend(override.aes = list(fill = "white")),
-         fill = guide_legend(override.aes = list(pattern = "none"))) + 
-  ggtitle("No screening") + theme(plot.title = element_text(hjust = 0.5)) + ylim(0,.2)
+# bar graph by size and booster uptake
+# ggplot(data = df, aes(x = factor(com_inc, levels=c("50","100","150")), y = deaths, fill = factor(pax_uptake,levels=c("30%","15%","4%")), pattern = boost_uptake)) +
+#   geom_bar_pattern(stat="identity", position = position_dodge(preserve = "single"), width=0.75,
+#                    color = "black", 
+#                    pattern_fill = "black",
+#                    pattern_angle = 45,
+#                    pattern_density = 0.05,
+#                    pattern_spacing = 0.01,
+#                    pattern_key_scale_factor = 0.6) +
+#   scale_fill_manual("Paxlovid uptake", values = c("orange","springgreen2","royalblue")) +
+#   scale_pattern_manual(values = c(low = "stripe", high = "none")) +
+#   labs(x = "Community incidence", 
+#        y = "Mean no. of cumulative deaths in residents over 1 month", pattern = "Booster uptake") + 
+#   guides(pattern = guide_legend(override.aes = list(fill = "white")),
+#          fill = guide_legend(override.aes = list(pattern = "none"))) + 
+#   ggtitle("Twice-weekly screening") + theme(plot.title = element_text(hjust = 0.5)) + ylim(0,.3)
 
 
 # line graph
-df$com_inc = rep(rep(c(50,100,150),each=3),times=2)
-df$pax_uptake = factor(df$pax_uptake, levels=c("4%","15%","30%"))
+df=create_pax_df()
+df$pax_uptake = factor(df$pax_uptake, levels=c("5%","21%","49%"))
 
+png("twiceweeklyscreenpax.png", width = 4, height = 6, units = 'in', res = 300)
 line_plot = ggplot(data = df[df$boost_uptake=="low",], aes(x = com_inc, y = deaths, color=pax_uptake)) +
   geom_line(aes(color=pax_uptake)) + geom_point(aes(color=pax_uptake)) +
   scale_color_manual("Paxlovid uptake", values = c("orange","springgreen2","royalblue")) +
-  labs(x = "Community incidence (cases per 100k per day)", 
-       y = "Mean no. of cumulative deaths in residents over 1 month", pattern = "Booster uptake") + 
-  guides(pattern = guide_legend(override.aes = list(fill = "white")),
-         fill = guide_legend(override.aes = list(pattern = "none"))) + 
-  ggtitle("No screening") + theme(plot.title = element_text(hjust = 0.5)) + ylim(0,.2) + scale_x_continuous(breaks=c(50,100,150))
+  labs(x = "Community incidence", 
+       y = "Mean no. of deaths in residents over 1 month") + 
+  ggtitle("Twice-weekly screening") + theme(plot.title = element_text(hjust = 0.5)) + ylim(0,.3) + scale_x_continuous(breaks=c(10,100,200))
 
 line_plot + geom_line(data=df[df$boost_uptake=="high",], linetype="dashed") + geom_point(data=df[df$boost_uptake=="high",], aes(color=pax_uptake))
+dev.off()
+
+png("boostlegend.png", width = 4, height = 6, units = 'in', res = 300)
+ggplot(data=df, aes(x=com_inc, y=deaths, group=boost_uptake)) + geom_line(aes(linetype=boost_uptake)) + scale_linetype_manual("Booster uptake", values=c("dashed", "solid"))
+dev.off()
+
+
+#########################DIFFERENCE BETWEEN SCREENING STRATS#####################
+
+com_inc_vec = c("10","100","200")
+
+type_vec = rep(c("weekly screening", "twice weekly screening"),times=3)
+
+inf_vec = c(infs_10_noscreen-infs_10_screenweek,infs_10_noscreen-infs_10_screen2xweek,
+            infs_100_noscreen-infs_100_screenweek,infs_100_noscreen-infs_100_screen2xweek,
+            infs_200_noscreen-infs_200_screenweek,infs_200_noscreen-infs_200_screen2xweek)
+
+create_diffinfs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec){
+  df = data.frame(com_inc=rep(com_inc,each=2), type=type, infs=infs)
+  
+  return(df)
+}
+
+df=create_diffinfs_df()
+df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening"))
+
+png("reldiff_highvax.png", width = 6, height = 5, units = 'in', res = 300)
+ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2")) +
+  ggtitle("High booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Relative difference in no. of infections \n between screening strategy and no screening") +
+  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,10) + 
+  guides(color = guide_legend(title = "Screening frequency"))
+dev.off()

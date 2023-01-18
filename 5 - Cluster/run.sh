@@ -10,6 +10,6 @@
 #SBATCH --mail-type=END                                                                                        
 #SBATCH --mail-user=shirley_dong@brown.edu                                                                   
 
-module load gcc/10.2 pcre2/10.35 intel/2020.2 texlive/2018 R/3.4.3
+module load gcc/10.2 pcre2/10.35 intel/2020.2 texlive/2022 R/4.2.2
 
 R CMD BATCH --quiet --no-restore --no-save base_case.R test.out

@@ -2,7 +2,7 @@ library(data.table)
 library(ggplot2)
 
 setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output")
-load("noscreen_10.RData")
+load("noscreen_10_lowvax.RData")
 
 #' Make bar plot
 #' 

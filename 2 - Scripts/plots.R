@@ -4,7 +4,7 @@ library(ggpattern)
 library(tidyverse)
 
 setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output")
-load("noscreen_10_lowvax.RData")
+load("noscreen_10_highvax.RData")
 
 ###################################INFECTIONS###################################
 

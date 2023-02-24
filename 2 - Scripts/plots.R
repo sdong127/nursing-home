@@ -4,52 +4,7 @@ library(ggpattern)
 library(tidyverse)
 
 setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output")
-load("noscreen_10_highvax.RData")
-
-###################################INFECTIONS###################################
-
-calc_infs = function(data = out){
-  res = mean(data$res_tot)
-  staff = mean(data$staff_tot)
-  visit = mean(data$visit_tot)
-  infs = res + staff + visit
-  
-  return(infs)
-}
-
-com_inc_vec = c("10","100","200")
-
-type_vec = rep(c("no screening", "weekly screening", "twice weekly screening"),times=3)
-
-inf_vec = c(infs_10_noscreen,infs_10_screenweek,infs_10_screen2xweek,
-            infs_100_noscreen,infs_100_screenweek,infs_100_screen2xweek,
-            infs_200_noscreen,infs_200_screenweek,infs_200_screen2xweek)
-
-create_infs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec){
-  df = data.frame(com_inc=rep(com_inc,each=3), type=type, infs=infs)
-  
-  return(df)
-}
-
-df=create_infs_df()
-df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening"))
-
-png("highboostinfs.png", width = 6, height = 5, units = 'in', res = 300)
-ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
-  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
-  ggtitle("High booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
-  ylab("Mean no. of nursing home-acquired infections \n in residents, staff, and visitors over 1 month") +
-  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,15) + 
-  guides(color = guide_legend(title = "Screening frequency"))
-dev.off()
-
-ggplot(df, aes(x=com_inc, y=infs, fill=type)) + 
-  geom_bar(stat="identity",width=0.5, position='dodge') + scale_fill_manual(values=c("orange","springgreen2","royalblue")) +
-  ggtitle("High booster coverage") + theme(plot.title = element_text(hjust = 0.5)) +
-  ylab("Mean no. of nursing home-acquired infections \n in residents, staff, and visitors over 1 month") +
-  scale_x_discrete(limits=c("50","100","150")) + xlab("Community incidence") + ylim(0,20) +
-  guides(fill = guide_legend(title = "Screening frequency")) 
-
+load("noscreen_10_lowvax.RData")
 
 ############################INFECTIONS IN RESIDENTS#############################
 
@@ -72,27 +27,56 @@ create_infs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec
   return(df)
 }
 
+df=create_infs_df()
 df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening"))
 
-# png("highboostinfs.png", width = 7, height = 4, units = 'in', res = 300)
+png("highboostresinfs_TR.png", width = 6, height = 5, units = 'in', res = 300)
 ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
   geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
-  ggtitle("No protection, infections in residents only") + theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Infections in residents, low booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
   ylab("Mean no. of nursing home-acquired infections \n in residents over 1 month") +
-  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,160) + 
+  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,15) + 
   guides(color = guide_legend(title = "Screening frequency"))
 dev.off()
 
-ggplot(df, aes(x=com_inc, y=infs, fill=type)) + 
-  geom_bar(stat="identity",width=0.5, position='dodge') + scale_fill_manual(values=c("orange","springgreen2","royalblue")) +
-  ggtitle("High booster coverage") + theme(plot.title = element_text(hjust = 0.5)) +
-  ylab("Mean no. of nursing home-acquired infections \n in residents over 1 month") +
-  scale_x_discrete(limits=c("50","100","150")) + xlab("Community incidence") + ylim(0,20) +
-  guides(fill = guide_legend(title = "Screening frequency")) 
+
+############################INFECTIONS IN STAFF#############################
+
+calc_staffinfs = function(data = out){
+  infs = mean(data$staff_tot)
+  return(infs)
+}
+
+com_inc_vec = c("10","100","200")
+
+type_vec = rep(c("no screening", "weekly screening", "twice weekly screening"),times=3)
+
+inf_vec = c(staffinfs_10_noscreen,staffinfs_10_screenweek,staffinfs_10_screen2xweek,
+            staffinfs_100_noscreen,staffinfs_100_screenweek,staffinfs_100_screen2xweek,
+            staffinfs_200_noscreen,staffinfs_200_screenweek,staffinfs_200_screen2xweek)
+
+create_infs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec){
+  df = data.frame(com_inc=rep(com_inc,each=3), type=type, infs=infs)
+  
+  return(df)
+}
+
+df=create_infs_df()
+df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening"))
+
+png("highbooststaffinfs_TR.png", width = 6, height = 5, units = 'in', res = 300)
+ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("Infections in staff, high booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Mean no. of nursing home-acquired infections \n in staff over 1 month") +
+  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,5) + 
+  guides(color = guide_legend(title = "Screening frequency"))
+dev.off()
+
 
 #################################DEATHS in RESIDENTS############################
 
-calc_deaths_res = function(data = out, ifr = 0.029){
+calc_deaths_res = function(data = out, ifr = 0.028){
   res = mean(data$res_tot)
   deaths = res*ifr
   
@@ -129,7 +113,7 @@ dev.off()
 ###############################DEATHS by PAXLOVID UPTAKE##########################
 
 calc_deaths_pax = function(data = out, 
-                           perc_5_uptake = 0.028, perc_21_uptake = 0.025, perc_49_uptake = 0.019){
+                           perc_5_uptake = 0.027, perc_21_uptake = 0.024, perc_49_uptake = 0.018){
   res = mean(data$res_tot)
   deaths_5 = res*perc_5_uptake
   deaths_21 = res*perc_21_uptake

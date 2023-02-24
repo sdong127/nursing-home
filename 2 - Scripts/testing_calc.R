@@ -1,5 +1,5 @@
 setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output")
-load('screen2xweek_200_highvax.RData')
+load('screen2xweek_200_lowvax_TR.RData')
 
 # average cases detected per 1000 tests
 mean(out$detected)/mean(out$test_count)*1000

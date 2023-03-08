@@ -443,7 +443,7 @@ initialize_NH = function(p_asymp_nonres = 1, p_asymp_res = 1, p_subclin_nonres =
            boost_eff_val = boost_eff,
            
            vacc = 0,
-           vacc = ifelse(type != 0, rbinom(n(), size = 1, prob = res_boost_val), vacc),
+           vacc = ifelse(type == 0, rbinom(n(), size = 1, prob = res_boost_val), vacc),
            vacc = ifelse(type == 1 | type==3, rbinom(n(), size = 1, prob = staff_boost_val), vacc),
            vacc = ifelse(type == 2, rbinom(n(), size = 1, prob = visit_boost_val), vacc),
            
@@ -1294,7 +1294,6 @@ run_model = function(time = 34,
                      rel_trans_staff = 1/4,
                      test_type = "all",
                      test_recovered = F,
-                     test_isolated = T,
                      df, cohorts){
   
   #### SEED MODEL ####
@@ -1436,17 +1435,82 @@ run_model = function(time = 34,
     
     ## group testing
     if(test){
-      # testing isolated 
-      if(test_isolated){
+      
+      if(!test_recovered){
+        
+        df_time_test = df_time[(df_time$t_inf==-1 | df_time$t_end_inf_home>=t),]
+        
+        if(t%in%testing_days){
+          
+          # testing residents and staff
+          df_time_novisit = df_time_test[df_time_test$type!=2,]
+          
+          df_time_novisit$test_ct = df_time_novisit$test_ct + rbinom(nrow(df_time_novisit), size = 1, prob = (df_time_novisit$shift!="absent")*test_frac*as.numeric(df_time_novisit$test_type)) # count how many tests individual takes
+          df_time_novisit$test_ct_res = ifelse(df_time_novisit$type==0, df_time_novisit$test_ct, df_time_novisit$test_ct_res)
+          df_time_novisit$test = rbinom(nrow(df_time_novisit), size = 1, prob = test_sens*test_frac*as.numeric(df_time_novisit$test_type)*(df_time_novisit$shift!="absent")) # record only accurate test results?
+          df_time_novisit$t_end_inf = ifelse(df_time_novisit$test & df_time_novisit$trans_now, t, df_time_novisit$t_end_inf)
+          df_time_novisit$t_notify = ifelse(df_time_novisit$test & df_time_novisit$trans_now & (df_time_novisit$t_symp>=t | df_time_novisit$symp==0), t, df_time_novisit$t_notify)
+          df_time_novisit$detected = ifelse(df_time_novisit$test & df_time_novisit$trans_now, 1, df_time_novisit$detected)
+          df_time_novisit$t_end_quarantine = ifelse(df_time_novisit$test & df_time_novisit$t_quarantine<=t & df_time_novisit$t_quarantine!=-13 & df_time_novisit$t_end_quarantine>t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>=t & df_time_novisit$t_notify-df_time_novisit$t_quarantine<df_time_novisit$t_end_quarantine-df_time_novisit$t_quarantine & (df_time_novisit$t_end_inf>t | df_time_novisit$t_end_inf==-1) & df_time_novisit$vacc==0, 
+                                                    df_time_novisit$t_notify, df_time_novisit$t_end_quarantine)
+          df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$type==0 & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_res, df_time_novisit$t_end_isolate)
+          df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & (df_time_novisit$type==1 | df_time_novisit$type==3) & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_staff, df_time_novisit$t_end_isolate)
+          df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$type==2 & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_visit, df_time_novisit$t_end_isolate)
+          df_time_novisit$isolate_home = df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$inf & df_time_novisit$t_notify <= t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_end_isolate>=t & df_time_novisit$type!=0
+          df_time_novisit$isolate_room = df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$inf & df_time_novisit$t_notify <= t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_end_isolate>=t & df_time_novisit$type==0
+          df_time_novisit$isolated = df_time_novisit$test & (df_time_novisit$isolate_home | df_time_novisit$isolate_room)
+          # room_test_ind = room_test_ind + length(unique(df$room[df$test_type & df$present & !df$isolated & !df$q_room]))
+          
+          df_time_novisit$test_tp_count = df_time_novisit$test_tp_count + ifelse(df_time_novisit$test_type & df_time_novisit$shift!="absent", df_time_novisit$inf*df_time_novisit$test, 0)
+          df_time_novisit$test_fn_count = df_time_novisit$test_fn_count + ifelse(df_time_novisit$test_type & df_time_novisit$shift!="absent", df_time_novisit$inf*(1-df_time_novisit$test), 0)
+          df_time_novisit$test_eligible = df_time_novisit$test_eligible + (df_time_novisit$shift!="absent")*df_time_novisit$test_type
+          
+          df_time_test[df_time_test$type!=2,] = df_time_novisit
+        }
+        
+        # visitor testing
+        if("family"%in% colnames(df_time) & visit_test){
+          df_time_test$test_type[df_time_test$type==2] = T
+          df_time_test$test_ct[df_time_test$type==2] = df_time_test$test_ct[df_time_test$type==2] + rbinom(nrow(df_time_test[df_time_test$type==2,]), size = 1, prob = (df_time_test$shift[df_time_test$type==2]!="absent")*as.numeric(df_time_test$test_type[df_time_test$type==2]))
+          df_time_test$test[df_time_test$type==2] = rbinom(nrow(df_time_test[df_time_test$type==2,]), size = 1, prob = test_sens*as.numeric(df_time_test$test_type[df_time_test$type==2])*(df_time_test$shift[df_time_test$type==2]!="absent"))
+          
+          df_time_test$t_end_inf[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$trans_now[df_time_test$type==2], t, df_time_test$t_end_inf[df_time_test$type==2])
+          df_time_test$t_notify[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$trans_now[df_time_test$type==2] & (df_time_test$t_symp[df_time_test$type==2]>=t | df_time_test$symp[df_time_test$type==2]==0), t, df_time_test$t_notify[df_time_test$type==2])
+          df_time_test$detected[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$trans_now[df_time_test$type==2], 1, df_time_test$detected[df_time_test$type==2])
+          df_time_test$t_end_quarantine[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$t_quarantine[df_time_test$type==2]<=t & df_time_test$t_quarantine[df_time_test$type==2]!=-13 & df_time_test$t_end_quarantine[df_time_test$type==2]>t & df_time_test$t_notify[df_time_test$type==2]!=-17 & df_time_test$t_notify[df_time_test$type==2]>=t & df_time_test$t_notify[df_time_test$type==2]-df_time_test$t_quarantine[df_time_test$type==2]<df_time_test$t_end_quarantine[df_time_test$type==2]-df_time_test$t_quarantine[df_time_test$type==2] & (df_time_test$t_end_inf[df_time_test$type==2]>t | df_time_test$t_end_inf[df_time_test$type==2]==-1) & df_time_test$vacc[df_time_test$type==2]==0, 
+                                                                       df_time_test$t_notify[df_time_test$type==2], df_time_test$t_end_quarantine[df_time_test$type==2])
+          df_time_test$t_end_isolate[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$isolate[df_time_test$type==2] & df_time_test$t_notify[df_time_test$type==2]!=-17 & df_time_test$t_notify[df_time_test$type==2]>0, df_time_test$t_notify[df_time_test$type==2] + days_isolate_visit, df_time_test$t_end_isolate[df_time_test$type==2])
+          df_time_test$isolate_home[df_time_test$type==2] = df_time_test$test[df_time_test$type==2] & df_time_test$isolate[df_time_test$type==2] & df_time_test$inf[df_time_test$type==2] & df_time_test$t_notify[df_time_test$type==2] <= t & df_time_test$t_notify[df_time_test$type==2]!=-17 & df_time_test$t_end_isolate[df_time_test$type==2]>=t
+          df_time_test$isolated[df_time_test$type==2] = df_time_test$test[df_time_test$type==2] & df_time_test$isolate_home[df_time_test$type==2]
+          
+          df_time_test$test_tp_count[df_time_test$type==2] = df_time_test$test_tp_count[df_time_test$type==2] + ifelse(df_time_test$test_type[df_time_test$type==2] & df_time_test$shift[df_time_test$type==2]!="absent", df_time_test$inf[df_time_test$type==2]*df_time_test$test[df_time_test$type==2], 0)
+          df_time_test$test_fn_count[df_time_test$type==2] = df_time_test$test_fn_count[df_time_test$type==2] + ifelse(df_time_test$test_type[df_time_test$type==2] & df_time_test$shift[df_time_test$type==2]!="absent", df_time_test$inf[df_time_test$type==2]*(1-df_time_test$test[df_time_test$type==2]), 0)
+          df_time_test$test_eligible[df_time_test$type==2] = df_time_test$test_eligible[df_time_test$type==2] + (df_time_test$shift[df_time_test$type==2]!="absent")*df_time_test$test_type[df_time_test$type==2]
+        }
+        
+        df_time[(df_time$t_inf==-1 | df_time$t_end_inf_home>=t),] = df_time_test
+        
+        # re-estimate who is present (among staff and visitors) 
+        df_time$shift[df_time$type!=0] = ifelse(df_time$shift[df_time$type!=0]!="absent" & !df_time$isolate_home[df_time$type!=0] & !df_time$quarantined[df_time$type!=0], df_time$shift[df_time$type!=0], "absent")
+        if("family"%in%colnames(df_time)){
+          df_time$shift[df_time$type==2] = ifelse(df_time$shift[df_time$type==2]!="absent" & !df_time$isolate_home[df_time$type==2] & !df_time$quarantined[df_time$type==2], df_time$shift[df_time$type==2], "absent")
+          df_time$shift[df_time$type==2] = ifelse(df_time$flag_fam[df_time$type==2]==1, "absent", df_time$shift[df_time$type==2])
+        }
+        
+        df_time$present_susp = df_time$shift!="absent" & df_time$not_inf
+        
+        # update infectious and at nursing home
+        df_time$trans_now = df_time$shift!="absent" & df_time$inf
+      }else{
         
         if(t%in%testing_days){
           
           # testing residents and staff
           df_time_novisit = df_time[df_time$type!=2,]
           
-          df_time_novisit$test_ct = df_time_novisit$test_ct + rbinom(nrow(df_time_novisit), size = 1, prob = test_frac*as.numeric(df_time_novisit$test_type)) # count how many tests individual takes
+          df_time_novisit$test_ct = df_time_novisit$test_ct + rbinom(nrow(df_time_novisit), size = 1, prob = (df_time_novisit$shift!="absent")*test_frac*as.numeric(df_time_novisit$test_type)) # count how many tests individual takes
           df_time_novisit$test_ct_res = ifelse(df_time_novisit$type==0, df_time_novisit$test_ct, df_time_novisit$test_ct_res)
-          df_time_novisit$test = rbinom(nrow(df_time_novisit), size = 1, prob = test_sens*test_frac*as.numeric(df_time_novisit$test_type)) # record only accurate test results?
+          df_time_novisit$test = rbinom(nrow(df_time_novisit), size = 1, prob = test_sens*test_frac*as.numeric(df_time_novisit$test_type)*(df_time_novisit$shift!="absent")) # record only accurate test results?
           df_time_novisit$t_end_inf = ifelse(df_time_novisit$test & df_time_novisit$trans_now, t, df_time_novisit$t_end_inf)
           df_time_novisit$t_notify = ifelse(df_time_novisit$test & df_time_novisit$trans_now & (df_time_novisit$t_symp>=t | df_time_novisit$symp==0), t, df_time_novisit$t_notify)
           df_time_novisit$detected = ifelse(df_time_novisit$test & df_time_novisit$trans_now, 1, df_time_novisit$detected)
@@ -1459,9 +1523,9 @@ run_model = function(time = 34,
           df_time_novisit$isolate_room = df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$inf & df_time_novisit$t_notify <= t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_end_isolate>=t & df_time_novisit$type==0
           df_time_novisit$isolated = df_time_novisit$test & (df_time_novisit$isolate_home | df_time_novisit$isolate_room)
           
-          df_time_novisit$test_tp_count = df_time_novisit$test_tp_count + ifelse(df_time_novisit$test_type, df_time_novisit$inf*df_time_novisit$test, 0)
-          df_time_novisit$test_fn_count = df_time_novisit$test_fn_count + ifelse(df_time_novisit$test_type, df_time_novisit$inf*(1-df_time_novisit$test), 0)
-          df_time_novisit$test_eligible = df_time_novisit$test_eligible + df_time_novisit$test_type
+          df_time_novisit$test_tp_count = df_time_novisit$test_tp_count + ifelse(df_time_novisit$test_type & df_time_novisit$shift!="absent", df_time_novisit$inf*df_time_novisit$test, 0)
+          df_time_novisit$test_fn_count = df_time_novisit$test_fn_count + ifelse(df_time_novisit$test_type & df_time_novisit$shift!="absent", df_time_novisit$inf*(1-df_time_novisit$test), 0)
+          df_time_novisit$test_eligible = df_time_novisit$test_eligible + (df_time_novisit$shift!="absent")*df_time_novisit$test_type
           
           df_time[df_time$type!=2,] = df_time_novisit
         }
@@ -1497,133 +1561,6 @@ run_model = function(time = 34,
         
         # update infectious and at nursing home
         df_time$trans_now = df_time$shift!="absent" & df_time$inf
-      }else{
-        if(!test_recovered){
-          
-          df_time_test = df_time[(df_time$t_inf==-1 | df_time$t_end_inf_home>=t),]
-          
-          if(t%in%testing_days){
-            
-            # testing residents and staff
-            df_time_novisit = df_time_test[df_time_test$type!=2,]
-            
-            df_time_novisit$test_ct = df_time_novisit$test_ct + rbinom(nrow(df_time_novisit), size = 1, prob = (df_time_novisit$shift!="absent")*test_frac*as.numeric(df_time_novisit$test_type)) # count how many tests individual takes
-            df_time_novisit$test_ct_res = ifelse(df_time_novisit$type==0, df_time_novisit$test_ct, df_time_novisit$test_ct_res)
-            df_time_novisit$test = rbinom(nrow(df_time_novisit), size = 1, prob = test_sens*test_frac*as.numeric(df_time_novisit$test_type)*(df_time_novisit$shift!="absent")) # record only accurate test results?
-            df_time_novisit$t_end_inf = ifelse(df_time_novisit$test & df_time_novisit$trans_now, t, df_time_novisit$t_end_inf)
-            df_time_novisit$t_notify = ifelse(df_time_novisit$test & df_time_novisit$trans_now & (df_time_novisit$t_symp>=t | df_time_novisit$symp==0), t, df_time_novisit$t_notify)
-            df_time_novisit$detected = ifelse(df_time_novisit$test & df_time_novisit$trans_now, 1, df_time_novisit$detected)
-            df_time_novisit$t_end_quarantine = ifelse(df_time_novisit$test & df_time_novisit$t_quarantine<=t & df_time_novisit$t_quarantine!=-13 & df_time_novisit$t_end_quarantine>t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>=t & df_time_novisit$t_notify-df_time_novisit$t_quarantine<df_time_novisit$t_end_quarantine-df_time_novisit$t_quarantine & (df_time_novisit$t_end_inf>t | df_time_novisit$t_end_inf==-1) & df_time_novisit$vacc==0, 
-                                                      df_time_novisit$t_notify, df_time_novisit$t_end_quarantine)
-            df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$type==0 & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_res, df_time_novisit$t_end_isolate)
-            df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & (df_time_novisit$type==1 | df_time_novisit$type==3) & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_staff, df_time_novisit$t_end_isolate)
-            df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$type==2 & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_visit, df_time_novisit$t_end_isolate)
-            df_time_novisit$isolate_home = df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$inf & df_time_novisit$t_notify <= t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_end_isolate>=t & df_time_novisit$type!=0
-            df_time_novisit$isolate_room = df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$inf & df_time_novisit$t_notify <= t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_end_isolate>=t & df_time_novisit$type==0
-            df_time_novisit$isolated = df_time_novisit$test & (df_time_novisit$isolate_home | df_time_novisit$isolate_room)
-            # room_test_ind = room_test_ind + length(unique(df$room[df$test_type & df$present & !df$isolated & !df$q_room]))
-            
-            df_time_novisit$test_tp_count = df_time_novisit$test_tp_count + ifelse(df_time_novisit$test_type & df_time_novisit$shift!="absent", df_time_novisit$inf*df_time_novisit$test, 0)
-            df_time_novisit$test_fn_count = df_time_novisit$test_fn_count + ifelse(df_time_novisit$test_type & df_time_novisit$shift!="absent", df_time_novisit$inf*(1-df_time_novisit$test), 0)
-            df_time_novisit$test_eligible = df_time_novisit$test_eligible + (df_time_novisit$shift!="absent")*df_time_novisit$test_type
-            
-            df_time_test[df_time_test$type!=2,] = df_time_novisit
-          }
-          
-          # visitor testing
-          if("family"%in% colnames(df_time) & visit_test){
-            df_time_test$test_type[df_time_test$type==2] = T
-            df_time_test$test_ct[df_time_test$type==2] = df_time_test$test_ct[df_time_test$type==2] + rbinom(nrow(df_time_test[df_time_test$type==2,]), size = 1, prob = (df_time_test$shift[df_time_test$type==2]!="absent")*as.numeric(df_time_test$test_type[df_time_test$type==2]))
-            df_time_test$test[df_time_test$type==2] = rbinom(nrow(df_time_test[df_time_test$type==2,]), size = 1, prob = test_sens*as.numeric(df_time_test$test_type[df_time_test$type==2])*(df_time_test$shift[df_time_test$type==2]!="absent"))
-            
-            df_time_test$t_end_inf[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$trans_now[df_time_test$type==2], t, df_time_test$t_end_inf[df_time_test$type==2])
-            df_time_test$t_notify[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$trans_now[df_time_test$type==2] & (df_time_test$t_symp[df_time_test$type==2]>=t | df_time_test$symp[df_time_test$type==2]==0), t, df_time_test$t_notify[df_time_test$type==2])
-            df_time_test$detected[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$trans_now[df_time_test$type==2], 1, df_time_test$detected[df_time_test$type==2])
-            df_time_test$t_end_quarantine[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$t_quarantine[df_time_test$type==2]<=t & df_time_test$t_quarantine[df_time_test$type==2]!=-13 & df_time_test$t_end_quarantine[df_time_test$type==2]>t & df_time_test$t_notify[df_time_test$type==2]!=-17 & df_time_test$t_notify[df_time_test$type==2]>=t & df_time_test$t_notify[df_time_test$type==2]-df_time_test$t_quarantine[df_time_test$type==2]<df_time_test$t_end_quarantine[df_time_test$type==2]-df_time_test$t_quarantine[df_time_test$type==2] & (df_time_test$t_end_inf[df_time_test$type==2]>t | df_time_test$t_end_inf[df_time_test$type==2]==-1) & df_time_test$vacc[df_time_test$type==2]==0, 
-                                                                         df_time_test$t_notify[df_time_test$type==2], df_time_test$t_end_quarantine[df_time_test$type==2])
-            df_time_test$t_end_isolate[df_time_test$type==2] = ifelse(df_time_test$test[df_time_test$type==2] & df_time_test$isolate[df_time_test$type==2] & df_time_test$t_notify[df_time_test$type==2]!=-17 & df_time_test$t_notify[df_time_test$type==2]>0, df_time_test$t_notify[df_time_test$type==2] + days_isolate_visit, df_time_test$t_end_isolate[df_time_test$type==2])
-            df_time_test$isolate_home[df_time_test$type==2] = df_time_test$test[df_time_test$type==2] & df_time_test$isolate[df_time_test$type==2] & df_time_test$inf[df_time_test$type==2] & df_time_test$t_notify[df_time_test$type==2] <= t & df_time_test$t_notify[df_time_test$type==2]!=-17 & df_time_test$t_end_isolate[df_time_test$type==2]>=t
-            df_time_test$isolated[df_time_test$type==2] = df_time_test$test[df_time_test$type==2] & df_time_test$isolate_home[df_time_test$type==2]
-            
-            df_time_test$test_tp_count[df_time_test$type==2] = df_time_test$test_tp_count[df_time_test$type==2] + ifelse(df_time_test$test_type[df_time_test$type==2] & df_time_test$shift[df_time_test$type==2]!="absent", df_time_test$inf[df_time_test$type==2]*df_time_test$test[df_time_test$type==2], 0)
-            df_time_test$test_fn_count[df_time_test$type==2] = df_time_test$test_fn_count[df_time_test$type==2] + ifelse(df_time_test$test_type[df_time_test$type==2] & df_time_test$shift[df_time_test$type==2]!="absent", df_time_test$inf[df_time_test$type==2]*(1-df_time_test$test[df_time_test$type==2]), 0)
-            df_time_test$test_eligible[df_time_test$type==2] = df_time_test$test_eligible[df_time_test$type==2] + (df_time_test$shift[df_time_test$type==2]!="absent")*df_time_test$test_type[df_time_test$type==2]
-          }
-          
-          df_time[(df_time$t_inf==-1 | df_time$t_end_inf_home>=t),] = df_time_test
-          
-          # re-estimate who is present (among staff and visitors) 
-          df_time$shift[df_time$type!=0] = ifelse(df_time$shift[df_time$type!=0]!="absent" & !df_time$isolate_home[df_time$type!=0] & !df_time$quarantined[df_time$type!=0], df_time$shift[df_time$type!=0], "absent")
-          if("family"%in%colnames(df_time)){
-            df_time$shift[df_time$type==2] = ifelse(df_time$shift[df_time$type==2]!="absent" & !df_time$isolate_home[df_time$type==2] & !df_time$quarantined[df_time$type==2], df_time$shift[df_time$type==2], "absent")
-            df_time$shift[df_time$type==2] = ifelse(df_time$flag_fam[df_time$type==2]==1, "absent", df_time$shift[df_time$type==2])
-          }
-          
-          df_time$present_susp = df_time$shift!="absent" & df_time$not_inf
-          
-          # update infectious and at nursing home
-          df_time$trans_now = df_time$shift!="absent" & df_time$inf
-        }else{
-          
-          if(t%in%testing_days){
-            
-            # testing residents and staff
-            df_time_novisit = df_time[df_time$type!=2,]
-            
-            df_time_novisit$test_ct = df_time_novisit$test_ct + rbinom(nrow(df_time_novisit), size = 1, prob = (df_time_novisit$shift!="absent")*test_frac*as.numeric(df_time_novisit$test_type)) # count how many tests individual takes
-            df_time_novisit$test_ct_res = ifelse(df_time_novisit$type==0, df_time_novisit$test_ct, df_time_novisit$test_ct_res)
-            df_time_novisit$test = rbinom(nrow(df_time_novisit), size = 1, prob = test_sens*test_frac*as.numeric(df_time_novisit$test_type)*(df_time_novisit$shift!="absent")) # record only accurate test results?
-            df_time_novisit$t_end_inf = ifelse(df_time_novisit$test & df_time_novisit$trans_now, t, df_time_novisit$t_end_inf)
-            df_time_novisit$t_notify = ifelse(df_time_novisit$test & df_time_novisit$trans_now & (df_time_novisit$t_symp>=t | df_time_novisit$symp==0), t, df_time_novisit$t_notify)
-            df_time_novisit$detected = ifelse(df_time_novisit$test & df_time_novisit$trans_now, 1, df_time_novisit$detected)
-            df_time_novisit$t_end_quarantine = ifelse(df_time_novisit$test & df_time_novisit$t_quarantine<=t & df_time_novisit$t_quarantine!=-13 & df_time_novisit$t_end_quarantine>t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>=t & df_time_novisit$t_notify-df_time_novisit$t_quarantine<df_time_novisit$t_end_quarantine-df_time_novisit$t_quarantine & (df_time_novisit$t_end_inf>t | df_time_novisit$t_end_inf==-1) & df_time_novisit$vacc==0, 
-                                                      df_time_novisit$t_notify, df_time_novisit$t_end_quarantine)
-            df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$type==0 & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_res, df_time_novisit$t_end_isolate)
-            df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & (df_time_novisit$type==1 | df_time_novisit$type==3) & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_staff, df_time_novisit$t_end_isolate)
-            df_time_novisit$t_end_isolate = ifelse(df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$type==2 & df_time_novisit$t_notify!=-17 & df_time_novisit$t_notify>0, df_time_novisit$t_notify + days_isolate_visit, df_time_novisit$t_end_isolate)
-            df_time_novisit$isolate_home = df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$inf & df_time_novisit$t_notify <= t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_end_isolate>=t & df_time_novisit$type!=0
-            df_time_novisit$isolate_room = df_time_novisit$test & df_time_novisit$isolate & df_time_novisit$inf & df_time_novisit$t_notify <= t & df_time_novisit$t_notify!=-17 & df_time_novisit$t_end_isolate>=t & df_time_novisit$type==0
-            df_time_novisit$isolated = df_time_novisit$test & (df_time_novisit$isolate_home | df_time_novisit$isolate_room)
-            
-            df_time_novisit$test_tp_count = df_time_novisit$test_tp_count + ifelse(df_time_novisit$test_type & df_time_novisit$shift!="absent", df_time_novisit$inf*df_time_novisit$test, 0)
-            df_time_novisit$test_fn_count = df_time_novisit$test_fn_count + ifelse(df_time_novisit$test_type & df_time_novisit$shift!="absent", df_time_novisit$inf*(1-df_time_novisit$test), 0)
-            df_time_novisit$test_eligible = df_time_novisit$test_eligible + (df_time_novisit$shift!="absent")*df_time_novisit$test_type
-            
-            df_time[df_time$type!=2,] = df_time_novisit
-          }
-          
-          # visitor testing
-          if("family"%in% colnames(df_time) & visit_test){
-            df_time$test_type[df_time$type==2] = T
-            df_time$test_ct[df_time$type==2] = df_time$test_ct[df_time$type==2] + rbinom(nrow(df_time[df_time$type==2,]), size = 1, prob = (df_time$shift[df_time$type==2]!="absent")*as.numeric(df_time$test_type[df_time$type==2]))
-            df_time$test[df_time$type==2] = rbinom(nrow(df_time[df_time$type==2,]), size = 1, prob = test_sens*as.numeric(df_time$test_type[df_time$type==2])*(df_time$shift[df_time$type==2]!="absent"))
-            
-            df_time$t_end_inf[df_time$type==2] = ifelse(df_time$test[df_time$type==2] & df_time$trans_now[df_time$type==2], t, df_time$t_end_inf[df_time$type==2])
-            df_time$t_notify[df_time$type==2] = ifelse(df_time$test[df_time$type==2] & df_time$trans_now[df_time$type==2] & (df_time$t_symp[df_time$type==2]>=t | df_time$symp[df_time$type==2]==0), t, df_time$t_notify[df_time$type==2])
-            df_time$detected[df_time$type==2] = ifelse(df_time$test[df_time$type==2] & df_time$trans_now[df_time$type==2], 1, df_time$detected[df_time$type==2])
-            df_time$t_end_quarantine[df_time$type==2] = ifelse(df_time$test[df_time$type==2] & df_time$t_quarantine[df_time$type==2]<=t & df_time$t_quarantine[df_time$type==2]!=-13 & df_time$t_end_quarantine[df_time$type==2]>t & df_time$t_notify[df_time$type==2]!=-17 & df_time$t_notify[df_time$type==2]>=t & df_time$t_notify[df_time$type==2]-df_time$t_quarantine[df_time$type==2]<df_time$t_end_quarantine[df_time$type==2]-df_time$t_quarantine[df_time$type==2] & (df_time$t_end_inf[df_time$type==2]>t | df_time$t_end_inf[df_time$type==2]==-1) & df_time$vacc[df_time$type==2]==0, 
-                                                               df_time$t_notify[df_time$type==2], df_time$t_end_quarantine[df_time$type==2])
-            df_time$t_end_isolate[df_time$type==2] = ifelse(df_time$test[df_time$type==2] & df_time$isolate[df_time$type==2] & df_time$t_notify[df_time$type==2]!=-17 & df_time$t_notify[df_time$type==2]>0, df_time$t_notify[df_time$type==2] + days_isolate_visit, df_time$t_end_isolate[df_time$type==2])
-            df_time$isolate_home[df_time$type==2] = df_time$test[df_time$type==2] & df_time$isolate[df_time$type==2] & df_time$inf[df_time$type==2] & df_time$t_notify[df_time$type==2] <= t & df_time$t_notify[df_time$type==2]!=-17 & df_time$t_end_isolate[df_time$type==2]>=t
-            df_time$isolated[df_time$type==2] = df_time$test[df_time$type==2] & df_time$isolate_home[df_time$type==2]
-            
-            df_time$test_tp_count[df_time$type==2] = df_time$test_tp_count[df_time$type==2] + ifelse(df_time$test_type[df_time$type==2] & df_time$shift[df_time$type==2]!="absent", df_time$inf[df_time$type==2]*df_time$test[df_time$type==2], 0)
-            df_time$test_fn_count[df_time$type==2] = df_time$test_fn_count[df_time$type==2] + ifelse(df_time$test_type[df_time$type==2] & df_time$shift[df_time$type==2]!="absent", df_time$inf[df_time$type==2]*(1-df_time$test[df_time$type==2]), 0)
-            df_time$test_eligible[df_time$type==2] = df_time$test_eligible[df_time$type==2] + (df_time$shift[df_time$type==2]!="absent")*df_time$test_type[df_time$type==2]
-          }
-          
-          # re-estimate who is present (among staff and visitors) 
-          df_time$shift[df_time$type!=0] = ifelse(df_time$shift[df_time$type!=0]!="absent" & !df_time$isolate_home[df_time$type!=0] & !df_time$quarantined[df_time$type!=0], df_time$shift[df_time$type!=0], "absent")
-          if("family"%in%colnames(df_time)){
-            df_time$shift[df_time$type==2] = ifelse(df_time$shift[df_time$type==2]!="absent" & !df_time$isolate_home[df_time$type==2] & !df_time$quarantined[df_time$type==2], df_time$shift[df_time$type==2], "absent")
-            df_time$shift[df_time$type==2] = ifelse(df_time$flag_fam[df_time$type==2]==1, "absent", df_time$shift[df_time$type==2])
-          }
-          
-          df_time$present_susp = df_time$shift!="absent" & df_time$not_inf
-          
-          # update infectious and at nursing home
-          df_time$trans_now = df_time$shift!="absent" & df_time$inf
-        }
       }
     }
     
@@ -2039,7 +1976,6 @@ run_model = function(time = 34,
 }
 
 
-
 #' Run model multiple times and summarize results
 #'
 #' @param N number of runs
@@ -2094,13 +2030,13 @@ mult_runs = function(N, rel_trans_common = 1/4, rel_trans_staff = 1/4,
                      p_asymp_nonres = 0.5, p_asymp_res = 0.5, 
                      p_subclin_nonres = 0, p_subclin_res = 0, daily_attack = 0.18, staff_vax_req = F, 
                      res_boost = 0.48, staff_boost = 0.22, visit_boost = 0.07,
-                     staff_trans_red = 0, visit_trans_red = 0, res_trans_red = 0, 
+                     staff_trans_red = 0.7, visit_trans_red = 0.7, res_trans_red = 0.7, 
                      staff_susp_red = 0, visit_susp_red = 0, res_susp_red = 0, n_contact_common_res = 3, n_contact_common_staff = 3,
                      n_contact_staff = 6, n_start = 1, days_inf = 5, days_isolate_res = 10,
                      days_isolate_staff = 7, days_isolate_visit = 5, seed_asymp = F, 
                      isolate = T, time = 34, test = T, test_sens = 0.84, test_frac = 0.9, test_days = '2x_week', 
                      test_type = 'all', test_start_day = 1, visit_test = F, start_mult = 1, staff_prob = 0.004, visit_prob = 0.004,
-                     quarantine = F, quarantine.length = 7, prim_previnf_eff = 0.4, boost_eff = 0.7, test_recovered = F, test_isolated = T, sched, cohorts){
+                     quarantine = F, quarantine.length = 7, prim_previnf_eff = 0.4, boost_eff = 0.7, test_recovered = T, sched, cohorts){
   
   keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N),
                     start_visit = numeric(N), start_res = numeric(N), start_symp = numeric(N), source_asymp = numeric(N), source_asymp_visit = numeric(N),
@@ -2128,7 +2064,7 @@ mult_runs = function(N, rel_trans_common = 1/4, rel_trans_staff = 1/4,
                    seed_asymp = seed_asymp, start_mult = start_mult, 
                    staff_prob = staff_prob, visit_prob = visit_prob, quarantine = quarantine, quarantine.length = quarantine.length,
                    rel_trans_common = rel_trans_common, rel_trans_staff = rel_trans_staff, test_type = test_type, test_recovered = test_recovered,
-                   test_isolated = test_isolated, df = sched, cohorts = cohorts)
+                   df = sched, cohorts = cohorts)
     
     time_keep = df$start.time[1]
     #print(time_keep)
@@ -2412,40 +2348,40 @@ mult_runs = function(N, rel_trans_common = 1/4, rel_trans_staff = 1/4,
     keep$visit.boost.rate_obs[i] = mean(df$vacc[df$type==2]==1)
     
     if("family"%in%colnames(df)){
-      keep$prim.previnf.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc==0] == prim_previnf_eff)),
+      keep$prim.previnf.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc==0] == 0)),
                                              sum(df$type==0 & df$vacc==0),
-                                             mean(df$susp[df$type==0 & df$vacc==0] == prim_previnf_eff)*prim_previnf_eff)*sum(df$type==0 & df$vacc==0) +
-                                        ifelse(is.na(mean(df$susp[(df$type==1 | df$type==3) & df$vacc==0] == prim_previnf_eff)),
+                                             mean(df$susp[df$type==0 & df$vacc==0] == 0))*sum(df$type==0 & df$vacc==0) +
+                                        ifelse(is.na(mean(df$susp[(df$type==1 | df$type==3) & df$vacc==0] == 0)),
                                                sum((df$type==1 | df$type==3) & df$vacc==0),
-                                               mean(df$susp[(df$type==1 | df$type==3) & df$vacc==0] == prim_previnf_eff)*prim_previnf_eff)*sum((df$type==1 | df$type==3) & df$vacc==0) +
-                                        ifelse(is.na(mean(df$susp[df$type==2 & df$vacc==0] == prim_previnf_eff)),
+                                               mean(df$susp[(df$type==1 | df$type==3) & df$vacc==0] == 0))*sum((df$type==1 | df$type==3) & df$vacc==0) +
+                                        ifelse(is.na(mean(df$susp[df$type==2 & df$vacc==0] == 0)),
                                                sum(df$type==2 & df$vacc==0),
-                                               mean(df$susp[df$type==2 & df$vacc==0] == prim_previnf_eff)*prim_previnf_eff)*sum((df$type==2 & df$vacc==0)))/
+                                               mean(df$susp[df$type==2 & df$vacc==0] == 0))*sum((df$type==2 & df$vacc==0)))/
         (sum(df$type==0 & df$vacc==0) + sum((df$type==1 | df$type==3) & df$vacc==0) + sum(df$type==2 & df$vacc==0))
-      keep$boost.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc==1] == boost_eff)),
+      keep$boost.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc==1] == 0)),
                                       sum(df$type==0 & df$vacc==1),
-                                      mean(df$susp[df$type==0 & df$vacc==1] == boost_eff)*boost_eff)*sum(df$type==0 & df$vacc==1) +
-                                 ifelse(is.na(mean(df$susp[(df$type==1 | df$type==3) & df$vacc==1] == boost_eff)),
+                                      mean(df$susp[df$type==0 & df$vacc==1] == 0))*sum(df$type==0 & df$vacc==1) +
+                                 ifelse(is.na(mean(df$susp[(df$type==1 | df$type==3) & df$vacc==1] == 0)),
                                         sum((df$type==1 | df$type==3) & df$vacc==1),
-                                        mean(df$susp[(df$type==1 | df$type==3) & df$vacc==1] == boost_eff)*boost_eff)*sum((df$type==1 | df$type==3) & df$vacc==1) +
-                                 ifelse(is.na(mean(df$susp[df$type==2 & df$vacc==1] == boost_eff)),
+                                        mean(df$susp[(df$type==1 | df$type==3) & df$vacc==1] == 0))*sum((df$type==1 | df$type==3) & df$vacc==1) +
+                                 ifelse(is.na(mean(df$susp[df$type==2 & df$vacc==1] == 0)),
                                         sum(df$type==2 & df$vacc==1),
-                                        mean(df$susp[df$type==2 & df$vacc==1] == boost_eff)*boost_eff)*sum((df$type==2 & df$vacc==1)))/
+                                        mean(df$susp[df$type==2 & df$vacc==1] == 0))*sum((df$type==2 & df$vacc==1)))/
         (sum(df$type==0 & df$vacc==1) + sum((df$type==1 | df$type==3) & df$vacc==1) + sum(df$type==2 & df$vacc==1))
     } else{
-      keep$prim.previnf.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc==0] == prim_previnf_eff)),
+      keep$prim.previnf.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc==0] == 0)),
                                              sum(df$type==0 & df$vacc==0),
-                                             mean(df$susp[df$type==0 & df$vacc==0] == prim_previnf_eff)*prim_previnf_eff)*sum(df$type==0 & df$vacc==0) +
-                                        ifelse(is.na(mean(df$susp[(df$type==1 | df$type==3) & df$vacc==0] == prim_previnf_eff)),
+                                             mean(df$susp[df$type==0 & df$vacc==0] == 0))*sum(df$type==0 & df$vacc==0) +
+                                        ifelse(is.na(mean(df$susp[(df$type==1 | df$type==3) & df$vacc==0] == 0)),
                                                sum((df$type==1 | df$type==3) & df$vacc==0),
-                                               mean(df$susp[(df$type==1 | df$type==3) & df$vacc==0] == prim_previnf_eff)*prim_previnf_eff)*sum((df$type==1 | df$type==3) & df$vacc==0))/
+                                               mean(df$susp[(df$type==1 | df$type==3) & df$vacc==0] == 0))*sum((df$type==1 | df$type==3) & df$vacc==0))/
         (sum(df$type==0 & df$vacc==0) + sum((df$type==1 | df$type==3) & df$vacc==0))
-      keep$boost.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc==1] == boost_eff)),
+      keep$boost.eff_obs[i] = (ifelse(is.na(mean(df$susp[df$type==0 & df$vacc==1] == 0)),
                                       sum(df$type==0 & df$vacc==1),
-                                      mean(df$susp[df$type==0 & df$vacc==1] == boost_eff)*boost_eff)*sum(df$type==0 & df$vacc==1) +
-                                 ifelse(is.na(mean(df$susp[(df$type==1 | df$type==3) & df$vacc==1] == boost_eff)),
+                                      mean(df$susp[df$type==0 & df$vacc==1] == 0))*sum(df$type==0 & df$vacc==1) +
+                                 ifelse(is.na(mean(df$susp[(df$type==1 | df$type==3) & df$vacc==1] == 0)),
                                         sum((df$type==1 | df$type==3) & df$vacc==1),
-                                        mean(df$susp[(df$type==1 | df$type==3) & df$vacc==1] == boost_eff)*boost_eff)*sum((df$type==1 | df$type==3) & df$vacc==1))/
+                                        mean(df$susp[(df$type==1 | df$type==3) & df$vacc==1] == 0))*sum((df$type==1 | df$type==3) & df$vacc==1))/
         (sum(df$type==0 & df$vacc==1) + sum((df$type==1 | df$type==3) & df$vacc==1))
     }
     
@@ -2482,12 +2418,12 @@ s.daily_attack = .18
 s.start_mult = 1
 s.n_start = 1
 # s.days_inf_mild = 5; s.days_inf_mod = 10; s.days_inf_severe = 20
-s.days_inf = 5; s.days_isolate_res = 10; s.days_isolate_staff = 7; s.days_isolate_visit = 5; s.time = 30
+s.days_inf = 5; s.days_isolate_res = 10; s.days_isolate_staff = 7; s.days_isolate_visit = 5; s.time = 34
 s.n_contact_common_res = 3; s.n_contact_common_staff = 3; s.n_contact_staff = 6
 s.p_asymp_nonres = .5; s.p_asymp_res = .5
 s.p_subclin_nonres = 0; s.p_subclin_res = 0
 s.test_sens = .84; s.test_frac = .9; s.test_days = "week"; s.test_type = "all"; s.test_start_day = 1
-s.test = T; s.visit_test = F
+s.test = F; s.visit_test = F
 s.staff_prob = 40/100000; s.visit_prob = 40/100000
 s.rel_trans_common = 1/4; s.rel_trans_staff = 1/4
 s.res_boost = .48; s.staff_vax_req = F; s.staff_boost = .22; s.visit_boost = .07
@@ -2495,7 +2431,7 @@ s.staff_trans_red = 0.7; s.visit_trans_red = 0.7; s.res_trans_red = 0.7
 s.staff_susp_red = 0; s.visit_susp_red = 0; s.res_susp_red = 0
 s.prim_previnf_eff = .4; s.boost_eff = .7; s.isolate = T
 s.quarantine.length = 7; s.quarantine = F
-s.seed_asymp = F; s.test_recovered = T; s.test_isolated = T
+s.seed_asymp = F; s.test_recovered = T
 
 
 ####************* MAKE DATA FRAME OF PARAMETER SETS TO RUN *******************####
@@ -2517,7 +2453,7 @@ make_df = function(disperse = T, # how to distribute runs
                    staff_trans_red = s.staff_trans_red, visit_trans_red = s.visit_trans_red, res_trans_red = s.res_trans_red, 
                    staff_susp_red = s.staff_susp_red, visit_susp_red = s.visit_susp_red, res_susp_red = s.res_susp_red, 
                    quarantine.length = s.quarantine.length, quarantine = s.quarantine, 
-                   seed_asymp = s.seed_asymp, test_recovered = s.test_recovered, test_isolated = s.test_isolated) {
+                   seed_asymp = s.seed_asymp, test_recovered = s.test_recovered) {
   
   # make a grid
   df = expand_grid(daily_attack, n_tot, start_mult, n_start, days_inf, 
@@ -2531,7 +2467,7 @@ make_df = function(disperse = T, # how to distribute runs
                    res_boost, staff_boost, visit_boost,
                    staff_trans_red, visit_trans_red, res_trans_red,
                    staff_susp_red, visit_susp_red, res_susp_red,
-                   quarantine.length, quarantine, seed_asymp, test_recovered, test_isolated) 
+                   quarantine.length, quarantine, seed_asymp, test_recovered) 
   
   df = df %>%
     # set up additional variables
@@ -2575,7 +2511,7 @@ sims = function(df, i, sched, cohorts){
                   staff_trans_red = df$staff_trans_red[i], visit_trans_red = df$visit_trans_red[i], res_trans_red = df$res_trans_red[i], 
                   staff_susp_red = df$staff_susp_red[i], visit_susp_red = df$visit_susp_red[i], res_susp_red = df$res_susp_red[i],
                   quarantine.length = df$quarantine.length[i],  quarantine = df$quarantine[i], 
-                  seed_asymp = df$seed_asymp[i], test_recovered = df$test_recovered[i], test_isolated = df$test_isolated[i]) %>%
+                  seed_asymp = df$seed_asymp[i], test_recovered = df$test_recovered[i]) %>%
     mutate(i = i, sim = df$sim[i])
   
   out = out %>% bind_cols(df[i,])

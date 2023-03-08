@@ -33,9 +33,9 @@ df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening",
 png("highboostresinfs_TR.png", width = 6, height = 5, units = 'in', res = 300)
 ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
   geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
-  ggtitle("Infections in residents, low booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Infections in residents, high booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
   ylab("Mean no. of nursing home-acquired infections \n in residents over 1 month") +
-  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,15) + 
+  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,10) + 
   guides(color = guide_legend(title = "Screening frequency"))
 dev.off()
 
@@ -76,9 +76,9 @@ dev.off()
 
 #################################DEATHS in RESIDENTS############################
 
-calc_deaths_res = function(data = out, ifr = 0.028){
+calc_deaths_res = function(data = out, cfr = 0.028){
   res = mean(data$res_tot)
-  deaths = res*ifr
+  deaths = res*cfr
   
   return(deaths)
 }
@@ -110,95 +110,63 @@ ggplot(df, aes(x=com_inc, y=deaths, group=type)) + geom_line(aes(color=type)) +
 dev.off()
 
 
-###############################DEATHS by PAXLOVID UPTAKE##########################
+###############################COST-EFFECTIVENESS PLOT##########################
 
-calc_deaths_pax = function(data = out, 
-                           perc_5_uptake = 0.027, perc_21_uptake = 0.024, perc_49_uptake = 0.018){
-  res = mean(data$res_tot)
-  deaths_5 = res*perc_5_uptake
-  deaths_21 = res*perc_21_uptake
-  deaths_49 = res*perc_49_uptake
-  
-  return(c(deaths_5,deaths_21,deaths_49))
-}
+df = read.csv("cost_results.csv")
 
-com_inc_vec = c(10,100,200)
-pax_prop_vec = c("5%","21%","49%")
-boost_vec = c("low","high")
+df[df$screen_vec == "none",]$screen_vec = "no screening"
+df[df$screen_vec == "weekly",]$screen_vec = "weekly screening"
+df[df$screen_vec == "twice-weekly",]$screen_vec = "twice-weekly screening"
+df$screen_vec = factor(df$screen_vec, levels = c("no screening", "weekly screening", "twice-weekly screening"))
 
-death_vec = c(deaths_10_lowboost,deaths_100_lowboost,deaths_200_lowboost,
-              deaths_10_highboost,deaths_100_highboost,deaths_200_highboost)
+df[df$com_inc_vec==4,]$com_inc_vec = "4 cases per 100k"
+df[df$com_inc_vec==40,]$com_inc_vec = "40 cases per 100k"
+df[df$com_inc_vec==80,]$com_inc_vec = "80 cases per 100k"
+df$com_inc_vec = factor(df$com_inc_vec, levels=c("4 cases per 100k", "40 cases per 100k", "80 cases per 100k"))
 
-create_pax_df = function(com_inc = com_inc_vec, pax_uptake = pax_prop_vec, boost_uptake = boost_vec, deaths = death_vec){
-  df = data.frame(com_inc=rep(rep(com_inc,each=3),times=2), pax_uptake=rep(pax_uptake,times=6), 
-                  boost_uptake = rep(boost_vec,each=9), deaths=deaths)
-  
-  return(df)
-}
-
-
-# bar graph by size and booster uptake
-# ggplot(data = df, aes(x = factor(com_inc, levels=c("50","100","150")), y = deaths, fill = factor(pax_uptake,levels=c("30%","15%","4%")), pattern = boost_uptake)) +
-#   geom_bar_pattern(stat="identity", position = position_dodge(preserve = "single"), width=0.75,
-#                    color = "black", 
-#                    pattern_fill = "black",
-#                    pattern_angle = 45,
-#                    pattern_density = 0.05,
-#                    pattern_spacing = 0.01,
-#                    pattern_key_scale_factor = 0.6) +
-#   scale_fill_manual("Paxlovid uptake", values = c("orange","springgreen2","royalblue")) +
-#   scale_pattern_manual(values = c(low = "stripe", high = "none")) +
-#   labs(x = "Community incidence", 
-#        y = "Mean no. of cumulative deaths in residents over 1 month", pattern = "Booster uptake") + 
-#   guides(pattern = guide_legend(override.aes = list(fill = "white")),
-#          fill = guide_legend(override.aes = list(pattern = "none"))) + 
-#   ggtitle("Twice-weekly screening") + theme(plot.title = element_text(hjust = 0.5)) + ylim(0,.3)
-
-
-# line graph
-df=create_pax_df()
-df$pax_uptake = factor(df$pax_uptake, levels=c("5%","21%","49%"))
-
-png("twiceweeklyscreenpax.png", width = 4, height = 6, units = 'in', res = 300)
-line_plot = ggplot(data = df[df$boost_uptake=="low",], aes(x = com_inc, y = deaths, color=pax_uptake)) +
-  geom_line(aes(color=pax_uptake)) + geom_point(aes(color=pax_uptake)) +
-  scale_color_manual("Paxlovid uptake", values = c("orange","springgreen2","royalblue")) +
-  labs(x = "Community incidence", 
-       y = "Mean no. of deaths in residents over 1 month") + 
-  ggtitle("Twice-weekly screening") + theme(plot.title = element_text(hjust = 0.5)) + ylim(0,.3) + scale_x_continuous(breaks=c(10,100,200))
-
-line_plot + geom_line(data=df[df$boost_uptake=="high",], linetype="dashed") + geom_point(data=df[df$boost_uptake=="high",], aes(color=pax_uptake))
+low_boost_df = df[df$boost_vec=="low",]
+options(scipen=2)
+low_boost = ggplot(low_boost_df, aes(pax_vec,cost_vec)) + geom_point()
+png("costeff_lowboost_plot.png", width = 9, height = 6, units = 'in', res = 300)
+low_boost + facet_grid(vars(screen_vec), vars(com_inc_vec)) + geom_hline(yintercept=150000, linetype="dashed", color="red") + 
+  xlab("Paxlovid uptake") + ylab("Cost (USD)") + ggtitle("Cost of testing per resident death averted (low booster uptake)")
 dev.off()
 
-png("boostlegend.png", width = 4, height = 6, units = 'in', res = 300)
-ggplot(data=df, aes(x=com_inc, y=deaths, group=boost_uptake)) + geom_line(aes(linetype=boost_uptake)) + scale_linetype_manual("Booster uptake", values=c("dashed", "solid"))
+high_boost_df = df[df$boost_vec=="high",]
+options(scipen=2)
+high_boost = ggplot(high_boost_df, aes(pax_vec,cost_vec)) + geom_point()
+png("costeff_highboost_plot.png", width = 9, height = 6, units = 'in', res = 300)
+high_boost + facet_grid(vars(screen_vec), vars(com_inc_vec)) + geom_hline(yintercept=150000, linetype="dashed", color="red") + 
+  xlab("Paxlovid uptake") + ylab("Cost (USD)") + ggtitle("Cost of testing per resident death averted (high booster uptake)")
 dev.off()
 
 
-#########################DIFFERENCE BETWEEN SCREENING STRATS#####################
+###############################COST-EFFECTIVENESS HEAT MAP##########################
 
-com_inc_vec = c("10","100","200")
+df = read.csv("cost_results.csv")
 
-type_vec = rep(c("weekly screening", "twice weekly screening"),times=3)
+df[df$screen_vec == "none",]$screen_vec = "no screening"
+df[df$screen_vec == "weekly",]$screen_vec = "weekly screening"
+df[df$screen_vec == "twice-weekly",]$screen_vec = "twice-weekly screening"
+df$screen_vec = factor(df$screen_vec, levels = c("no screening", "weekly screening", "twice-weekly screening"))
 
-inf_vec = c(infs_10_noscreen-infs_10_screenweek,infs_10_noscreen-infs_10_screen2xweek,
-            infs_100_noscreen-infs_100_screenweek,infs_100_noscreen-infs_100_screen2xweek,
-            infs_200_noscreen-infs_200_screenweek,infs_200_noscreen-infs_200_screen2xweek)
+df[df$com_inc_vec==4,]$com_inc_vec = "4 cases per 100k"
+df[df$com_inc_vec==40,]$com_inc_vec = "40 cases per 100k"
+df[df$com_inc_vec==80,]$com_inc_vec = "80 cases per 100k"
+df$com_inc_vec = factor(df$com_inc_vec, levels=c("4 cases per 100k", "40 cases per 100k", "80 cases per 100k"))
 
-create_diffinfs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec){
-  df = data.frame(com_inc=rep(com_inc,each=2), type=type, infs=infs)
-  
-  return(df)
-}
+cost_eff_line = 150000
+df$cost_eff = df$cost_vec
+df$cost_eff[df$cost_eff<cost_eff_line] = -1
+df$cost_eff[df$cost_eff==cost_eff_line] = 0
+df$cost_eff[df$cost_eff>cost_eff_line & df$cost_eff<2*cost_eff_line] = 1
+df$cost_eff[df$cost_eff>2*cost_eff_line & df$cost_eff<3*cost_eff_line] = 2
+df$cost_eff[df$cost_eff>3*cost_eff_line] = 3
 
-df=create_diffinfs_df()
-df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening"))
-
-png("reldiff_highvax.png", width = 6, height = 5, units = 'in', res = 300)
-ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
-  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2")) +
-  ggtitle("High booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
-  ylab("Relative difference in no. of infections \n between screening strategy and no screening") +
-  scale_x_discrete(limits=c("10","100","200")) + xlab("Community incidence") + ylim(0,10) + 
-  guides(color = guide_legend(title = "Screening frequency"))
+heat_map = ggplot(df, aes(pax_vec,boost_vec,fill=cost_eff)) + geom_tile(color="black")
+png("costeff_heatmap.png", width = 9, height = 6, units = 'in', res = 300)
+heat_map + facet_grid(vars(screen_vec), vars(com_inc_vec)) + 
+  xlab("Paxlovid uptake") + ylab("Booster uptake") + ggtitle("Cost of testing per resident death averted") +
+  scale_fill_gradient(low="white", high="blue", labels=c("<$150k", "$150k", "$150k-300k", "$300k-450k", ">$450k")) + 
+  guides(fill = guide_legend(title = "Cost"))
 dev.off()

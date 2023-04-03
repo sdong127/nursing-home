@@ -1240,12 +1240,12 @@ make_infected = function(df.u, days_inf = 3, days_isolate_res = 10, days_isolate
 #' @export
 #### NOTE: I found this to be slower when coded w/tidyverse.
 #### Therefore for the most part, this is coded in base.
-run_model = function(time = 34,
+run_model = function(time = 30,
                      test = T,
-                     test_days = "week",
+                     test_days = "2x_week",
                      test_sens =  1,
                      test_frac = 1,
-                     test_start_day = 1,
+                     test_start_day = 7,
                      visit_test = F,
                      n_contact_common_res = 3,
                      n_contact_common_staff = 3,
@@ -1257,14 +1257,14 @@ run_model = function(time = 34,
                      days_isolate_visit = 5,
                      seed_asymp = F,
                      start_mult = 1,
-                     staff_prob = 0.002,
-                     visit_prob = 0.002,
+                     staff_prob = 0.005,
+                     visit_prob = 0.005,
                      quarantine = F,
                      quarantine.length = 7,
                      rel_trans_common = 1/4,
                      rel_trans_staff = 1/4,
                      test_type = "all",
-                     test_recovered = F,
+                     test_recovered = T,
                      df, cohorts){
   
   #### SEED MODEL ####
@@ -1323,7 +1323,7 @@ run_model = function(time = 34,
   # if null, make this Monday
   if(test_days == "week") {testing_days = seq(test_start_day, (time+15), by = 7)}
   if(test_days == "day") {testing_days = 1:(time+15)}
-  if(test_days == "2x_week"){testing_days = c(seq(5, (time+15), by = 7), seq(1, (time+15), by = 7))}
+  if(test_days == "2x_week"){testing_days = c(seq(4, (time+15), by = 7), seq(test_start_day, (time+15), by = 7))}
   
   #print(testing_days)
   
@@ -1956,7 +1956,7 @@ nh = initialize_NH(p_asymp_nonres = 0.5, p_asymp_res = 0.5, p_subclin_nonres = 0
                    isolate = T, 
                    prim_previnf_eff = 0.4, boost_eff = 0.7, days_inf = 5,
                    days_isolate_res = 10, days_isolate_staff = 7, days_isolate_visit = 5, start)
-sched = make_schedule(time = 49, nh = nh)
+sched = make_schedule(time = 45, nh = nh)
 cohorts = make_room(df = sched)
 
 
@@ -2019,8 +2019,8 @@ mult_runs = function(N, rel_trans_common = 1/4, rel_trans_staff = 1/4,
                      staff_susp_red = 0, visit_susp_red = 0, res_susp_red = 0, n_contact_common_res = 3, n_contact_common_staff = 3,
                      n_contact_staff = 6, n_start = 1, days_inf = 5, days_isolate_res = 10,
                      days_isolate_staff = 7, days_isolate_visit = 5, seed_asymp = F, 
-                     isolate = T, time = 34, test = T, test_sens = 0.84, test_frac = 0.9, test_days = '2x_week', 
-                     test_type = 'all', test_start_day = 1, visit_test = F, start_mult = 1, staff_prob = 0.004, visit_prob = 0.004,
+                     isolate = T, time = 30, test = T, test_sens = 0.84, test_frac = 0.9, test_days = '2x_week', 
+                     test_type = 'all', test_start_day = 7, visit_test = F, start_mult = 1, staff_prob = 0.005, visit_prob = 0.005,
                      quarantine = F, quarantine.length = 7, prim_previnf_eff = 0.4, boost_eff = 0.7, test_recovered = T, sched, cohorts){
   
   keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N),

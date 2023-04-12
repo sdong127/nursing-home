@@ -1,4 +1,4 @@
-setwd("/Users/sdong217/Desktop/COVID_NH/NH CMS data/raw")
+setwd("/Users/sdong217/Desktop/COVID_NH/NH_CMS_data/raw")
 data = read.csv("faclevel_2022.csv")
 
 ## mortality rate over 2022

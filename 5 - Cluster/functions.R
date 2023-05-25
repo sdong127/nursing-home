@@ -41,8 +41,8 @@ options(warn = 1)
 #'
 "synthpop"
 
-synthpop = read.csv("/gpfs/home/sdong12/nursing.home/nursing-home/0 - Synthetic Population/synthpop.csv")
-# synthpop = read.csv("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/0 - Synthetic Population/synthpop.csv")
+# synthpop = read.csv("/gpfs/home/sdong12/nursing.home/nursing-home/0 - Synthetic Population/synthpop.csv")
+synthpop = read.csv("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/0 - Synthetic Population/synthpop.csv")
 
 
 #' Structure nursing home and staff/visitor-resident relationships
@@ -2424,10 +2424,10 @@ s.p_asymp_nonres = .5; s.p_asymp_res = .5
 s.p_subclin_nonres = 0; s.p_subclin_res = 0
 s.test_sens = .84; s.test_frac = .9; s.test_days = "week"; s.test_type = "all"; s.test_start_day = 7
 s.test = F; s.visit_test = F
-s.staff_prob = 40/100000; s.visit_prob = 40/100000
+s.staff_prob = 50/100000; s.visit_prob = s.staff_prob
 s.rel_trans_common = 1/4; s.rel_trans_staff = 1/4
-s.res_boost = .48; s.staff_vax_req = F; s.staff_boost = .22; s.visit_boost = .07
-s.staff_trans_red = 0.7; s.visit_trans_red = 0.7; s.res_trans_red = 0.7
+s.res_boost = 0; s.staff_vax_req = F; s.staff_boost = 0; s.visit_boost = 0
+s.staff_trans_red = 0.7; s.visit_trans_red = 0; s.res_trans_red = 0
 s.staff_susp_red = 0; s.visit_susp_red = 0; s.res_susp_red = 0
 s.prim_previnf_eff = .4; s.boost_eff = .7; s.isolate = T
 s.quarantine.length = 7; s.quarantine = F

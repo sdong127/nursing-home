@@ -1,9 +1,9 @@
 setwd("/Users/sdong217/Desktop/COVID_NH/NH_CMS_data/raw")
-data = read.csv("faclevel_2022.csv")
+data = read.csv("faclevel_2023.csv")
 
-## mortality rate over 2022
-infs_data = data[which(data["Week.Ending"][,]!="12/18/22" & data["Week.Ending"][,]!="12/25/22"),]
-deaths_data = data[which(data["Week.Ending"][,]!="01/02/22" & data["Week.Ending"][,]!="01/09/22"),]
+## mortality rate over 2023
+infs_data = data[which(data["Week.Ending"][,]!="04/02/23" & data["Week.Ending"][,]!="04/09/23"),]
+deaths_data = data[which(data["Week.Ending"][,]!="01/01/23" & data["Week.Ending"][,]!="01/08/23"),]
 
 infs = sum(infs_data["Residents.Weekly.Confirmed.COVID.19"],na.rm=T)
 deaths = sum(deaths_data["Residents.Weekly.COVID.19.Deaths"],na.rm=T)
@@ -44,10 +44,16 @@ end_deaths = sum(end_deaths_data["Residents.Weekly.COVID.19.Deaths"],na.rm=T)
 end_deaths/end_infs
 
 
-## paxlovid
-# pax over 2022
-pax = sum(infs_data["Therapeutic.Paxlovid..Number.of.Residents.Treated.from.Stock.Stored.at.This.Facility"],na.rm=T) + sum(infs_data["Therapeutic.Paxlovid..Number.of.Residents.Treated.from.Stock.Stored.at.Another.Facility"],na.rm=T)
+## paxlovid/molnupiravir
+# pax over 2023
+pax = sum(infs_data["Therapeutic.Paxlovid..Number.of.Residents.Treated.from.Stock.Stored.at.This.Facility"],na.rm=T) + 
+  sum(infs_data["Therapeutic.Paxlovid..Number.of.Residents.Treated.from.Stock.Stored.at.Another.Facility"],na.rm=T) 
 pax/infs
+
+# mol over 2023
+mol = sum(infs_data["Therapeutic.Molnupiravir..Number.of.Residents.Treated.from.Stock.Stored.at.This.Facility"],na.rm=T) + 
+  sum(infs_data["Therapeutic.Molnupiravir..Number.of.Residents.Treated.from.Stock.Stored.at.Another.Facility"],na.rm=T)
+mol/infs
 
 # first 4 months
 pax_start = sum(start_infs_data["Therapeutic.Paxlovid..Number.of.Residents.Treated.from.Stock.Stored.at.This.Facility"],na.rm=T) + sum(start_infs_data["Therapeutic.Paxlovid..Number.of.Residents.Treated.from.Stock.Stored.at.Another.Facility"],na.rm=T)

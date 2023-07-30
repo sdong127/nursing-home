@@ -1,5 +1,5 @@
 setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/3 - Output")
-load('screenweek_5_lowvax_70s.RData')
+load('screen2xweek_100_highvax_70s.RData')
 
 # average cost of all tests + staff time on testing residents
 total = mean(out$test_count)*5 + mean(out$test_count_res)*12/60*15.43

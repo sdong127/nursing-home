@@ -30,10 +30,10 @@ create_infs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec
 df=create_infs_df()
 df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening"))
 
-png("highvaxresinfs_2.png", width = 6, height = 5, units = 'in', res = 300)
+png("highvaxresinfs_final.png", width = 6, height = 5, units = 'in', res = 300)
 ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
   geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
-  ggtitle("Infections in residents, high booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Resident infections, high booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
   ylab("Number of nursing home-acquired infections \n in residents over 30 days") +
   scale_x_discrete(limits=c("5","50","100")) + xlab("Community incidence") + 
   scale_y_continuous(limits=c(0,20)) + guides(color = guide_legend(title = "Screening frequency"))
@@ -64,10 +64,10 @@ create_infs_df = function(com_inc = com_inc_vec, type = type_vec, infs = inf_vec
 df=create_infs_df()
 df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening"))
 
-png("highvaxstaffinfs_2.png", width = 6, height = 5, units = 'in', res = 300)
+png("highvaxstaffinfs_final.png", width = 6, height = 5, units = 'in', res = 300)
 ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
   geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
-  ggtitle("Infections in staff, high booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Staff infections, high booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
   ylab("Number of nursing home-acquired infections \n in staff over 30 days") +
   scale_x_discrete(limits=c("5","50","100")) + xlab("Community incidence") + ylim(0,20) + 
   guides(color = guide_legend(title = "Screening frequency"))

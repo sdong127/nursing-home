@@ -1,0 +1,6 @@
+Package: NursingHome
+Type: Package
+Title: Agent-based model for nursing home
+Version: 0.0.1.0
+Author: Shirley Dong, shirley_dong@alumni.brown.edu
+RoxygenNote: 7.2.3

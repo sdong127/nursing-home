@@ -6,6 +6,6 @@ To install the model as an R package locally, run the following code:
 
 ```
 library(devtools)
-install_github("sdong127/nursing-home/1 - R package/NursingHomes")
+install_github("sdong127/nursing-home/1 - R package/NursingHome")
 ```
   

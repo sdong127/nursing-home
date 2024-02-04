@@ -5,9 +5,11 @@
 #******************************************************************************************#
 
 #' @import tidyverse
+#' @import igraph
 #' @import tictoc
 #' @import data.table
 library(tidyverse)
+library(igraph)
 library(tictoc)
 library(data.table)
 
@@ -1239,15 +1241,15 @@ make_infected = function(df.u, days_inf = 3, days_isolate_res = 10, days_isolate
 #### NOTE: I found this to be slower when coded w/tidyverse.
 #### Therefore for the most part, this is coded in base.
 run_model = function(time = 30,
-                     test = F,
-                     test_days = "week",
-                     test_sens =  1,
-                     test_frac = 1,
+                     test = T,
+                     test_days = "2x_week",
+                     test_sens =  0.84,
+                     test_frac = 0.9,
                      test_start_day = 7,
                      visit_test = F,
-                     n_contact_common_res = 3,
-                     n_contact_common_staff = 3,
-                     n_contact_staff = 6,
+                     n_contact_common_res = 2,
+                     n_contact_common_staff = 2,
+                     n_contact_staff = 2,
                      n_start = 1,
                      days_inf = 5,
                      days_isolate_res = 10,

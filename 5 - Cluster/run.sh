@@ -8,8 +8,8 @@
 #SBATCH -t 0-12:00 # (D-HH:MM) 8 for model setting                  
                                                                                                 
 #SBATCH --mail-type=END                                                                                        
-#SBATCH --mail-user=shirley_dong@brown.edu                                                                   
+#SBATCH --mail-user=shirley_dong@alumni.brown.edu                                                                   
 
-module load gcc/10.2 pcre2/10.35 intel/2020.2 texlive/2022 R/4.2.2
+module load r/4.2.2
 
 R CMD BATCH --quiet --no-restore --no-save base_case.R test.out

@@ -16,13 +16,13 @@ set.seed(3232)
 start = make_NH(synthpop = synthpop, cohorting = T, visitors = T, temp_staff = F)
 nh = initialize_NH(p_asymp_nonres = .5, p_asymp_res = .5, p_subclin_nonres = 0, p_subclin_res = 0,
                    daily_attack = .18, staff_vax_req = F, 
-                   res_boost = .48, staff_boost = .22, visit_boost = .07,
-                   staff_trans_red = 0.7, visit_trans_red = 0.7, res_trans_red = 0.7, 
+                   res_boost = 1.00, staff_boost = 0.5, visit_boost = 0.25,
+                   staff_trans_red = 0, visit_trans_red = 0, res_trans_red = 0, 
                    staff_susp_red = 0, visit_susp_red = 0, res_susp_red = 0, 
                    isolate = T, 
                    prim_previnf_eff = 0.4, boost_eff = 0.7, days_inf = 5,
                    days_isolate_res = 10, days_isolate_staff = 7, days_isolate_visit = 5, start = start)
-sched = make_schedule(time=49, nh = nh)
+sched = make_schedule(time=45, nh = nh)
 cohorts = make_room(df = sched)
 
 

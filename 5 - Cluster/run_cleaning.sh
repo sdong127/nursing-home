@@ -6,10 +6,7 @@
 #SBATCH -p batch # Default                                                                          
 #SBATCH --mem-per-cpu=4G # Default is KB, not MB                                              
 #SBATCH -t 0-3:00 # (D-HH:MM) 8 for model setting                  
-                                                                                                
-#SBATCH --mail-type=END                                                                                        
-#SBATCH --mail-user=alyssa_bilinski@brown.edu                                                                   
-
-module load gcc/10.2 pcre2/10.35 intel/2020.2 texlive/2022 R/4.2.2
+                                                                  
+module load r/4.2.2
 
 R CMD BATCH --quiet --no-restore --no-save cleaning_script.R test.out

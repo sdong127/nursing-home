@@ -6,7 +6,6 @@
 # install packages
 library(tidyverse)
 library(tictoc)
-library(igraph)
 library(data.table)
 library(foreach) 
 library(doMC) 
@@ -41,8 +40,8 @@ options(warn = 1)
 #'
 "synthpop"
 
-# synthpop = read.csv("/gpfs/home/sdong12/nursing.home/nursing-home/0 - Synthetic Population/synthpop.csv")
-synthpop = read.csv("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/0 - Synthetic Population/synthpop.csv")
+synthpop = read.csv("/gpfs/home/sdong12/nursing.home/nursing-home/0 - Synthetic Population/synthpop.csv")
+# synthpop = read.csv("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/0 - Synthetic Population/synthpop.csv")
 
 
 #' Structure nursing home and staff/visitor-resident relationships
@@ -1270,8 +1269,8 @@ make_infected = function(df.u, days_inf = 3, days_isolate_res = 10, days_isolate
 #### NOTE: I found this to be slower when coded w/tidyverse.
 #### Therefore for the most part, this is coded in base.
 run_model = function(time = 30,
-                     test = T,
-                     test_days = "2x_week",
+                     test = F,
+                     test_days = "week",
                      test_sens =  1,
                      test_frac = 1,
                      test_start_day = 7,
@@ -1976,6 +1975,7 @@ run_model = function(time = 30,
 }
 
 
+
 #' Run model multiple times and summarize results
 #'
 #' @param N number of runs
@@ -2029,12 +2029,12 @@ run_model = function(time = 30,
 mult_runs = function(N, rel_trans_common = 1/4, rel_trans_staff = 1/4, 
                      p_asymp_nonres = 0.5, p_asymp_res = 0.5, 
                      p_subclin_nonres = 0, p_subclin_res = 0, daily_attack = 0.18, staff_vax_req = F, 
-                     res_boost = 0.48, staff_boost = 0.22, visit_boost = 0.07,
-                     staff_trans_red = 0.7, visit_trans_red = 0.7, res_trans_red = 0.7, 
+                     res_boost = 0, staff_boost = 0, visit_boost = 0,
+                     staff_trans_red = 0, visit_trans_red = 0, res_trans_red = 0, 
                      staff_susp_red = 0, visit_susp_red = 0, res_susp_red = 0, n_contact_common_res = 3, n_contact_common_staff = 3,
                      n_contact_staff = 6, n_start = 1, days_inf = 5, days_isolate_res = 10,
                      days_isolate_staff = 7, days_isolate_visit = 5, seed_asymp = F, 
-                     isolate = T, time = 30, test = T, test_sens = 0.84, test_frac = 0.9, test_days = '2x_week', 
+                     isolate = T, time = 30, test = F, test_sens = 0.84, test_frac = 0.9, test_days = 'week', 
                      test_type = 'all', test_start_day = 7, visit_test = F, start_mult = 1, staff_prob = 0.005, visit_prob = 0.005,
                      quarantine = F, quarantine.length = 7, prim_previnf_eff = 0.4, boost_eff = 0.7, test_recovered = T, sched, cohorts){
   
@@ -2418,16 +2418,16 @@ s.daily_attack = .18
 s.start_mult = 1
 s.n_start = 1
 # s.days_inf_mild = 5; s.days_inf_mod = 10; s.days_inf_severe = 20
-s.days_inf = 5; s.days_isolate_res = 10; s.days_isolate_staff = 7; s.days_isolate_visit = 5; s.time = 34
+s.days_inf = 5; s.days_isolate_res = 10; s.days_isolate_staff = 7; s.days_isolate_visit = 5; s.time = 30
 s.n_contact_common_res = 3; s.n_contact_common_staff = 3; s.n_contact_staff = 6
 s.p_asymp_nonres = .5; s.p_asymp_res = .5
 s.p_subclin_nonres = 0; s.p_subclin_res = 0
-s.test_sens = .84; s.test_frac = .9; s.test_days = "week"; s.test_type = "all"; s.test_start_day = 7
-s.test = F; s.visit_test = F
-s.staff_prob = 50/100000; s.visit_prob = s.staff_prob
+s.test_sens = .84; s.test_frac = .9; s.test_days = "2x_week"; s.test_type = "all"; s.test_start_day = 7
+s.test = T; s.visit_test = F
+s.staff_prob = 1000/100000; s.visit_prob = 1000/100000
 s.rel_trans_common = 1/4; s.rel_trans_staff = 1/4
-s.res_boost = 0; s.staff_vax_req = F; s.staff_boost = 0; s.visit_boost = 0
-s.staff_trans_red = 0.7; s.visit_trans_red = 0; s.res_trans_red = 0
+s.res_boost = 1.00; s.staff_vax_req = F; s.staff_boost = 0.5; s.visit_boost = 0.25
+s.staff_trans_red = 0; s.visit_trans_red = 0; s.res_trans_red = 0
 s.staff_susp_red = 0; s.visit_susp_red = 0; s.res_susp_red = 0
 s.prim_previnf_eff = .4; s.boost_eff = .7; s.isolate = T
 s.quarantine.length = 7; s.quarantine = F
@@ -2476,7 +2476,7 @@ make_df = function(disperse = T, # how to distribute runs
     
     # remove duplicated scenarios
     # don't vary testing params if you're not testing
-    filter((test_days=="week" & test_sens == .84 & test_frac == .9 & test_type == "all") | test)
+    filter((test_days=="2x_week" & test_sens == .84 & test_frac == .9 & test_type == "all") | test)
     # adjust incidence for vaccination
     # mutate(prob_orig = nonres_prob,
     #        nonres_prob=nonres_prob/(1-staff_vax*vax_eff))

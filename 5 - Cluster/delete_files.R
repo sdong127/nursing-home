@@ -14,7 +14,6 @@ delete_em = function(path){
 
   # bind files
   sapply(list.files(), function(a) {if(grepl("results", a)){unlink(a)}})
-  
 
 }
 
@@ -22,12 +21,12 @@ delete_em(wd)
 
 # set folders
 # folders = list.files()[grepl("1_Dec", list.files())]
-# #folders = c("ES_29_Sep_0", "ES_29_Sep_4", "ES_29_Sep_2", "ES_29_Sep_1", "ES_29_Sep_3")
+#folders = c("ES_29_Sep_0", "ES_29_Sep_4", "ES_29_Sep_2", "ES_29_Sep_1", "ES_29_Sep_3")
 # print(folders)
-# 
-# # set up parallelization
+
+# set up parallelization
 # doMC::registerDoMC(cores = 10)
 # foreach::getDoParWorkers()
-# 
-# # run parallelized loop
+
+# run parallelized loop
 # foreach(i=1:length(folders)) %dopar% delete_em(folders[i])

@@ -5,11 +5,9 @@
 #******************************************************************************************#
 
 #' @import tidyverse
-#' @import igraph
 #' @import tictoc
 #' @import data.table
 library(tidyverse)
-library(igraph)
 library(tictoc)
 library(data.table)
 
@@ -1247,9 +1245,9 @@ run_model = function(time = 30,
                      test_frac = 0.9,
                      test_start_day = 7,
                      visit_test = F,
-                     n_contact_common_res = 2,
-                     n_contact_common_staff = 2,
-                     n_contact_staff = 2,
+                     n_contact_common_res = 4,
+                     n_contact_common_staff = 4,
+                     n_contact_staff = 8,
                      n_start = 1,
                      days_inf = 5,
                      days_isolate_res = 10,
@@ -2014,13 +2012,13 @@ cohorts = make_room(df = sched)
 mult_runs = function(N, rel_trans_common = 1/4, rel_trans_staff = 1/4, 
                      p_asymp_nonres = 0.5, p_asymp_res = 0.5, 
                      p_subclin_nonres = 0, p_subclin_res = 0, daily_attack = 0.18, staff_vax_req = F, 
-                     res_boost = 0, staff_boost = 0, visit_boost = 0,
+                     res_boost = 1.00, staff_boost = 0.50, visit_boost = 0.25,
                      staff_trans_red = 0, visit_trans_red = 0, res_trans_red = 0, 
-                     staff_susp_red = 0, visit_susp_red = 0, res_susp_red = 0, n_contact_common_res = 3, n_contact_common_staff = 3,
-                     n_contact_staff = 6, n_start = 1, days_inf = 5, days_isolate_res = 10,
+                     staff_susp_red = 0, visit_susp_red = 0, res_susp_red = 0, n_contact_common_res = 4, n_contact_common_staff = 4,
+                     n_contact_staff = 8, n_start = 1, days_inf = 5, days_isolate_res = 10,
                      days_isolate_staff = 7, days_isolate_visit = 5, seed_asymp = F, 
-                     isolate = T, time = 30, test = F, test_sens = 0.84, test_frac = 0.9, test_days = 'week', 
-                     test_type = 'all', test_start_day = 7, visit_test = F, start_mult = 1, staff_prob = 0.005, visit_prob = 0.005,
+                     isolate = T, time = 30, test = T, test_sens = 0.84, test_frac = 0.9, test_days = '2x_week', 
+                     test_type = 'all', test_start_day = 7, visit_test = F, start_mult = 1, staff_prob = 0.01, visit_prob = 0.01,
                      quarantine = F, quarantine.length = 7, prim_previnf_eff = 0.4, boost_eff = 0.7, test_recovered = T, sched, cohorts){
   
   keep = data.frame(all = numeric(N), tot = numeric(N), R0 = numeric(N), Rt = numeric(N), start = numeric(N), start_staff = numeric(N),

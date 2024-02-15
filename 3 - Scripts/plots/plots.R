@@ -5,12 +5,12 @@ library(tidyverse)
 library(ggpubr)
 
 setwd("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/4 - Output")
-load("noscreen_5_lowvax_70s.RData")
+load("lts_noscreen_5_lowvax_70s.RData")
 
 
 ############################FUNCTIONS#############################
 
-calc_resinfs = function(data = out){
+calc_resinfs = function(data = comb){
   infs = mean(data$res_tot)
   return(infs)
 }
@@ -159,3 +159,71 @@ heat_map + facet_grid(vars(screen_vec), vars(pax_vec)) +
 ggsave("heatmap.pdf", width = 13, height = 7, units = 'in')
 dev.off()
 
+
+
+############################SENSITIVITY ANALYSIS INFECTIONS PLOT#####################################
+
+com_inc_vec = c("5","50","100")
+
+type_vec = c(rep(c("no screening", "weekly screening", "twice weekly screening"),times=3),
+             rep(c("no screening - decreased contact", "weekly screening - decreased contact", "twice weekly screening - decreased contact"),times=3),
+             rep(c("no screening - increased contact", "weekly screening - increased contact", "twice weekly screening - increased contact"),times=3))
+
+inf_vec = c(resinfs_low_noscreen,resinfs_low_screenweek,resinfs_low_screen2xweek,
+            resinfs_med_noscreen,resinfs_med_screenweek,resinfs_med_screen2xweek,
+            resinfs_high_noscreen,resinfs_high_screenweek,resinfs_high_screen2xweek,
+            dc_resinfs_low_noscreen,dc_resinfs_low_screenweek,dc_resinfs_low_screen2xweek,
+            dc_resinfs_med_noscreen,dc_resinfs_med_screenweek,dc_resinfs_med_screen2xweek,
+            dc_resinfs_high_noscreen,dc_resinfs_high_screenweek,dc_resinfs_high_screen2xweek,
+            ic_resinfs_low_noscreen,ic_resinfs_low_screenweek,ic_resinfs_low_screen2xweek,
+            ic_resinfs_med_noscreen,ic_resinfs_med_screenweek,ic_resinfs_med_screen2xweek,
+            ic_resinfs_high_noscreen,ic_resinfs_high_screenweek,ic_resinfs_high_screen2xweek)
+
+inf_vec = c(staffinfs_low_noscreen,staffinfs_low_screenweek,staffinfs_low_screen2xweek,
+            staffinfs_med_noscreen,staffinfs_med_screenweek,staffinfs_med_screen2xweek,
+            staffinfs_high_noscreen,staffinfs_high_screenweek,staffinfs_high_screen2xweek,
+            dc_staffinfs_low_noscreen,dc_staffinfs_low_screenweek,dc_staffinfs_low_screen2xweek,
+            dc_staffinfs_med_noscreen,dc_staffinfs_med_screenweek,dc_staffinfs_med_screen2xweek,
+            dc_staffinfs_high_noscreen,dc_staffinfs_high_screenweek,dc_staffinfs_high_screen2xweek,
+            ic_staffinfs_low_noscreen,ic_staffinfs_low_screenweek,ic_staffinfs_low_screen2xweek,
+            ic_staffinfs_med_noscreen,ic_staffinfs_med_screenweek,ic_staffinfs_med_screen2xweek,
+            ic_staffinfs_high_noscreen,ic_staffinfs_high_screenweek,ic_staffinfs_high_screen2xweek)
+
+df=create_infs_df()
+df$type = factor(df$type, levels=c("twice weekly screening", "weekly screening", "no screening",
+                                   "twice weekly screening - decreased contact", "weekly screening - decreased contact", "no screening - decreased contact",
+                                   "twice weekly screening - increased contact", "weekly screening - increased contact", "no screening - increased contact"))
+
+resinfs_low <- ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue","lightsalmon","palegreen","steelblue1","darkorange3","springgreen4","dodgerblue4")) +
+  ggtitle("Resident infections, low booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Number of nursing home-acquired infections \n in residents over 30 days") +
+  scale_x_discrete(limits=c("5","50","100")) + xlab("Community incidence") + 
+  scale_y_continuous(limits=c(0,20)) + guides(color = guide_legend(title = "Screening frequency"))
+
+resinfs_high <- ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("Resident infections, high booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Number of nursing home-acquired infections \n in residents over 30 days") +
+  scale_x_discrete(limits=c("5","50","100")) + xlab("Community incidence") + 
+  scale_y_continuous(limits=c(0,20)) + guides(color = guide_legend(title = "Screening frequency"))
+
+
+staffinfs_low <- ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("Staff infections, low booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Number of nursing home-acquired infections \n in staff over 30 days") +
+  scale_x_discrete(limits=c("5","50","100")) + xlab("Community incidence") + ylim(0,20) + 
+  guides(color = guide_legend(title = "Screening frequency"))
+
+staffinfs_high <- ggplot(df, aes(x=com_inc, y=infs, group=type)) + geom_line(aes(color=type)) + 
+  geom_point(aes(color=type)) + scale_color_manual(values=c("orange","springgreen2","royalblue")) +
+  ggtitle("Staff infections, high booster uptake") + theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Number of nursing home-acquired infections \n in staff over 30 days") +
+  scale_x_discrete(limits=c("5","50","100")) + xlab("Community incidence") + ylim(0,20) + 
+  guides(color = guide_legend(title = "Screening frequency"))
+
+
+ggarrange(resinfs_low, resinfs_high, staffinfs_low, staffinfs_high, ncol = 2, nrow = 2)
+ggsave("infs.pdf", width = 12, height = 10, units = 'in')
+dev.off()

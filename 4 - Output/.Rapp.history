@@ -1,1 +1,2 @@
 load("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/4 - Output/screen2xweek_10_lowvax.RData")
+load("/Users/sdong217/Desktop/COVID_NH/NursingHome/nursing-home/4 - Output/comb_lts_screenweek_5_highvax_70s.RData")

@@ -10,7 +10,7 @@ load("lts_noscreen_5_lowvax_70s.RData")
 
 ############################FUNCTIONS#############################
 
-calc_resinfs = function(data = comb){
+calc_resinfs = function(data = out){
   infs = mean(data$res_tot)
   return(infs)
 }
